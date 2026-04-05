@@ -1,0 +1,13 @@
+django
+djangorestframework
+django-environ
+gunicorn
+celery
+django-celery-beat
+psycopg2-binary
+redis
+ruff
+mypy
+pytest
+pytest-django
+
