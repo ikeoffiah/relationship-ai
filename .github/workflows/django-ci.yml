@@ -1,0 +1,39 @@
+name: Django CI
+
+on:
+  push:
+    branches: [ main, develop, prod ]
+  pull_request:
+    branches: [ main, develop, prod ]
+    paths:
+      - 'backend-django/**'
+      - 'shared/**'
+
+jobs:
+  django-ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env: {POSTGRES_PASSWORD: testpass, POSTGRES_DB: testdb}
+        options: --health-cmd pg_isready
+      redis:
+        image: redis:7-alpine
+        options: --health-cmd "redis-cli ping"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.14'}
+      - run: pip install -r requirements/dev.txt
+        working-directory: backend-django/
+      - run: python manage.py migrate --run-syncdb
+        working-directory: backend-django/
+        env: {DATABASE_URL: postgresql://postgres:testpass@localhost/testdb}
+      - run: ruff check .
+        working-directory: backend-django/
+      - run: pytest --cov=apps --cov-fail-under=80
+        working-directory: backend-django/
+        env:
+          DATABASE_URL: postgresql://postgres:testpass@localhost/testdb
+          REDIS_URL: redis://localhost:6379/0
+          ENCRYPTION_MASTER_SECRET: 0000000000000000000000000000000000000000000000000000000000000000

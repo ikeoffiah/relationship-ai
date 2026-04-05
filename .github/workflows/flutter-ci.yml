@@ -1,0 +1,27 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main, develop, prod ]
+  pull_request:
+    branches: [ main, develop, prod ]
+    paths:
+      - 'mobile/**'
+      - 'shared/**'
+
+jobs:
+  flutter-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+      - run: flutter pub get
+        working-directory: mobile/
+      - run: dart analyze --fatal-warnings
+        working-directory: mobile/
+      - run: flutter test --coverage
+        working-directory: mobile/
+      - run: flutter build apk --release
+        working-directory: mobile/

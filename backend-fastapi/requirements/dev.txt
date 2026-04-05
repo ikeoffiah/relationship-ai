@@ -1,2 +1,4 @@
-pytest
+-r base.txt
+pytest-mock
+pytest-cov
 httpx
