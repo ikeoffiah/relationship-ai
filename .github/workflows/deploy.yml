@@ -18,13 +18,13 @@ jobs:
         run: curl -fsSL https://railway.app/install.sh | sh
 
       - name: Deploy Django to Railway
-        run: railway up --service backend-django -v
+        run: railway up --service backend-django
         working-directory: backend-django/
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy FastAPI to Railway
-        run: railway up --service backend-fastapi -v
+        run: railway up --service backend-fastapi
         working-directory: backend-fastapi/
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
