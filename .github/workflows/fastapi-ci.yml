@@ -60,6 +60,7 @@ jobs:
         run: pytest --cov=app --cov-fail-under=80
         working-directory: backend-fastapi/
         env:
+          PYTHONPATH: .
           DATABASE_URL: postgresql://postgres:testpass@localhost/testdb
           REDIS_URL: redis://localhost:6379/0
           ANTHROPIC_API_KEY: sk-test-key

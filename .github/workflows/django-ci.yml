@@ -33,14 +33,26 @@ jobs:
 
       - run: pip install -r requirements/dev.txt
         working-directory: backend-django/
+      
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h 127.0.0.1 -p 5432 -U postgres; do
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+        env:
+          PGPASSWORD: testpass
+
       - run: python manage.py migrate --run-syncdb
         working-directory: backend-django/
-        env: {DATABASE_URL: postgresql://postgres:testpass@localhost/testdb}
+        env: {DATABASE_URL: postgresql://postgres:testpass@127.0.0.1/testdb}
+
       - run: ruff check .
         working-directory: backend-django/
       - run: pytest --cov=apps --cov-fail-under=80
         working-directory: backend-django/
         env:
-          DATABASE_URL: postgresql://postgres:testpass@localhost/testdb
+          DATABASE_URL: postgresql://postgres:testpass@127.0.0.1/testdb
           REDIS_URL: redis://localhost:6379/0
+
           ENCRYPTION_MASTER_SECRET: 0000000000000000000000000000000000000000000000000000000000000000
