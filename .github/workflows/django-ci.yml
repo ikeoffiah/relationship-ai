@@ -19,9 +19,13 @@ jobs:
       postgres:
         image: postgres:15
         env: {POSTGRES_PASSWORD: testpass, POSTGRES_DB: testdb}
+        ports:
+          - 5432:5432
         options: --health-cmd pg_isready
       redis:
         image: redis:7-alpine
+        ports:
+          - 6379:6379
         options: --health-cmd "redis-cli ping"
     steps:
       - uses: actions/checkout@v4
@@ -34,25 +38,22 @@ jobs:
       - run: pip install -r requirements/dev.txt
         working-directory: backend-django/
       
-      - name: Wait for Postgres
-        run: |
-          until pg_isready -h 127.0.0.1 -p 5432 -U postgres; do
-            echo "Waiting for postgres..."
-            sleep 2
-          done
-        env:
-          PGPASSWORD: testpass
+      - name: Sleep to allow Postgres initialization
+        run: sleep 5
+
 
       - run: python manage.py migrate --run-syncdb
         working-directory: backend-django/
-        env: {DATABASE_URL: postgresql://postgres:testpass@127.0.0.1/testdb}
+        env: {DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb}
+
 
       - run: ruff check .
         working-directory: backend-django/
       - run: pytest --cov=apps --cov-fail-under=80
         working-directory: backend-django/
         env:
-          DATABASE_URL: postgresql://postgres:testpass@127.0.0.1/testdb
+          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
           REDIS_URL: redis://localhost:6379/0
+
 
           ENCRYPTION_MASTER_SECRET: 0000000000000000000000000000000000000000000000000000000000000000
