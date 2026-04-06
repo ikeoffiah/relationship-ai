@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: supabase/postgres:14.1.0  # matches Supabase prod version
+    image: supabase/postgres:14.1.0 # matches Supabase prod version
     environment:
       POSTGRES_PASSWORD: localdevonly
     ports: ["5432:5432"]

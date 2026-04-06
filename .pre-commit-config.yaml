@@ -1,18 +1,18 @@
 repos:
   - repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.82.12
+    rev: v3.94.2
     hooks:
       - id: trufflehog
-
+        # Catch .env files anywhere in the tree
+        exclude: (^|/)\.env(\..*)?$
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.3
+    rev: v0.15.9
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
-        types_or: [dart]
+        types_or: [dart, markdown, yaml, json]

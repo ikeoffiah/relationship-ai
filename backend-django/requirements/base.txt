@@ -10,4 +10,5 @@ ruff
 mypy
 pytest
 pytest-django
-
+cryptography
+pgvector

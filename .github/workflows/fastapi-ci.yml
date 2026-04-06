@@ -2,12 +2,12 @@ name: FastAPI CI
 
 on:
   push:
-    branches: [ main, develop, prod ]
+    branches: [main, develop, prod]
   pull_request:
-    branches: [ main, develop, prod ]
+    branches: [main, develop, prod]
     paths:
-      - 'backend-fastapi/**'
-      - 'shared/**'
+      - "backend-fastapi/**"
+      - "shared/**"
 
 jobs:
   fastapi-ci:
@@ -15,7 +15,6 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-    
     services:
       postgres:
         image: postgres:15
@@ -41,10 +40,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
-          cache: 'pip'
+          python-version: "3.14"
+          cache: "pip"
           cache-dependency-path: backend-fastapi/requirements/base.txt
-
 
       - name: Install dependencies
         run: |

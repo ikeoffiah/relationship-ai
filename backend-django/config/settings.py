@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     # Local apps
     "apps.accounts",
+    "apps.audit",
     "apps.consent",
     "apps.relationships",
     "apps.memory",
@@ -135,3 +136,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "static/"
+
+# Auth
+AUTH_USER_MODEL = "accounts.User"
+
+# Encryption
+ENCRYPTION_MASTER_SECRET = env("ENCRYPTION_MASTER_SECRET", default=None)
