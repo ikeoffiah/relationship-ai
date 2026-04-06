@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             DO $$ BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'user_memories_isolation') THEN
                     CREATE POLICY user_memories_isolation ON user_memories
-                    USING (user_id = auth.uid());
+                    USING (user_id = current_setting('app.current_user_id', true)::UUID);
                 END IF;
             END $$;
             """,
