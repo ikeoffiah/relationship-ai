@@ -10,7 +10,7 @@ def decrypt_field_value(user, encrypted_value):
         actual_value = encrypted_value[4:]
         user_id = str(user.id)
         return decrypt(actual_value, user_id)
-    
+
     return encrypted_value
 
 
