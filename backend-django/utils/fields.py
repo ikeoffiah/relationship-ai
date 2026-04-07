@@ -6,8 +6,12 @@ def decrypt_field_value(user, encrypted_value):
     if not encrypted_value or not user:
         return encrypted_value
 
-    user_id = str(user.id)
-    return decrypt(encrypted_value, user_id)
+    if isinstance(encrypted_value, str) and encrypted_value.startswith("ENC:"):
+        actual_value = encrypted_value[4:]
+        user_id = str(user.id)
+        return decrypt(actual_value, user_id)
+    
+    return encrypted_value
 
 
 def encrypt_field_value(user, plaintext_value):
@@ -16,4 +20,4 @@ def encrypt_field_value(user, plaintext_value):
         return plaintext_value
 
     user_id = str(user.id)
-    return encrypt(str(plaintext_value), user_id)
+    return "ENC:" + encrypt(str(plaintext_value), user_id)

@@ -25,7 +25,7 @@ class Relationship(models.Model):
         return f"{self.name} ({self.user.id})"
 
     def save(self, *args, **kwargs):
-        if self.description and not self.description.startswith(("XQS", "EgU")):
+        if self.description and not self.description.startswith("ENC:"):
             self.description = encrypt_field_value(self.user, self.description)
         super().save(*args, **kwargs)
 
@@ -51,7 +51,7 @@ class RelationshipNote(models.Model):
         return f"Note on {self.relationship.id} at {self.created_at}"
 
     def save(self, *args, **kwargs):
-        if self.content and not self.content.startswith(("XQS", "EgU")):
+        if self.content and not self.content.startswith("ENC:"):
             self.content = encrypt_field_value(self.relationship.user, self.content)
         super().save(*args, **kwargs)
 
