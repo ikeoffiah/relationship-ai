@@ -93,12 +93,30 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
 
+# Redis / Caching / Sessions
+REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
 # Celery Configuration
-CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = REDIS_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_BACKEND = env("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_TIMEZONE = "UTC"
+CELERY_BROKER_USE_SSL = {} if REDIS_URL.startswith("rediss://") else False
+CELERY_REDIS_BACKEND_USE_SSL = CELERY_BROKER_USE_SSL
 
 
 # Password validation
