@@ -27,7 +27,7 @@ class Memory(models.Model):
 
     def save(self, *args, **kwargs):
         # Only encrypt if not already encrypted (basic check)
-        if self.content and not self.content.startswith(("XQS", "EgU")):
+        if self.content and not self.content.startswith("ENC:"):
             self.content = encrypt_field_value(self.user, self.content)
         super().save(*args, **kwargs)
 
