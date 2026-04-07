@@ -11,7 +11,7 @@ def get_master_key():
     master_key_hex = getattr(settings, "ENCRYPTION_MASTER_SECRET", None)
     if not master_key_hex:
         raise ValueError("ENCRYPTION_MASTER_SECRET not set in settings.")
-    return bytes.fromhex(master_key_hex)
+    return bytes.fromhex(master_key_hex.strip())
 
 
 def derive_user_key(user_id: str) -> bytes:
