@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.relationships",
     "apps.memory",
     "apps.therapist",
+    "apps.safety",
 ]
 
 
@@ -160,3 +161,7 @@ AUTH_USER_MODEL = "accounts.User"
 
 # Encryption
 ENCRYPTION_MASTER_SECRET = env("ENCRYPTION_MASTER_SECRET", default=None)
+
+# LLM / Embeddings
+OPENAI_API_KEY = env("OPENAI_API_KEY", default=None)
+EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")

@@ -1,0 +1,7 @@
+{"category": "harm", "phrase": "kill myself", "severity": 0.9, "source": "curated"}
+{"category": "harm", "phrase": "commit suicide", "severity": 0.95, "source": "curated"}
+{"category": "abuse", "phrase": "punching my partner", "severity": 0.85, "source": "curated"}
+{"category": "abuse", "phrase": "slapping", "severity": 0.8, "source": "curated"}
+{"category": "harassment", "phrase": "stalking", "severity": 0.7, "source": "curated"}
+{"category": "harassment", "phrase": "following them everywhere", "severity": 0.6, "source": "curated"}
+{"category": "boundary", "phrase": "checking their phone without permission", "severity": 0.5, "source": "curated"}

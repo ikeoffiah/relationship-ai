@@ -13,3 +13,4 @@ pytest-django
 cryptography
 pgvector
 django-redis>=5.4.4
+openai
