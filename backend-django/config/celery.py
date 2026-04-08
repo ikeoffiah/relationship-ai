@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from celery.schedules import crontab
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
@@ -14,6 +15,13 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
+
+app.conf.beat_schedule = {
+    "audit-chain-verification": {
+        "task": "audit.tasks.verify_audit_chain",
+        "schedule": crontab(day_of_month=1, hour=2),  # monthly at 2am
+    },
+}
 
 
 @app.task(bind=True, ignore_result=True)

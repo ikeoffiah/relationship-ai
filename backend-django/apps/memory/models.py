@@ -26,10 +26,35 @@ class Memory(models.Model):
         return f"Memory {self.id} for {self.user.id}"
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
         # Only encrypt if not already encrypted (basic check)
         if self.content and not self.content.startswith("ENC:"):
             self.content = encrypt_field_value(self.user, self.content)
         super().save(*args, **kwargs)
+
+        if is_new:
+            from apps.audit.logger import AuditLogger
+            from apps.audit.constants import AuditEventType
+
+            AuditLogger.get_instance().log(
+                AuditEventType.MEMORY_CREATED,
+                user_id=self.user.id,
+                metadata={"memory_id": str(self.id)},
+            )
+
+    def delete(self, *args, **kwargs):
+        user_id = self.user.id
+        memory_id = str(self.id)
+        super().delete(*args, **kwargs)
+
+        from apps.audit.logger import AuditLogger
+        from apps.audit.constants import AuditEventType
+
+        AuditLogger.get_instance().log(
+            AuditEventType.MEMORY_DELETED,
+            user_id=user_id,
+            metadata={"memory_id": memory_id},
+        )
 
     @property
     def decrypted_content(self):

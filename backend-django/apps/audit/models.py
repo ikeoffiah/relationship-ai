@@ -11,11 +11,13 @@ class AuditEvent(models.Model):
     session_id = models.UUIDField(null=True, blank=True)
 
     metadata = models.JSONField(default=dict, blank=True)
+    prev_hash = models.CharField(max_length=64, null=True, blank=True)
+    hash = models.CharField(max_length=64, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "audit_events"
-        ordering = ["-created_at"]
+        ordering = ["created_at"]
 
     def __str__(self):
         return f"{self.event_type} at {self.created_at}"
