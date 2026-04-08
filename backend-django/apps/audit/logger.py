@@ -45,7 +45,7 @@ class AuditLogger:
         Writing to DB happens in a background thread.
         """
         event_id = str(uuid.uuid4())
-        
+
         # Check if we should log synchronously (useful for tests)
         if getattr(settings, "AUDIT_LOG_SYNCHRONOUS", False):
             self._write_event(

@@ -9,6 +9,7 @@ import time
 import io
 import unittest.mock as mock
 
+
 @override_settings(AUDIT_LOG_SYNCHRONOUS=True)
 class AuditLoggerTest(TestCase):
     def setUp(self):
@@ -119,26 +120,28 @@ class AuditLoggerTest(TestCase):
             mock_cursor.side_effect = Exception("DB Connection Refused")
             # This should not raise but trigger fallback logging
             logger.log(AuditEventType.LOGIN, user_id=uuid.uuid4())
-        
+
         # Test _get_last_hash failure
         hash_val = logger._get_last_hash("nonexistent")
         self.assertEqual(hash_val, "genesis")
 
     def test_chain_sequence_mismatch(self):
         # Create events manually with broken chain
-        e1 = AuditEvent.objects.create(
+        AuditEvent.objects.create(
             event_type=AuditEventType.SESSION_START,
             prev_hash="genesis",
             hash="hash1",
-            created_at=time.struct_time((2026, 4, 8, 1, 0, 0, 0, 0, 0)) # Mismatching timestamps
+            created_at=time.struct_time(
+                (2026, 4, 8, 1, 0, 0, 0, 0, 0)
+            ),  # Mismatching timestamps
         )
         # Manually create another event that doesn't point correctly
-        e2 = AuditEvent.objects.create(
+        AuditEvent.objects.create(
             event_type=AuditEventType.SESSION_START,
             prev_hash="wrong_prev",
-            hash="hash2"
+            hash="hash2",
         )
-        
+
         out = io.StringIO()
         err = io.StringIO()
         with self.assertRaises(SystemExit):
