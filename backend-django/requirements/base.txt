@@ -14,3 +14,6 @@ cryptography
 pgvector
 django-redis>=5.4.4
 openai
+sentry-sdk[django]
+django-prometheus
+structlog

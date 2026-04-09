@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 import environ
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
+import structlog
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,6 +33,16 @@ SECRET_KEY = env(
     "SECRET_KEY",
     default="django-insecure-d3140*5i&*(6@@msu4m0bwmhhkq5%#e7oth&3x2iuu2v36@z#%",
 )
+
+# Sentry Configuration
+SENTRY_DSN = env("SENTRY_DSN", default=None)
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration(), CeleryIntegration()],
+        traces_sample_rate=1.0,
+        send_default_pii=True,
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env("DEBUG", default=True)
@@ -56,10 +70,12 @@ INSTALLED_APPS = [
     "apps.memory",
     "apps.therapist",
     "apps.safety",
+    "django_prometheus",
 ]
 
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -67,6 +83,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -165,3 +182,48 @@ ENCRYPTION_MASTER_SECRET = env("ENCRYPTION_MASTER_SECRET", default=None)
 # LLM / Embeddings
 OPENAI_API_KEY = env("OPENAI_API_KEY", default=None)
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
+
+# Structured Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json_formatter": {
+            "()": structlog.stdlib.ProcessorFormatter,
+            "processor": structlog.processors.JSONRenderer(),
+        },
+        "plain_console": {
+            "()": structlog.stdlib.ProcessorFormatter,
+            "processor": structlog.dev.ConsoleRenderer(),
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "plain_console" if DEBUG else "json_formatter",
+        },
+    },
+    "loggers": {
+        "django_prometheus": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+    },
+}
+
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)

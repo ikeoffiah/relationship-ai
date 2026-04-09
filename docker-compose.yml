@@ -45,3 +45,22 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - django
+      - fastapi
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus

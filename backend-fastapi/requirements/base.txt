@@ -11,3 +11,6 @@ numpy
 ruff
 mypy
 pytest
+sentry-sdk[fastapi]
+prometheus-fastapi-instrumentator
+structlog
