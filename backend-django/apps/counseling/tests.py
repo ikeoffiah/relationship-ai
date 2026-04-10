@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -150,7 +149,11 @@ class CounselingTaskTests(TestCase):
         mock_chat_response = MagicMock()
         mock_chat_response.choices = [MagicMock()]
         mock_chat_response.choices[0].message.content = json.dumps(
-            {"insights": [{"content": "New insight", "category": "theme", "confidence": 0.9}]}
+            {
+                "insights": [
+                    {"content": "New insight", "category": "theme", "confidence": 0.9}
+                ]
+            }
         )
         mock_client.chat.completions.create.return_value = mock_chat_response
 
@@ -223,7 +226,13 @@ class CounselingTaskTests(TestCase):
         mock_chat_response = MagicMock()
         mock_chat_response.choices = [MagicMock()]
         mock_chat_response.choices[0].message.content = json.dumps(
-            [{"content": "Somewhat similar fact", "category": "theme", "confidence": 0.9}]
+            [
+                {
+                    "content": "Somewhat similar fact",
+                    "category": "theme",
+                    "confidence": 0.9,
+                }
+            ]
         )
         mock_client.chat.completions.create.return_value = mock_chat_response
 
@@ -231,9 +240,9 @@ class CounselingTaskTests(TestCase):
         # Threshold for REVIEW is 0.75, reinforcement is 0.92
         mock_emb_response = MagicMock()
         mock_emb_response.data = [MagicMock()]
-        mock_emb_response.data[0].embedding = [0.11] * 1536 # Slightly different
+        mock_emb_response.data[0].embedding = [0.11] * 1536  # Slightly different
         mock_client.embeddings.create.return_value = mock_emb_response
-        
+
         # We need to ensure the query returns a distance in the 0.75-0.92 range
         # CosineDistance is 1 - CosineSimilarity. Similarity 0.8 -> Distance 0.2
         with patch("apps.counseling.tasks.MemoryVector.objects.filter") as mock_filter:
@@ -243,12 +252,12 @@ class CounselingTaskTests(TestCase):
             mock_vector = MagicMock()
             mock_vector.distance = 0.2
             mock_vector.memory = existing_memory
-            
+
             mock_filter.return_value = mock_queryset
             mock_queryset.annotate.return_value = mock_ann
             mock_ann.order_by.return_value = mock_order
             mock_order.first.return_value = mock_vector
-            
+
             extract_memories_task(self.session.id)
 
         new_memory = Memory.objects.exclude(id=existing_memory.id).first()
@@ -284,9 +293,9 @@ class CounselingTaskTests(TestCase):
     @patch("apps.counseling.tasks.logger")
     def test_tasks_error_handling(self, mock_logger):
         # Test generate_session_summary_task error
-        generate_session_summary_task(uuid.uuid4()) # Non-existent ID
+        generate_session_summary_task(uuid.uuid4())  # Non-existent ID
         self.assertTrue(mock_logger.exception.called)
-        
+
         # Test extract_memories_task error
-        extract_memories_task(uuid.uuid4()) # Non-existent ID
+        extract_memories_task(uuid.uuid4())  # Non-existent ID
         self.assertTrue(mock_logger.exception.called)
