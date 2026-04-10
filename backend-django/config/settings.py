@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "apps.memory",
     "apps.therapist",
     "apps.safety",
+    "apps.counseling",
     "django_prometheus",
 ]
 

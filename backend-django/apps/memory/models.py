@@ -15,6 +15,9 @@ class Memory(models.Model):
     content = models.TextField(help_text="Encrypted memory content")
     metadata = models.JSONField(default=dict, blank=True)
 
+    reinforcement_count = models.PositiveIntegerField(
+        default=1, help_text="Number of times this semantic memory has been reinforced"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
