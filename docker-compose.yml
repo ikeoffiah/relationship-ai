@@ -38,7 +38,17 @@ services:
 
   celery:
     build: ./backend-django
-    command: celery -A config worker -l info
+    command: celery -A config worker -l info -Q celery,memory_updates,insight_synthesis,notifications,exports
+    env_file: ./backend-django/.env.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  celery-beat:
+    build: ./backend-django
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file: ./backend-django/.env.local
     depends_on:
       postgres:

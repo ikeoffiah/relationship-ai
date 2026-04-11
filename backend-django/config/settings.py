@@ -137,6 +137,12 @@ CELERY_TIMEZONE = "UTC"
 CELERY_BROKER_USE_SSL = {} if REDIS_URL.startswith("rediss://") else False
 CELERY_REDIS_BACKEND_USE_SSL = CELERY_BROKER_USE_SSL
 
+CELERY_TASK_ROUTES = {
+    "counseling.tasks.generate_session_summary_task": {"queue": "insight_synthesis"},
+    "counseling.tasks.process_post_session_async": {"queue": "insight_synthesis"},
+    "counseling.tasks.extract_memories_task": {"queue": "memory_updates"},
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
