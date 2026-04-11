@@ -32,12 +32,14 @@ structlog.configure(
     cache_logger_on_first_use=True,
 )
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     app.state.broker = JointSessionBroker(redis_url=redis_url)
     yield
     # Cleanup tasks could be added here if necessary
+
 
 app = FastAPI(title="RelationshipAI - FastAPI Service", lifespan=lifespan)
 app.include_router(websockets_router)

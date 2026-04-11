@@ -6,11 +6,13 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+
 class JointSessionBroker:
     """
     Manages WebSocket connections for joint counseling sessions and uses
     Redis Pub/Sub to synchronize messages across multiple backend instances.
     """
+
     def __init__(self, redis_url: str):
         self.redis = redis.from_url(redis_url, decode_responses=True)
         # Mapping from session_id to a list of connected local WebSockets
@@ -20,25 +22,33 @@ class JointSessionBroker:
 
     async def connect(self, session_id: str, websocket: WebSocket):
         await websocket.accept()
-        
+
         if session_id not in self.active_sessions:
             self.active_sessions[session_id] = []
-            
+
             # Start pub/sub listener for the new session on this instance
             pubsub = self.redis.pubsub()
             await pubsub.subscribe(f"session:{session_id}")
             task = asyncio.create_task(self._listen_to_redis(session_id, pubsub))
             self.pubsub_tasks[session_id] = task
             logger.info("subscribed_to_session_channel", session_id=session_id)
-            
+
         self.active_sessions[session_id].append(websocket)
-        logger.info("websocket_connected", session_id=session_id, active_connections=len(self.active_sessions[session_id]))
+        logger.info(
+            "websocket_connected",
+            session_id=session_id,
+            active_connections=len(self.active_sessions[session_id]),
+        )
 
     async def disconnect(self, session_id: str, websocket: WebSocket):
         if session_id in self.active_sessions:
             if websocket in self.active_sessions[session_id]:
                 self.active_sessions[session_id].remove(websocket)
-                logger.info("websocket_disconnected", session_id=session_id, remaining_connections=len(self.active_sessions[session_id]))
+                logger.info(
+                    "websocket_disconnected",
+                    session_id=session_id,
+                    remaining_connections=len(self.active_sessions[session_id]),
+                )
 
             if not self.active_sessions[session_id]:
                 del self.active_sessions[session_id]
@@ -72,4 +82,6 @@ class JointSessionBroker:
             await pubsub.unsubscribe(f"session:{session_id}")
             await pubsub.close()
         except Exception as e:
-            logger.error("redis_pubsub_listener_error", session_id=session_id, error=str(e))
+            logger.error(
+                "redis_pubsub_listener_error", session_id=session_id, error=str(e)
+            )
