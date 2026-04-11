@@ -1,5 +1,9 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from app.counseling.broker import JointSessionBroker
+from app.api.websockets import router as websockets_router
+
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -28,7 +32,15 @@ structlog.configure(
     cache_logger_on_first_use=True,
 )
 
-app = FastAPI(title="RelationshipAI - FastAPI Service")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    app.state.broker = JointSessionBroker(redis_url=redis_url)
+    yield
+    # Cleanup tasks could be added here if necessary
+
+app = FastAPI(title="RelationshipAI - FastAPI Service", lifespan=lifespan)
+app.include_router(websockets_router)
 
 # Instrument Prometheus
 Instrumentator().instrument(app).expose(app)
