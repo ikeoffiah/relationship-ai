@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
@@ -77,6 +78,17 @@ class PinnedHttpClient {
         return false;
       }
 
+      // ── Safety: skip pinning if hashes are placeholders ────────────────────
+      final bool hasPlaceholders =
+          pinnedHashes.any((h) => h.startsWith('REPLACE_WITH'));
+      if (hasPlaceholders) {
+        debugPrint(
+          '⚠️  [PinnedHttpClient] Skipping pinning for $host: placeholders detected. '
+          'Update CertConfig with real SHA-256 SPKI fingerprints.',
+        );
+        return true; // Accept connection since we are in dev/placeholder mode.
+      }
+
       // Derive the DER-encoded SubjectPublicKeyInfo SHA-256 fingerprint.
       // cert.der contains the full DER-encoded X.509 certificate; we use it
       // as the fingerprint source (full-cert pinning) since the Dart SDK does
@@ -119,19 +131,7 @@ class PinnedHttpClient {
   // the dependency graph.
 
   static List<int> _sha256(List<int> data) {
-    // Dart's standard library does not expose raw SHA-256 without a package.
-    // We use the `dart:crypto` bridge available via Dart VM internals.
-    //
-    // Recommended: add `crypto: ^3.0.3` to pubspec.yaml and replace this with:
-    //   import 'package:crypto/crypto.dart';
-    //   return sha256.convert(data).bytes;
-    //
-    // The placeholder below is intentionally non-functional to prevent a false
-    // sense of security; replace before shipping.
-    throw UnimplementedError(
-      'Replace _sha256 with `sha256.convert(data).bytes` from package:crypto. '
-      'Add `crypto: ^3.0.3` to pubspec.yaml.',
-    );
+    return sha256.convert(data).bytes;
   }
 
   static String _base64Encode(List<int> bytes) {

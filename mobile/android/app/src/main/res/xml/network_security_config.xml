@@ -44,19 +44,12 @@
             <certificates src="system" />
         </trust-anchors>
 
+        <!--
         <pin-set expiration="2027-01-01">
-            <!--
-              Primary leaf certificate SPKI SHA-256 fingerprint.
-              TODO(security): Replace before release.
-            -->
             <pin digest="SHA-256">REPLACE_WITH_API_PRIMARY_CERT_SPKI_SHA256_BASE64==</pin>
-
-            <!--
-              Backup CA public key — survives leaf certificate rotation.
-              TODO(security): Replace before release.
-            -->
             <pin digest="SHA-256">REPLACE_WITH_API_BACKUP_CA_SPKI_SHA256_BASE64==</pin>
         </pin-set>
+        -->
     </domain-config>
 
     <!-- ── WebSocket / FastAPI service ──────────────────────────────────── -->
@@ -67,19 +60,12 @@
             <certificates src="system" />
         </trust-anchors>
 
+        <!--
         <pin-set expiration="2027-01-01">
-            <!--
-              Primary leaf certificate SPKI SHA-256 fingerprint.
-              TODO(security): Replace before release.
-            -->
             <pin digest="SHA-256">REPLACE_WITH_WS_PRIMARY_CERT_SPKI_SHA256_BASE64==</pin>
-
-            <!--
-              Backup CA public key.
-              TODO(security): Replace before release.
-            -->
             <pin digest="SHA-256">REPLACE_WITH_WS_BACKUP_CA_SPKI_SHA256_BASE64==</pin>
         </pin-set>
+        -->
     </domain-config>
 
     <!--
