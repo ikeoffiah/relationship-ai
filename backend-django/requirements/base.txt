@@ -20,3 +20,4 @@ structlog
 pyjwt
 argon2-cffi
 google-auth
+requests
