@@ -42,7 +42,9 @@ void main() {
       
       await tester.pumpWidget(createWidgetUnderTest());
       
-      await tester.tap(find.text('Send Code'));
+      final sendCodeFinder = find.text('Send Code');
+      await tester.ensureVisible(sendCodeFinder);
+      await tester.tap(sendCodeFinder);
       await tester.pump();
       
       verify(() => mockAuthViewModel.sendPasswordResetEmail()).called(1);
@@ -53,7 +55,9 @@ void main() {
       
       await tester.pumpWidget(createWidgetUnderTest());
       
-      await tester.tap(find.text('Send Code'));
+      final sendCodeFinder = find.text('Send Code');
+      await tester.ensureVisible(sendCodeFinder);
+      await tester.tap(sendCodeFinder);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       

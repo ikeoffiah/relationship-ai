@@ -42,7 +42,9 @@ void main() {
       
       await tester.pumpWidget(createWidgetUnderTest());
       
-      await tester.tap(find.text('Reset Password').last);
+      final resetFinder = find.text('Reset Password');
+      await tester.ensureVisible(resetFinder.last);
+      await tester.tap(resetFinder.last);
       await tester.pump();
       
       verify(() => mockAuthViewModel.resetPassword()).called(1);
@@ -53,7 +55,9 @@ void main() {
       
       await tester.pumpWidget(createWidgetUnderTest());
       
-      await tester.tap(find.text('Reset Password').last);
+      final resetFinder = find.text('Reset Password');
+      await tester.ensureVisible(resetFinder.last);
+      await tester.tap(resetFinder.last);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       

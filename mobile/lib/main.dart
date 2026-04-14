@@ -6,7 +6,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/splash_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/welcome_viewmodel.dart';
-import 'features/auth/views/splash_screen.dart';
+import 'package:mobile/features/auth/views/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

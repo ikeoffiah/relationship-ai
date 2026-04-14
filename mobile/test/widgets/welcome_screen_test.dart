@@ -33,12 +33,14 @@ void main() {
   });
 
   testWidgets('WelcomeScreen renders UI elements', (WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: ChangeNotifierProvider<WelcomeViewModel>.value(
+    await tester.pumpWidget(
+      ChangeNotifierProvider<WelcomeViewModel>.value(
         value: mockViewModel,
-        child: const WelcomeScreen(),
+        child: const MaterialApp(
+          home: WelcomeScreen(),
+        ),
       ),
-    ));
+    );
 
     await tester.pump();
     

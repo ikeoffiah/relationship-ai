@@ -20,10 +20,10 @@ void main() {
   });
 
   Widget createWidgetUnderTest() {
-    return MaterialApp(
-      home: ChangeNotifierProvider<AuthViewModel>.value(
-        value: mockAuthViewModel,
-        child: const LoginScreen(),
+    return ChangeNotifierProvider<AuthViewModel>.value(
+      value: mockAuthViewModel,
+      child: const MaterialApp(
+        home: LoginScreen(),
       ),
     );
   }

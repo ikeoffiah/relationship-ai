@@ -33,7 +33,9 @@ void main() {
     expect(find.textContaining('test@example.com'), findsOneWidget);
     
     // Tap Return to Login button
-    await tester.tap(find.text('Back to Login'));
+    final backToLoginFinder = find.text('Back to Login');
+    await tester.ensureVisible(backToLoginFinder);
+    await tester.tap(backToLoginFinder);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     
