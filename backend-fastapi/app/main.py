@@ -1,8 +1,10 @@
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.counseling.broker import JointSessionBroker
 from app.api.websockets import router as websockets_router
+from app.middleware.security_headers import SecurityHeadersMiddleware
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -42,6 +44,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="RelationshipAI - FastAPI Service", lifespan=lifespan)
+
+# ── Middleware (REL-14) ────────────────────────────────────────────────────────
+# SecurityHeadersMiddleware: injects HSTS, CSP, X-Frame-Options, etc. on every
+# response.  Must be registered BEFORE TrustedHostMiddleware so it wraps all
+# responses, including 400 Bad Request from the host check.
+app.add_middleware(SecurityHeadersMiddleware)
+
+# TrustedHostMiddleware: rejects requests with a Host header that is not in the
+# allowed list.  Prevents HTTP Host-header injection attacks.
+# Expand the list to include your production domain(s).
+_ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS", "localhost,testserver,ws.relationshipai.com"
+).split(",")
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_ALLOWED_HOSTS)
+# ──────────────────────────────────────────────────────────────────────────────
+
 app.include_router(websockets_router)
 
 # Instrument Prometheus

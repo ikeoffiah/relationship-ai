@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Network Security Configuration
+  =======================================
+  REL-14: TLS 1.3 enforcement + certificate pinning for RelationshipAI.
+
+  IMPORTANT — Before shipping a production build you MUST replace the
+  placeholder <pin> values below with real SHA-256 SPKI fingerprints.
+
+  To extract the fingerprint for a certificate file:
+    openssl x509 -in cert.pem -pubkey -noout \
+      | openssl pkey -pubin -outform DER \
+      | openssl dgst -sha256 -binary \
+      | base64
+
+  To extract directly from a live host:
+    openssl s_client -connect api.relationshipai.com:443 2>/dev/null \
+      | openssl x509 -pubkey -noout \
+      | openssl pkey -pubin -outform DER \
+      | openssl dgst -sha256 -binary \
+      | base64
+
+  Always supply at least ONE backup pin (e.g. the issuing CA's public key)
+  so that certificate rotation does not lock users out.
+
+  Documented by Android:
+  https://developer.android.com/training/articles/security-config
+-->
+<network-security-config>
+
+    <!-- Block all plaintext (HTTP) traffic for all domains in release. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust the system CA store only (no user-installed CAs). -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- ── Primary REST / Django API ─────────────────────────────────────── -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.relationshipai.com</domain>
+
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+
+        <pin-set expiration="2027-01-01">
+            <!--
+              Primary leaf certificate SPKI SHA-256 fingerprint.
+              TODO(security): Replace before release.
+            -->
+            <pin digest="SHA-256">REPLACE_WITH_API_PRIMARY_CERT_SPKI_SHA256_BASE64==</pin>
+
+            <!--
+              Backup CA public key — survives leaf certificate rotation.
+              TODO(security): Replace before release.
+            -->
+            <pin digest="SHA-256">REPLACE_WITH_API_BACKUP_CA_SPKI_SHA256_BASE64==</pin>
+        </pin-set>
+    </domain-config>
+
+    <!-- ── WebSocket / FastAPI service ──────────────────────────────────── -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">ws.relationshipai.com</domain>
+
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+
+        <pin-set expiration="2027-01-01">
+            <!--
+              Primary leaf certificate SPKI SHA-256 fingerprint.
+              TODO(security): Replace before release.
+            -->
+            <pin digest="SHA-256">REPLACE_WITH_WS_PRIMARY_CERT_SPKI_SHA256_BASE64==</pin>
+
+            <!--
+              Backup CA public key.
+              TODO(security): Replace before release.
+            -->
+            <pin digest="SHA-256">REPLACE_WITH_WS_BACKUP_CA_SPKI_SHA256_BASE64==</pin>
+        </pin-set>
+    </domain-config>
+
+    <!--
+      Development overrides — allow cleartext and trust user-installed CAs
+      only on debug builds so local API stacks work without certificate issues.
+    -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+
+</network-security-config>

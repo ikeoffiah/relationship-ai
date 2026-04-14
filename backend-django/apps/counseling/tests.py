@@ -22,7 +22,7 @@ User = get_user_model()
 class CounselingModelTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="modeluser", email="model@example.com", password="password"
+            email="model@example.com", password="password"
         )
         self.relationship = Relationship.objects.create(
             user=self.user, name="Model Relationship"
@@ -55,7 +55,7 @@ class CounselingModelTests(TestCase):
 class EndSessionViewTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="viewuser", email="view@example.com", password="password"
+            email="view@example.com", password="password"
         )
         self.client.force_authenticate(user=self.user)
         self.relationship = Relationship.objects.create(
@@ -102,7 +102,7 @@ class EndSessionViewTests(APITestCase):
 class CounselingTaskTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="taskuser", email="task@example.com", password="password"
+            email="task@example.com", password="password"
         )
         self.relationship = Relationship.objects.create(
             user=self.user, name="Task Relationship"

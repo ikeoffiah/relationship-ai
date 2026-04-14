@@ -17,3 +17,6 @@ openai
 sentry-sdk[django]
 django-prometheus
 structlog
+pyjwt
+argon2-cffi
+google-auth

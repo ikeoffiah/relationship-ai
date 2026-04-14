@@ -49,6 +49,42 @@ DEBUG = env("DEBUG", default=True)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
 
+# ── Transport Security (REL-14) ────────────────────────────────────────────────
+#
+# FORCE_HTTPS defaults to True in production (DEBUG=False) and False locally.
+# Set FORCE_HTTPS=false in .env.local to keep plain HTTP for dev/test stacks.
+#
+# HSTS notes:
+#   • SECURE_HSTS_SECONDS=31536000 (1 year) tells browsers to pin HTTPS for
+#     all future requests.  You cannot easily undo this, so only enable
+#     SECURE_HSTS_PRELOAD once the production domain is fully TLS-ready.
+#   • SECURE_PROXY_SSL_HEADER trusts the X-Forwarded-Proto header set by Nginx
+#     or any TLS-terminating proxy in front of this service.
+#
+FORCE_HTTPS = env.bool("FORCE_HTTPS", default=not DEBUG)
+
+SECURE_SSL_REDIRECT = FORCE_HTTPS
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SECURE_HSTS_SECONDS = env.int("HSTS_SECONDS", default=31536000)  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Cookie security — only sent over HTTPS in production builds.
+SESSION_COOKIE_SECURE = FORCE_HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Strict"
+
+CSRF_COOKIE_SECURE = FORCE_HTTPS
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Strict"
+
+# Additional hardening headers set by Django's SecurityMiddleware.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+X_FRAME_OPTIONS = "DENY"
+
+# ──────────────────────────────────────────────────────────────────────────────
 
 # Application definition
 
@@ -82,6 +118,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.accounts.middleware.JWTAuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -234,3 +271,34 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
     cache_logger_on_first_use=True,
 )
+
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/day",
+        "user": "1000/day",
+        "auth_attempt": "20/hour",
+    },
+}
+
+# Email Configuration (REL-18)
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.resend.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="resend")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="onboarding@resend.dev")
+
+# Social Auth Configuration
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")

@@ -8,7 +8,7 @@ User = get_user_model()
 class RelationshipModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="password123"
+            email="test@example.com", password="password123"
         )
 
     def test_relationship_creation_and_encryption(self):
@@ -30,7 +30,7 @@ class RelationshipModelTest(TestCase):
 class RelationshipNoteModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="password123"
+            email="test@example.com", password="password123"
         )
         self.rel = Relationship.objects.create(
             user=self.user, name="Wife", description="My loving wife"

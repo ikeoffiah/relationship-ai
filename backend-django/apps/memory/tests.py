@@ -11,7 +11,7 @@ User = get_user_model()
 class MemoryModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="password123"
+            email="test@example.com", password="password123"
         )
         AuditEvent.objects.all().delete()
 
@@ -59,7 +59,7 @@ class MemoryModelTest(TestCase):
 class MemoryVectorModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="password123"
+            email="test@example.com", password="password123"
         )
         self.mem = Memory.objects.create(user=self.user, content="Source memory")
 
