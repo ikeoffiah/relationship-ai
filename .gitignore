@@ -14,8 +14,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
+# Exclude mobile/lib from the above rules - Flutter source lives there
+!mobile/lib/
+!mobile/lib/**
 parts/
 sdist/
 var/
