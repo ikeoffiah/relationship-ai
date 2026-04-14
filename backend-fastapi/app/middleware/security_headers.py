@@ -41,9 +41,7 @@ _CONTENT_TYPE_OPTIONS = "nosniff"
 _FRAME_OPTIONS = "DENY"
 _REFERRER_POLICY = "strict-origin-when-cross-origin"
 _CSP = "default-src 'none'; frame-ancestors 'none'"
-_PERMISSIONS_POLICY = (
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-)
+_PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

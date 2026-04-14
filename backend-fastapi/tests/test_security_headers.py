@@ -101,9 +101,9 @@ async def test_x_frame_options(client):
 @pytest.mark.anyio
 async def test_referrer_policy(client):
     response = await client.get("/health")
-    assert response.headers.get("referrer-policy") == "strict-origin-when-cross-origin", (
-        "Referrer-Policy header has unexpected value"
-    )
+    assert (
+        response.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+    ), "Referrer-Policy header has unexpected value"
 
 
 # ---------------------------------------------------------------------------
