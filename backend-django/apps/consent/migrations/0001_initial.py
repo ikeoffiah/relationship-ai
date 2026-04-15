@@ -5,48 +5,145 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='ConsentAuditEntry',
+            name="ConsentAuditEntry",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ('user_id', models.UUIDField(db_index=True)),
-                ('relationship_id', models.UUIDField(null=True)),
-                ('changed_field', models.CharField(max_length=60)),
-                ('old_value', models.CharField(max_length=50)),
-                ('new_value', models.CharField(max_length=50)),
-                ('changed_at', models.DateTimeField(auto_now_add=True)),
-                ('session_context', models.UUIDField(null=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, primary_key=True, serialize=False
+                    ),
+                ),
+                ("user_id", models.UUIDField(db_index=True)),
+                ("relationship_id", models.UUIDField(null=True)),
+                ("changed_field", models.CharField(max_length=60)),
+                ("old_value", models.CharField(max_length=50)),
+                ("new_value", models.CharField(max_length=50)),
+                ("changed_at", models.DateTimeField(auto_now_add=True)),
+                ("session_context", models.UUIDField(null=True)),
             ],
             options={
-                'db_table': 'consent_audit_log',
+                "db_table": "consent_audit_log",
             },
         ),
         migrations.CreateModel(
-            name='UserConsent',
+            name="UserConsent",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ('user_id', models.UUIDField(db_index=True)),
-                ('relationship_id', models.UUIDField(blank=True, db_index=True, null=True)),
-                ('session_transcript_retention', models.CharField(choices=[('per_session', 'Per Session'), ('30_days', '30 Days'), ('1_year', '1 Year'), ('indefinite', 'Indefinite')], default='per_session', max_length=20)),
-                ('cross_partner_insight_sharing', models.CharField(choices=[('never', 'Never'), ('anonymized', 'Anonymized'), ('named', 'Named')], default='never', max_length=20)),
-                ('joint_session_participation', models.CharField(choices=[('not_enrolled', 'Not Enrolled'), ('enrolled', 'Enrolled')], default='not_enrolled', max_length=20)),
-                ('shared_relationship_context', models.CharField(choices=[('not_participating', 'Not Participating'), ('read_only', 'Read Only'), ('read_write', 'Read/Write')], default='not_participating', max_length=20)),
-                ('therapist_summary_access', models.BooleanField(default=False)),
-                ('model_improvement_data', models.BooleanField(default=False)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('updated_by', models.UUIDField()),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4, primary_key=True, serialize=False
+                    ),
+                ),
+                ("user_id", models.UUIDField(db_index=True)),
+                (
+                    "relationship_id",
+                    models.UUIDField(blank=True, db_index=True, null=True),
+                ),
+                (
+                    "session_transcript_retention",
+                    models.CharField(
+                        choices=[
+                            ("per_session", "Per Session"),
+                            ("30_days", "30 Days"),
+                            ("1_year", "1 Year"),
+                            ("indefinite", "Indefinite"),
+                        ],
+                        default="per_session",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "cross_partner_insight_sharing",
+                    models.CharField(
+                        choices=[
+                            ("never", "Never"),
+                            ("anonymized", "Anonymized"),
+                            ("named", "Named"),
+                        ],
+                        default="never",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "joint_session_participation",
+                    models.CharField(
+                        choices=[
+                            ("not_enrolled", "Not Enrolled"),
+                            ("enrolled", "Enrolled"),
+                        ],
+                        default="not_enrolled",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "shared_relationship_context",
+                    models.CharField(
+                        choices=[
+                            ("not_participating", "Not Participating"),
+                            ("read_only", "Read Only"),
+                            ("read_write", "Read/Write"),
+                        ],
+                        default="not_participating",
+                        max_length=20,
+                    ),
+                ),
+                ("therapist_summary_access", models.BooleanField(default=False)),
+                ("model_improvement_data", models.BooleanField(default=False)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("updated_by", models.UUIDField()),
             ],
             options={
-                'db_table': 'user_consents',
-                'indexes': [models.Index(fields=['user_id', 'relationship_id'], name='user_consen_user_id_465aad_idx')],
-                'constraints': [models.CheckConstraint(condition=models.Q(('session_transcript_retention__in', ['per_session', '30_days', '1_year', 'indefinite'])), name='check_session_transcript_retention'), models.CheckConstraint(condition=models.Q(('cross_partner_insight_sharing__in', ['never', 'anonymized', 'named'])), name='check_cross_partner_insight_sharing'), models.CheckConstraint(condition=models.Q(('joint_session_participation__in', ['not_enrolled', 'enrolled'])), name='check_joint_session_participation'), models.CheckConstraint(condition=models.Q(('shared_relationship_context__in', ['not_participating', 'read_only', 'read_write'])), name='check_shared_relationship_context')],
+                "db_table": "user_consents",
+                "indexes": [
+                    models.Index(
+                        fields=["user_id", "relationship_id"],
+                        name="user_consen_user_id_465aad_idx",
+                    )
+                ],
+                "constraints": [
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            (
+                                "session_transcript_retention__in",
+                                ["per_session", "30_days", "1_year", "indefinite"],
+                            )
+                        ),
+                        name="check_session_transcript_retention",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            (
+                                "cross_partner_insight_sharing__in",
+                                ["never", "anonymized", "named"],
+                            )
+                        ),
+                        name="check_cross_partner_insight_sharing",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            (
+                                "joint_session_participation__in",
+                                ["not_enrolled", "enrolled"],
+                            )
+                        ),
+                        name="check_joint_session_participation",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            (
+                                "shared_relationship_context__in",
+                                ["not_participating", "read_only", "read_write"],
+                            )
+                        ),
+                        name="check_shared_relationship_context",
+                    ),
+                ],
             },
         ),
         migrations.RunSQL(
@@ -70,7 +167,6 @@ class Migration(migrations.Migration):
             reverse_sql="""
             DROP TRIGGER IF EXISTS trigger_protect_consent_audit_log ON consent_audit_log;
             DROP FUNCTION IF EXISTS protect_consent_audit_log();
-            """
+            """,
         ),
     ]
-

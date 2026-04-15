@@ -1,7 +1,6 @@
 import pytest
 import jwt
 import uuid
-import secrets
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
@@ -12,7 +11,6 @@ from apps.accounts.auth import (
     decode_jwt,
     rotate_refresh_token,
     revoke_family,
-    generate_jwt,
     create_refresh_token_record,
 )
 from apps.accounts.models import RefreshToken
@@ -24,7 +22,9 @@ User = get_user_model()
 class TestAccountsCoverageGaps:
     def setup_method(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(email="gap@example.com", password="password")
+        self.user = User.objects.create_user(
+            email="gap@example.com", password="password"
+        )
 
     # --- auth.py tests ---
 
@@ -40,7 +40,7 @@ class TestAccountsCoverageGaps:
             "exp": (timezone.now() - timedelta(minutes=1)).timestamp(),
         }
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-        
+
         with pytest.raises(ValueError, match="Token expired"):
             decode_jwt(token)
 
@@ -56,7 +56,7 @@ class TestAccountsCoverageGaps:
         # Mock the expiry check
         rt_record.expires_at = timezone.now() - timedelta(minutes=1)
         rt_record.save()
-        
+
         with pytest.raises(ValueError, match="Refresh token expired"):
             rotate_refresh_token(rt_record, plaintext)
 
@@ -65,7 +65,7 @@ class TestAccountsCoverageGaps:
         family_id = uuid.uuid4()
         rt1, _ = create_refresh_token_record(self.user, family_id=family_id)
         rt2, _ = create_refresh_token_record(self.user, family_id=family_id)
-        
+
         assert RefreshToken.objects.filter(family_id=family_id).count() == 2
         revoke_family(family_id)
         assert RefreshToken.objects.filter(family_id=family_id).count() == 0
@@ -82,7 +82,7 @@ class TestAccountsCoverageGaps:
             "jti": str(uuid.uuid4()),
         }
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-        
+
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         response = self.client.get("/api/v1/auth/me/")
         assert response.status_code == 401
@@ -93,10 +93,9 @@ class TestAccountsCoverageGaps:
         # Force decode_jwt to raise a generic exception
         def mock_decode(token):
             raise Exception("Unexpected error")
-        
-        import apps.accounts.middleware
+
         monkeypatch.setattr("apps.accounts.middleware.decode_jwt", mock_decode)
-        
+
         self.client.credentials(HTTP_AUTHORIZATION="Bearer valid_looking_token")
         response = self.client.get("/api/v1/auth/me/")
         assert response.status_code == 401
@@ -111,7 +110,9 @@ class TestAccountsCoverageGaps:
 
     def test_create_superuser_logic(self):
         # Lines 22-25 gap
-        admin = User.objects.create_superuser(email="admin@example.com", password="password")
+        admin = User.objects.create_superuser(
+            email="admin@example.com", password="password"
+        )
         assert admin.is_staff is True
         assert admin.is_superuser is True
         assert admin.is_verified is True
@@ -122,10 +123,12 @@ class TestAccountsCoverageGaps:
         # Lines 376-377 gap in RevokeView
         rt_record, plaintext = create_refresh_token_record(self.user)
         composite_token = f"{rt_record.jti}:{plaintext}"
-        
+
         self.client.force_authenticate(user=self.user)
-        response = self.client.post("/api/v1/auth/revoke/", {"refresh_token": composite_token})
-        
+        response = self.client.post(
+            "/api/v1/auth/revoke/", {"refresh_token": composite_token}
+        )
+
         assert response.status_code == 200
         assert response.json()["status"] == "revoked"
         # Verify family is actually gone
