@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 import environ
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -148,6 +149,8 @@ WSGI_APPLICATION = "config.wsgi.application"
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
+# Use a dedicated test database name to avoid session conflicts
+DATABASES["default"]["TEST"] = {"NAME": "test_postgres_consent"}
 
 # Redis / Caching / Sessions
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
