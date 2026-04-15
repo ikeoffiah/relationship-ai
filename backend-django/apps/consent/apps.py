@@ -6,4 +6,9 @@ class ConsentConfig(AppConfig):
     name = "apps.consent"
 
     def ready(self):
-        pass
+        from django.db.models.signals import post_save
+        from django.contrib.auth import get_user_model
+        from apps.consent.signals import create_user_consent
+
+        User = get_user_model()
+        post_save.connect(create_user_consent, sender=User)
