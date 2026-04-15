@@ -6,4 +6,4 @@ class ConsentConfig(AppConfig):
     name = "apps.consent"
 
     def ready(self):
-        import apps.consent.signals
+        pass
