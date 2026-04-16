@@ -7,6 +7,7 @@ import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/splash_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/welcome_viewmodel.dart';
 import 'package:mobile/features/auth/views/splash_screen.dart';
+import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,7 @@ Future<void> main() async {
           ChangeNotifierProvider(create: (_) => AuthViewModel()),
           ChangeNotifierProvider(create: (_) => SplashViewModel()),
           ChangeNotifierProvider(create: (_) => WelcomeViewModel()),
+          ChangeNotifierProvider(create: (_) => ConsentViewModel()),
         ],
         child: const MyApp(),
       ),
