@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import UserConsent
 
+
 class UserConsentSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserConsent
@@ -20,8 +21,8 @@ class UserConsentSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         # Extract non-model-field arguments passed via serializer.save()
-        session_context = validated_data.pop('session_context', None)
-        updated_by = validated_data.pop('updated_by', None)
+        session_context = validated_data.pop("session_context", None)
+        updated_by = validated_data.pop("updated_by", None)
 
         # Standard update logic
         for attr, value in validated_data.items():
