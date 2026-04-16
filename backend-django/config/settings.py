@@ -149,7 +149,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
 # Use a dedicated test database name to avoid session conflicts
-DATABASES["default"]["TEST"] = {"NAME": "test_postgres_consent"}
+DATABASES["default"]["TEST"] = {"NAME": "test_postgres_consent_v2"}
 
 # Redis / Caching / Sessions
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")

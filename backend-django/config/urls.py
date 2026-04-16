@@ -21,6 +21,7 @@ from django.urls import path, include
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/auth/", include("apps.accounts.urls")),
+    path("api/v1/users/", include("apps.consent.urls")),
     path("api/counseling/", include("apps.counseling.urls")),
     path("", include("django_prometheus.urls")),
 ]
