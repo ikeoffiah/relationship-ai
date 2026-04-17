@@ -2,17 +2,17 @@
 
 This document outlines the infrastructure choices for the initial RelationshipAI pilot. The focus is on rapid development and low-cost maintenance.
 
-| Component       | MVP Solution          | Monthly Cost | Migration Path (post-pilot)   |
-|-----------------|-----------------------|--------------|-------------------------------|
-| Backend hosting | Railway.app free tier | $0           | Railway paid / AWS EKS        |
-| PostgreSQL      | Supabase free tier    | $0           | Supabase Pro / AWS RDS        |
-| Vector DB       | pgvector (Supabase)   | $0           | Pinecone / Weaviate           |
-| Redis           | Upstash free tier     | $0           | Upstash Pay-as-you-go / ElastiCache |
-| Audit log       | PostgreSQL table      | $0           | Kafka (AWS MSK) at scale      |
-| TLS/HTTPS       | Railway auto (Let's Encrypt) | $0    | AWS ACM                       |
-| KMS/Encryption  | App-level AES-256-GCM | $0          | AWS KMS per-user DEKs         |
-| CI/CD           | GitHub Actions free tier | $0        | Same (free for public repos)  |
-| Monitoring      | Railway logs + Sentry free | $0      | Prometheus + Grafana          |
+| Component       | MVP Solution                 | Monthly Cost | Migration Path (post-pilot)         |
+| --------------- | ---------------------------- | ------------ | ----------------------------------- |
+| Backend hosting | Railway.app free tier        | $0           | Railway paid / AWS EKS              |
+| PostgreSQL      | Supabase free tier           | $0           | Supabase Pro / AWS RDS              |
+| Vector DB       | pgvector (Supabase)          | $0           | Pinecone / Weaviate                 |
+| Redis           | Upstash free tier            | $0           | Upstash Pay-as-you-go / ElastiCache |
+| Audit log       | PostgreSQL table             | $0           | Kafka (AWS MSK) at scale            |
+| TLS/HTTPS       | Railway auto (Let's Encrypt) | $0           | AWS ACM                             |
+| KMS/Encryption  | App-level AES-256-GCM        | $0           | AWS KMS per-user DEKs               |
+| CI/CD           | GitHub Actions free tier     | $0           | Same (free for public repos)        |
+| Monitoring      | Railway logs + Sentry free   | $0           | Prometheus + Grafana                |
 
 ## Infrastructure Architecture
 

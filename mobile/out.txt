@@ -1,0 +1,47 @@
+00:00 +0: loading /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/biometric_service_test.dart
+00:00 +0 -1: loading /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/biometric_service_test.dart [E]
+  Failed to load "/Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/biometric_service_test.dart":
+  Compilation failed for testPath=/Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/biometric_service_test.dart: test/services/biometric_service_test.dart:18:72: Error: Type 'AuthMessages' not found.
+    Future<bool> authenticate({required String localizedReason, Iterable<AuthMessages>? authMessages, AuthenticationOptions options = const AuthenticationOptions()}) async {
+                                                                         ^^^^^^^^^^^^
+  test/services/biometric_service_test.dart:18:72: Error: 'AuthMessages' isn't a type.
+    Future<bool> authenticate({required String localizedReason, Iterable<AuthMessages>? authMessages, AuthenticationOptions options = const AuthenticationOptions()}) async {
+                                                                         ^^^^^^^^^^^^
+  .
+  Error: The Dart compiler exited unexpectedly.
+  package:flutter_tools/src/base/common.dart 34:3  throwToolExit
+  package:flutter_tools/src/compile.dart 939:11    DefaultResidentCompiler._compile.<fn>
+  dart:async/zone_root.dart 48:47                  _rootRunUnary
+  dart:async/zone.dart 733:19                      _CustomZone.runUnary
+  dart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback
+  dart:async/future_impl.dart 977:13               Future._propagateToListeners
+  dart:async/future_impl.dart 862:9                Future._propagateToListeners
+  dart:async/future_impl.dart 720:5                Future._completeWithValue
+  dart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>
+  dart:async/zone_root.dart 35:13                  _rootRun
+  dart:async/zone.dart 726:19                      _CustomZone.run
+  dart:async/zone.dart 625:7                       _CustomZone.runGuarded
+  dart:async/zone.dart 666:23                      _CustomZone.bindCallbackGuarded.<fn>
+  dart:async/schedule_microtask.dart 40:35         _microtaskLoop
+  dart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop
+  dart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback
+  dart:isolate-patch/isolate_patch.dart 194:5      _RawReceivePort._handleMessage
+  
+00:00 +0 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/auth_api_service_test.dart: AuthApiService Tests login returns AuthResponse on success
+00:00 +1 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/auth_api_service_test.dart: AuthApiService Tests login returns AuthResponse on success
+00:00 +2 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/auth_api_service_test.dart: AuthApiService Tests login returns AuthResponse on success
+00:00 +3 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/auth_api_service_test.dart: AuthApiService Tests login returns AuthResponse on success
+00:00 +4 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/auth_api_service_test.dart: AuthApiService Tests login returns AuthResponse on success
+00:00 +5 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/auth_api_service_test.dart: AuthApiService Tests login returns AuthResponse on success
+00:00 +6 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (setUpAll)
+00:00 +7 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (setUpAll)
+00:00 +8 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (setUpAll)
+00:00 +9 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (setUpAll)
+00:00 +10 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (setUpAll)
+00:00 +11 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (setUpAll)
+00:00 +12 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (setUpAll)
+00:00 +12 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: StorageService Tests saveToken and getToken work properly mock channel
+00:00 +13 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: StorageService Tests saveUserId and getUserId work properly without errors
+00:00 +14 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: StorageService Tests delete operations run without error
+00:00 +15 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/services/storage_service_test.dart: (tearDownAll)
+00:00 +15 -1: Some tests failed.

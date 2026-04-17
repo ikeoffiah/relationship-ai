@@ -4,6 +4,8 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>We need your face ID or fingerprint to securely log you in.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -66,5 +68,46 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- ── REL-14: App Transport Security (TLS hardening) ──────────────────
+	     NSAllowsArbitraryLoads = false  → enforces HTTPS for all connections.
+	     NSRequiresCertificateTransparency = true → requires CT-logged certs.
+
+	     iOS handles certificate pinning at the Dart/Dio layer (PinnedHttpClient).
+	     ATS here provides the OS-level safety net that blocks plain HTTP and
+	     ensures the system validates the certificate chain before Dart sees it.
+	──────────────────────────────────────────────────────────────────────── -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+
+			<!-- Primary REST / Django API -->
+			<key>api.relationshipai.com</key>
+			<dict>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.3</string>
+				<key>NSRequiresCertificateTransparency</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+
+			<!-- WebSocket / FastAPI service -->
+			<key>ws.relationshipai.com</key>
+			<dict>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.3</string>
+				<key>NSRequiresCertificateTransparency</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+
+		</dict>
+	</dict>
+
 </dict>
 </plist>

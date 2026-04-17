@@ -1,4 +1,7 @@
 -r base.txt
-pytest-mock
+pytest-django
 pytest-cov
+pytest-mock
+ruff
+pytest-asyncio
 httpx
