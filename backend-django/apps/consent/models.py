@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 
 class UserConsent(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    user_id = models.UUIDField(db_index=True)
+    user_id = models.UUIDField(db_index=True, unique=True)
     relationship_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     # All six consent dimensions from Section 4.2

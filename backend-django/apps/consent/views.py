@@ -1,6 +1,10 @@
-from rest_framework import generics, permissions, exceptions
-from .models import UserConsent
-from .serializers import UserConsentSerializer
+from rest_framework import generics, permissions, exceptions, pagination
+from .models import UserConsent, ConsentAuditEntry
+from .serializers import (
+    UserConsentSerializer,
+    ConsentUpdateSerializer,
+    ConsentAuditEntrySerializer,
+)
 
 
 class IsOwner(permissions.BasePermission):
@@ -27,9 +31,13 @@ class UserConsentView(generics.RetrieveUpdateAPIView):
     PUT /api/v1/users/{user_id}/consent -> Update consent
     """
 
-    serializer_class = UserConsentSerializer
     permission_classes = [IsOwner, permissions.IsAuthenticated]
     lookup_field = "user_id"
+
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return ConsentUpdateSerializer
+        return UserConsentSerializer
 
     def get_queryset(self):
         # Users can only ever see their own consent
@@ -57,3 +65,21 @@ class UserConsentView(generics.RetrieveUpdateAPIView):
             detail = getattr(exc, "message_dict", getattr(exc, "messages", str(exc)))
             return super().handle_exception(exceptions.ValidationError(detail=detail))
         return super().handle_exception(exc)
+
+
+class AuditPagination(pagination.PageNumberPagination):
+    page_size = 50
+
+
+class ConsentAuditListView(generics.ListAPIView):
+    """
+    GET /api/v1/users/{user_id}/consent/audit -> Returns full consent change history
+    """
+
+    serializer_class = ConsentAuditEntrySerializer
+    permission_classes = [IsOwner, permissions.IsAuthenticated]
+    pagination_class = AuditPagination
+
+    def get_queryset(self):
+        user_id = self.kwargs.get("user_id")
+        return ConsentAuditEntry.objects.filter(user_id=user_id).order_by("-changed_at")
