@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 /// Color palette for the couples app
-/// Designed to evoke warmth, safety, and emotional connection
 class AppColors {
   // Primary colors - love and warmth
   static const Color warmCoral = Color(0xFFFF9B8A);
