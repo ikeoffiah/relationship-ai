@@ -17,3 +17,5 @@ structlog
 redis
 websockets
 
+langgraph
+langchain-core
