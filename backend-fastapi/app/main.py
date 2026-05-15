@@ -61,6 +61,8 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=_ALLOWED_HOSTS)
 # ──────────────────────────────────────────────────────────────────────────────
 
 app.include_router(websockets_router)
+from app.api.relationships import router as relationships_router
+app.include_router(relationships_router)
 
 # Instrument Prometheus
 Instrumentator().instrument(app).expose(app)
