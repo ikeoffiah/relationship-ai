@@ -42,6 +42,7 @@ def generate_jwt(user, scopes, relationship_id=None):
         "jti": generate_jti(),
         "scope": scopes,
         "relationship_id": str(relationship_id) if relationship_id else None,
+        "is_minor": user.is_minor,
     }
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
     return token, payload

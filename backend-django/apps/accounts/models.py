@@ -30,6 +30,19 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    age_verified = models.BooleanField(default=False)
+    age_verification_method = models.CharField(
+        max_length=30,
+        choices=[
+            ("id_verification", "ID Verification"),
+            ("card_check", "Card Check"),
+            ("parental_consent", "Parental Consent"),
+        ],
+        null=True,
+        blank=True
+    )
+    is_minor = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -38,9 +51,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     data_encryption_key_id = models.CharField(
         max_length=255, blank=True
     )  # AWS KMS key reference
-
-    # Retain fields from old model if needed, but the requirement was specific
-    is_minor = models.BooleanField(default=False)
+    
     last_active_at = models.DateTimeField(null=True, blank=True)
     erased_at = models.DateTimeField(null=True, blank=True)
 
@@ -54,6 +65,21 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.email} ({self.id})"
+
+
+class GuardianConsent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="guardian_consents")
+    guardian_email = models.EmailField()
+    consented_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    consent_token_hash = models.CharField(max_length=255, unique=True)
+    
+    # Safety flag for abuse disclosure (REL-57)
+    abuse_disclosed = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "guardian_consents"
 
 
 class AuthCode(models.Model):
@@ -86,3 +112,35 @@ class RefreshToken(models.Model):
         indexes = [
             models.Index(fields=["family_id"]),
         ]
+
+class AgeVerification(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="age_verification"
+    )
+    method = models.CharField(
+        max_length=30,
+        choices=[
+            ("id_verification", "ID Verification"),
+            ("card_check", "Card Check"),
+            ("parental_consent", "Parental Consent"),
+        ],
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("verified", "Verified"),
+            ("failed", "Failed"),
+            ("blocked", "Blocked"),
+        ],
+        default="pending",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    blocked_reason = models.CharField(max_length=100, null=True, blank=True)
+
+    class Meta:
+        db_table = "age_verifications"
+
+    def __str__(self):
+        return f"{self.user.email} - {self.status}"

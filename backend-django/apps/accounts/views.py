@@ -397,6 +397,106 @@ class LogoutView(views.APIView):
         return Response({"status": "logged_out"})
 
 
+class VerifyAgeView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        dob_str = request.data.get("dob")
+        
+        if not dob_str:
+            return Response(
+                {"error": "Date of birth required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            from datetime import date, datetime
+            dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+            today = date.today()
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            
+            # Save DOB to user
+            request.user.date_of_birth = dob
+            request.user.save()
+
+            if age < 13:
+                # Registration immediately blocked (COPPA)
+                from .services.age_verification import verify_user_age
+                verify_user_age(request.user, "id_verification", {
+                    "status": "blocked",
+                    "reason": "User is under 13 (COPPA)"
+                })
+                return Response(
+                    {"error": "minor_blocked", "message": "RelationshipAI is not available for users under 13 due to COPPA compliance."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            if age < 18:
+                # Minor (13-17) - requires guardian consent
+                return Response({
+                    "status": "guardian_consent_required",
+                    "is_minor": True,
+                    "age": age
+                })
+
+            # Adult (18+) - Trigger verification (simulated)
+            from .services.age_verification import verify_user_age
+            verify_user_age(request.user, "card_check", {
+                "status": "verified",
+                "is_minor": False
+            })
+            
+            return Response({
+                "status": "verified",
+                "is_minor": False,
+                "message": "Age verified successfully."
+            })
+            
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GuardianConsentView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        guardian_email = request.data.get("guardian_email")
+        if not guardian_email:
+            return Response({"error": "Guardian email required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from .models import GuardianConsent
+        import hashlib
+        
+        # Generate token for guardian confirmation
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        
+        GuardianConsent.objects.create(
+            user=request.user,
+            guardian_email=guardian_email,
+            consent_token_hash=token_hash,
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        
+        # In a real app, send email to guardian with confirmation link
+        # REL-57: Link is not accessible from child's session
+        confirm_link = f"{settings.SITE_URL}/guardian/confirm/{token}"
+        
+        send_mail(
+            "Guardian Consent Request - RelationshipAI",
+            f"Your child ({request.user.email}) has requested access to RelationshipAI. "
+            f"Please review the platform and confirm your consent here: {confirm_link}",
+            settings.DEFAULT_FROM_EMAIL,
+            [guardian_email],
+            fail_silently=False,
+        )
+        
+        return Response({
+            "status": "consent_request_sent",
+            "message": "Consent request sent to guardian."
+        })
+
+
 class MeView(views.APIView):
     permission_classes = [IsAuthenticated]
 

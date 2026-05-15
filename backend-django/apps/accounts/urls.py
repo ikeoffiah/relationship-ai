@@ -16,4 +16,6 @@ urlpatterns = [
         "forgot-password/", views.ForgotPasswordView.as_view(), name="forgot-password"
     ),
     path("reset-password/", views.ResetPasswordView.as_view(), name="reset-password"),
+    path("verify-age/", views.VerifyAgeView.as_view(), name="verify-age"),
+    path("guardian-consent/", views.GuardianConsentView.as_view(), name="guardian-consent"),
 ]

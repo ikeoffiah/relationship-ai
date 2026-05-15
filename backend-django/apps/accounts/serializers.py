@@ -15,7 +15,14 @@ class UserSerializer(serializers.ModelSerializer):
             "is_verified",
             "created_at",
             "data_encryption_key_id",
+            "age_verification",
         )
+
+    def get_age_verification(self, obj):
+        verification = getattr(obj, "age_verification", None)
+        if verification:
+            return AgeVerificationSerializer(verification).data
+        return None
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -45,3 +52,11 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True)
+
+
+from .models import AgeVerification
+
+class AgeVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgeVerification
+        fields = ("status", "method", "verified_at", "blocked_reason")

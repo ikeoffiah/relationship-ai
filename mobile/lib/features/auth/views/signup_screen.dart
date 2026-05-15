@@ -8,6 +8,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/shared/widgets/animated_button.dart';
 import 'package:mobile/shared/widgets/social_sign_in_button.dart';
 import 'package:mobile/features/auth/views/email_verification_screen.dart';
+import 'package:mobile/features/home/views/main_navigation_screen.dart';
 
 /// Signup Screen with email/password and Google Sign-In
 /// Beautiful, emotionally-designed account creation experience
@@ -130,9 +131,7 @@ class _SignupScreenState extends State<SignupScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => EmailVerificationScreen(
-            email: viewModel.email,
-          ),
+          builder: (_) => const MainNavigationScreen(),
         ),
       );
     }
@@ -301,7 +300,7 @@ class _SignupScreenState extends State<SignupScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.error_outline_rounded,
                       color: AppColors.error,
                       size: 20,
@@ -310,7 +309,7 @@ class _SignupScreenState extends State<SignupScreen>
                     Expanded(
                       child: Text(
                         viewModel.errorMessage!,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.error,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
