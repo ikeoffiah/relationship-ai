@@ -8,7 +8,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/shared/widgets/animated_button.dart';
 import 'package:mobile/shared/widgets/social_sign_in_button.dart';
 import 'package:mobile/features/auth/views/signup_screen.dart';
-import 'package:mobile/features/auth/views/route_guard_test_screen.dart';
+import 'package:mobile/features/home/views/main_navigation_screen.dart';
 import 'package:mobile/features/auth/views/forgot_password_screen.dart';
 
 /// Login Screen with email/password and Google Sign-In
@@ -76,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const RouteGuardTestScreen()),
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
       );
     }
   }
@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const RouteGuardTestScreen()),
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
       );
     }
   }
@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const RouteGuardTestScreen()),
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
       );
     }
   }
@@ -261,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.error_outline_rounded,
                       color: AppColors.error,
                       size: 20,
@@ -270,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen>
                     Expanded(
                       child: Text(
                         viewModel.errorMessage!,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.error,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -328,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen>
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                 ),
-                child: Text(
+                child: const Text(
                   'Forgot Password?',
                   style: TextStyle(
                     color: AppColors.warmCoral,
@@ -363,7 +363,9 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             const SizedBox(height: 16),
             AnimatedButton(
-              label: viewModel.isLoading ? 'Processing...' : 'Face ID / Fingerprint',
+              label: viewModel.isLoading
+                  ? 'Processing...'
+                  : 'Face ID / Fingerprint',
               onTap: viewModel.isLoading ? () {} : _handleBiometricSignIn,
               isFilled: false,
               height: 56,
@@ -504,7 +506,7 @@ class _LoginScreenState extends State<LoginScreen>
           onTap: _navigateToSignup,
           child: Text(
             'Sign Up',
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.warmCoral,
               fontSize: 15,
               fontWeight: FontWeight.w700,

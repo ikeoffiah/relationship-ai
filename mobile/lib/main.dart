@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'dart:async';
+import 'package:app_links/app_links.dart';
 
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/splash_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/welcome_viewmodel.dart';
 import 'package:mobile/features/auth/views/splash_screen.dart';
+import 'package:mobile/features/auth/views/age_verification_screen.dart';
+import 'package:mobile/features/auth/views/signup_screen.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
+import 'package:mobile/features/consent/consent_dashboard_screen.dart';
+import 'package:mobile/features/relationship/relationship_viewmodel.dart';
+import 'package:mobile/core/api_services/relationship_api_service.dart';
+import 'package:mobile/features/relationship/invite_partner_screen.dart';
+import 'package:mobile/features/relationship/accept_invite_screen.dart';
+import 'package:mobile/features/relationship/dissolve_relationship_screen.dart';
+import 'package:mobile/features/relationship/our_story_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +37,11 @@ Future<void> main() async {
           ChangeNotifierProvider(create: (_) => SplashViewModel()),
           ChangeNotifierProvider(create: (_) => WelcomeViewModel()),
           ChangeNotifierProvider(create: (_) => ConsentViewModel()),
+          ChangeNotifierProvider(
+            create: (context) => RelationshipViewModel(
+              RelationshipApiService(),
+            ),
+          ),
         ],
         child: const MyApp(),
       ),
@@ -33,16 +49,88 @@ Future<void> main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initDeepLinks() async {
+    _appLinks = AppLinks();
+
+    // Handle incoming links while app is running
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    });
+
+    // Handle initial link if app is started from link
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleDeepLink(initialUri);
+      }
+    } catch (e) {
+      debugPrint('Failed to get initial deep link: $e');
+    }
+  }
+
+  void _handleDeepLink(Uri uri) {
+    if (uri.scheme == 'relationshipai' && uri.host == 'accept-invite') {
+      final token = uri.queryParameters['token'];
+      if (token != null) {
+        _navigatorKey.currentState?.pushNamed(
+          '/relationship/accept',
+          arguments: token,
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'RelationshipAI',
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
+      routes: {
+        '/consent': (context) => const ConsentDashboardScreen(),
+        '/verify-age': (context) => const AgeVerificationScreen(),
+        '/signup': (context) => const SignupScreen(),
+        '/relationship/invite': (context) => const InvitePartnerScreen(),
+        '/relationship/settings': (context) => const DissolveRelationshipScreen(),
+        '/our-story': (context) => const OurStoryScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/relationship/accept') {
+          final token = settings.arguments as String?;
+          if (token != null) {
+            return MaterialPageRoute(
+              builder: (context) => AcceptInviteScreen(token: token),
+            );
+          }
+        }
+        return null;
+      },
     );
   }
 }

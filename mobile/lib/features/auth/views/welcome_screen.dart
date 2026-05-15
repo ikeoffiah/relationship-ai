@@ -278,8 +278,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
           const SizedBox(height: WelcomeConfig.buttonSpacing),
           AnimatedButton(
-            label: WelcomeConfig.learnMoreButtonLabel,
-            onTap: () => viewModel.onLearnMoreTapped(context),
+            label: WelcomeConfig.loginButtonLabel,
+            onTap: () => viewModel.onLoginTapped(context),
             isFilled: false,
             height: WelcomeConfig.buttonHeight,
             borderRadius: 14,

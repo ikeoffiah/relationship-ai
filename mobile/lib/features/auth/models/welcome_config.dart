@@ -2,7 +2,7 @@
 class WelcomeConfig {
   // Button labels
   static const String startButtonLabel = "Start Your Journey";
-  static const String learnMoreButtonLabel = "Learn More";
+  static const String loginButtonLabel = "Log In";
   
   // Animation timing
   static const Duration logoFadeInDuration = Duration(milliseconds: 1200);

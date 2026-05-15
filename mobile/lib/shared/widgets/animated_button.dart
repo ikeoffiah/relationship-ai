@@ -5,12 +5,13 @@ import 'package:mobile/core/theme/app_colors.dart';
 /// Supports filled and outline variants
 class AnimatedButton extends StatefulWidget {
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool isFilled;
   final double height;
   final bool useGoldGradient;
   final double borderRadius;
   final Color? outlineColor;
+  final Color? fillColor;
 
   const AnimatedButton({
     super.key,
@@ -21,6 +22,7 @@ class AnimatedButton extends StatefulWidget {
     this.useGoldGradient = false,
     this.borderRadius = 14.0,
     this.outlineColor,
+    this.fillColor,
   });
 
   @override
@@ -59,7 +61,7 @@ class _AnimatedButtonState extends State<AnimatedButton>
 
   void _handleTapUp(TapUpDetails details) {
     _bounceController.reverse();
-    widget.onTap();
+    widget.onTap?.call();
   }
 
   void _handleTapCancel() {
@@ -72,9 +74,9 @@ class _AnimatedButtonState extends State<AnimatedButton>
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTapDown: _handleTapDown,
-        onTapUp: _handleTapUp,
-        onTapCancel: _handleTapCancel,
+        onTapDown: widget.onTap != null ? _handleTapDown : null,
+        onTapUp: widget.onTap != null ? _handleTapUp : null,
+        onTapCancel: widget.onTap != null ? _handleTapCancel : null,
         child: ScaleTransition(
           scale: _scaleAnimation,
           child: AnimatedContainer(
@@ -85,7 +87,9 @@ class _AnimatedButtonState extends State<AnimatedButton>
                   ? AppColors.goldGradient
                   : null,
               color: widget.isFilled && !widget.useGoldGradient
-                  ? AppColors.warmCoral
+                  ? (widget.onTap == null
+                      ? AppColors.warmCoral.withValues(alpha: 0.5)
+                      : (widget.fillColor ?? AppColors.warmCoral))
                   : Colors.transparent,
               border: widget.isFilled
                   ? null

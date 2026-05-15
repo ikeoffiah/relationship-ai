@@ -53,9 +53,10 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     final success = await viewModel.resetPassword();
 
     if (success && mounted) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Password reset successfully! Please login.'),
+        const SnackBar(
+          content: Text('Password reset successfully! Please login.'),
           backgroundColor: AppColors.calmTeal,
           behavior: SnackBarBehavior.floating,
         ),
@@ -156,7 +157,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                                 Expanded(
                                   child: Text(
                                     viewModel.errorMessage!,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: AppColors.error,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,

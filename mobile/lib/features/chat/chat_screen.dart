@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/consent/consent_summary_sheet.dart';
+import 'package:mobile/features/chat/widgets/in_session_consent_banner.dart';
 import 'package:mobile/features/consent/widgets/consent_badge.dart';
 
 /// The main chat session screen.
@@ -11,8 +12,15 @@ import 'package:mobile/features/consent/widgets/consent_badge.dart';
 /// The [userId] is required for all consent API calls.
 class ChatScreen extends StatefulWidget {
   final String userId;
+  final bool isJointSession;
+  final String? jointSessionId;
 
-  const ChatScreen({super.key, required this.userId});
+  const ChatScreen({
+    super.key,
+    required this.userId,
+    this.isJointSession = false,
+    this.jointSessionId,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -43,6 +51,12 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _handleStepOut() async {
+    // In a real app, this would call the API and then navigate back to individual chat
+    // For now, we just pop the current joint session state
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,6 +71,11 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
         ),
         actions: [
+          if (widget.isJointSession)
+            TextButton(
+              onPressed: () => _handleStepOut(),
+              child: const Text('Step out', style: TextStyle(color: Colors.orange)),
+            ),
           // ConsentBadge always visible — Section 14.1
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -64,7 +83,14 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: _sessionStarted ? _ChatBody() : _SessionBlockedState(),
+      body: Column(
+        children: [
+          if (_sessionStarted) const InSessionConsentBanner(),
+          Expanded(
+            child: _sessionStarted ? _ChatBody() : _SessionBlockedState(),
+          ),
+        ],
+      ),
     );
   }
 }

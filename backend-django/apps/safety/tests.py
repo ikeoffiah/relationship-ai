@@ -58,3 +58,46 @@ class LoadSafetySignalsCommandTest(TestCase):
         # Running command should not raise exit but print error
         call_command("load_safety_signals")
         self.assertEqual(SafetySignal.objects.count(), 0)
+from apps.accounts.models import User, GuardianConsent
+from apps.safety.guardian_safety import check_guardian_abuse_disclosure
+
+class GuardianAbuseDisclosureTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="minor@example.com",
+            password="password123",
+            is_minor=True
+        )
+        self.guardian_consent = GuardianConsent.objects.create(
+            user=self.user,
+            guardian_email="guardian@example.com",
+            consent_token_hash="test_hash"
+        )
+
+    def test_abuse_disclosure_detected(self):
+        session_text = "My guardian hit me yesterday and I am scared."
+        result = check_guardian_abuse_disclosure(self.user, session_text)
+        
+        # Verify result structure
+        self.assertIsNotNone(result)
+        self.assertEqual(result["status"], "abuse_flagged")
+        self.assertIn("1-800-422-4453", result["resources"]["hotline"])
+        
+        # Verify DB side effect: guardian consent revoked
+        self.guardian_consent.refresh_from_db()
+        self.assertTrue(self.guardian_consent.abuse_disclosed)
+
+    def test_non_minor_no_check(self):
+        adult_user = User.objects.create_user(
+            email="adult@example.com",
+            password="password123",
+            is_minor=False
+        )
+        session_text = "My guardian hit me." # Even if keywords present, only for minors
+        result = check_guardian_abuse_disclosure(adult_user, session_text)
+        self.assertIsNone(result)
+
+    def test_no_abuse_keywords(self):
+        session_text = "I had a great day today."
+        result = check_guardian_abuse_disclosure(self.user, session_text)
+        self.assertIsNone(result)

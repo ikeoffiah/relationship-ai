@@ -15,10 +15,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Conditional execution for pgvector extension
         migrations.RunSQL(
-            sql="CREATE EXTENSION IF NOT EXISTS vector;",
+            sql="DO $$ BEGIN IF current_database() IS NOT NULL THEN CREATE EXTENSION IF NOT EXISTS vector; END IF; END $$;",
             reverse_sql="DROP EXTENSION IF EXISTS vector;",
-        ),
+        ) if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql' else migrations.RunPython(migrations.RunPython.noop),
         migrations.CreateModel(
             name="Memory",
             fields=[

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:mobile/features/auth/views/login_screen.dart';
-import 'package:mobile/features/auth/views/route_guard_test_screen.dart';
+import 'package:provider/provider.dart';
+
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
+import 'package:mobile/features/auth/views/login_screen.dart';
+import 'package:mobile/features/home/views/main_navigation_screen.dart';
 
 class MockAuthViewModel extends Mock implements AuthViewModel {}
 
@@ -17,8 +18,8 @@ void main() {
     when(() => mockAuthViewModel.errorMessage).thenReturn(null);
     when(() => mockAuthViewModel.email).thenReturn('test@example.com');
     when(() => mockAuthViewModel.password).thenReturn('password123');
-    when(() => mockAuthViewModel.setEmail(any())).thenAnswer((_) {});
-    when(() => mockAuthViewModel.setPassword(any())).thenAnswer((_) {});
+    when(() => mockAuthViewModel.setEmail(any())).thenReturn(null);
+    when(() => mockAuthViewModel.setPassword(any())).thenReturn(null);
   });
 
   Widget createWidgetUnderTest() {
@@ -26,26 +27,29 @@ void main() {
       providers: [
         ChangeNotifierProvider<AuthViewModel>.value(value: mockAuthViewModel),
       ],
-      child: const MaterialApp(
-        home: LoginScreen(),
-      ),
+      child: const MaterialApp(home: LoginScreen()),
     );
   }
 
-  testWidgets('Integration: Successful login navigates to RouteGuardTestScreen', (WidgetTester tester) async {
-    // Return true for success
-    when(() => mockAuthViewModel.loginWithEmail()).thenAnswer((_) async => true);
+  testWidgets(
+    'Integration: Successful login navigates to MainNavigationScreen',
+    (WidgetTester tester) async {
+      // Return true for success
+      when(
+        () => mockAuthViewModel.loginWithEmail(),
+      ).thenAnswer((_) async => true);
 
-    await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pumpWidget(createWidgetUnderTest());
 
-    // Tap login button
-    await tester.tap(find.text('Sign In'));
-    
-    // Pump frames for animation and navigation
-    await tester.pumpAndSettle();
+      // Tap login button
+      await tester.tap(find.text('Sign In'));
 
-    // Verify navigation occurred
-    expect(find.byType(RouteGuardTestScreen), findsOneWidget);
-    expect(find.byType(LoginScreen), findsNothing);
-  });
+      // Pump frames for animation and navigation
+      await tester.pumpAndSettle();
+
+      // Verify navigation occurred
+      expect(find.byType(MainNavigationScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+    },
+  );
 }

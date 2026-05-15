@@ -109,5 +109,20 @@
 		</dict>
 	</dict>
 
+	<!-- Deep Link configuration for relationship invitations -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.relationshipai.mobile</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>relationshipai</string>
+			</array>
+		</dict>
+	</array>
+
 </dict>
 </plist>

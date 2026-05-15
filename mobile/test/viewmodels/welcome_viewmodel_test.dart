@@ -57,7 +57,7 @@ void main() {
   });
 
   group('WelcomeViewModel Navigation Tests', () {
-    testWidgets('onStartTapped navigates to LoginScreen', (
+    testWidgets('onStartTapped navigates to AgeVerificationScreen', (
       WidgetTester tester,
     ) async {
       final vm = WelcomeViewModel();
@@ -72,6 +72,9 @@ void main() {
             ),
           ],
           child: MaterialApp(
+            routes: {
+              '/verify-age': (context) => const Scaffold(body: Text('Age Gate')),
+            },
             navigatorObservers: [mockObserver],
             home: Builder(
               builder: (context) {
@@ -98,7 +101,7 @@ void main() {
       vm.dispose();
     });
 
-    testWidgets('onLearnMoreTapped navigates to SignupScreen', (
+    testWidgets('onLoginTapped navigates to LoginScreen', (
       WidgetTester tester,
     ) async {
       final vm = WelcomeViewModel();
@@ -117,7 +120,7 @@ void main() {
             home: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => vm.onLearnMoreTapped(context),
+                  onPressed: () => vm.onLoginTapped(context),
                   child: const Text('Tap'),
                 );
               },

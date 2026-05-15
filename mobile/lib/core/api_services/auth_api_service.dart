@@ -69,4 +69,29 @@ class AuthApiService extends BaseApiService {
       throw handleError(e);
     }
   }
+
+  Future<Map<String, dynamic>> verifyAge(DateTime dob) async {
+    try {
+      final response = await dio.post(
+        '/auth/verify-age/',
+        data: {
+          'dob': dob.toIso8601String().split('T')[0], // YYYY-MM-DD
+        },
+      );
+      return response.data;
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
+  Future<void> submitGuardianEmail(String guardianEmail) async {
+    try {
+      await dio.post(
+        '/auth/guardian-consent/',
+        data: {'guardian_email': guardianEmail},
+      );
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
 }

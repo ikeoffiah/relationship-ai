@@ -13,6 +13,7 @@ class AppColors {
 
   // Neutrals
   static const Color creamWhite = Color(0xFFFFFBF5);
+  static const Color softIvory = creamWhite;
   static const Color softCharcoal = Color(0xFF4A4A4A);
 
   // Accent - growth and milestones

@@ -1,5 +1,4 @@
 import 'package:mobile/features/auth/views/login_screen.dart';
-import 'package:mobile/features/auth/views/signup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/features/auth/models/welcome_config.dart';
 
@@ -170,22 +169,19 @@ class WelcomeViewModel extends ChangeNotifier {
   Animation<double> getLogoFloatController() => _logoFloatController;
   double get logoFloatProgress => _logoFloatController.value;
 
-  /// Handle start button tap
+  /// Handle start button tap (Registration Flow)
   void onStartTapped(BuildContext context) {
+    Navigator.pushNamed(context, '/verify-age');
+    debugPrint('Start button tapped -> Age Gate');
+  }
+
+  /// Handle login button tap
+  void onLoginTapped(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
     );
-    debugPrint('Start button tapped');
-  }
-
-  /// Handle learn more button tap
-  void onLearnMoreTapped(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SignupScreen()),
-    );
-    debugPrint('Learn More button tapped');
+    debugPrint('Login tapped');
   }
 
   /// Clean up resources

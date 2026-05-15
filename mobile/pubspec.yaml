@@ -45,6 +45,7 @@ dependencies:
   share_plus: ^10.1.0
   dio: ^5.7.0
   crypto: ^3.0.3
+  app_links: ^7.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

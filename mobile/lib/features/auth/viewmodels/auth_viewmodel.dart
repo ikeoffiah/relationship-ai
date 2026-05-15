@@ -1,4 +1,4 @@
-import 'package:mobile/features/auth/models/user_profile.dart'; // Add import if not present
+import 'package:mobile/features/auth/models/user_profile.dart';
 import 'package:mobile/core/services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -145,7 +145,7 @@ class AuthViewModel extends ChangeNotifier {
     return true;
   }
 
-  // ... existing code ...
+
 
   /// Login with email and password
   Future<bool> loginWithEmail() async {
@@ -361,9 +361,76 @@ class AuthViewModel extends ChangeNotifier {
       // For this flow, usually the token is from a deep link.
       // Since we don't have deep linking implemented yet, we might need a placeholder or update the flow.
       // But adhering to the API spec I created:
+      // TODO: Implement deep-linking to retrieve actual reset token
       await _authService.resetPassword(_password, "placeholder-token");
 
       debugPrint('Password reset successful for: $_email');
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError(e.toString().replaceAll('Exception: ', ''));
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  String? _verificationStatus;
+  bool _isMinor = false;
+  bool _requiresGuardianConsent = false;
+  DateTime? _dob;
+
+  String? get verificationStatus => _verificationStatus;
+  bool get isMinor => _isMinor;
+  bool get requiresGuardianConsent => _requiresGuardianConsent;
+  DateTime? get dob => _dob;
+
+  Future<bool> verifyAge(DateTime dob) async {
+    _dob = dob;
+    _setLoading(true);
+    _clearError();
+    
+    // Client-side quick check
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+
+    if (age < 13) {
+      _isMinor = true;
+      _requiresGuardianConsent = false;
+      _setError('RelationshipAI is not available for users under 13 due to COPPA compliance.');
+      _setLoading(false);
+      return false;
+    }
+
+    try {
+      final response = await _authService.verifyAge(dob);
+      _verificationStatus = response['status'];
+      _isMinor = response['is_minor'] ?? false;
+      
+      if (_isMinor && age >= 13) {
+        _requiresGuardianConsent = true;
+      } else {
+        _requiresGuardianConsent = false;
+      }
+      
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      final error = e.toString();
+      _setError(error.replaceAll('Exception: ', ''));
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<bool> submitGuardianEmail(String guardianEmail) async {
+    _setLoading(true);
+    _clearError();
+    try {
+      await _authService.submitGuardianEmail(guardianEmail);
+      _verificationStatus = 'guardian_consent_pending';
       _setLoading(false);
       return true;
     } catch (e) {
