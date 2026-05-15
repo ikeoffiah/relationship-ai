@@ -1,13 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:mobile/core/api_services/consent_api_service.dart';
 import 'package:mobile/features/consent/models/consent_model.dart';
+import 'package:mobile/features/consent/models/memory_model.dart';
+import 'package:mobile/core/services/storage_service.dart';
 
-/// ViewModel for managing consent state throughout the session lifecycle.
-///
-/// Responsibilities:
-/// - Fetch fresh consent from the API on every session start (no cache).
-/// - Provide single-method revocation for in-session permission changes.
-/// - Notify listeners immediately for responsive UI feedback.
 class ConsentViewModel extends ChangeNotifier {
   final ConsentApiService _apiService;
 
@@ -15,12 +11,18 @@ class ConsentViewModel extends ChangeNotifier {
       : _apiService = apiService ?? ConsentApiService();
 
   ConsentModel? _consent;
+  List<MemoryModel> _memories = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   ConsentModel? get consent => _consent;
+  List<MemoryModel> get memories => _memories;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  int get privateMemoryCount => _memories.where((m) => m.zone == MemoryZone.private).length;
+  int get sharedMemoryCount => _memories.where((m) => m.zone == MemoryZone.shared).length;
+  int get therapistMemoryCount => _memories.where((m) => m.zone == MemoryZone.therapist).length;
 
   void _setLoading(bool value) {
     _isLoading = value;
@@ -32,44 +34,38 @@ class ConsentViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetches the latest consent state from the API.
-  ///
-  /// Called every time the [ConsentSummarySheet] opens — never uses a cache.
-  /// On failure, falls back to most-restrictive defaults so the session can
-  /// still proceed safely.
-  Future<void> fetchConsent(String userId) async {
+  Future<void> fetchConsent() async {
+    final userId = await StorageService.getUserId();
+    if (userId == null) return;
+
     _setLoading(true);
     _errorMessage = null;
     try {
       _consent = await _apiService.fetchConsent(userId);
     } catch (e) {
       debugPrint('ConsentViewModel.fetchConsent error: $e');
-      _setError(e.toString().replaceAll('Exception: ', ''));
-      // Safe fallback — most restrictive defaults
+      _setError('We couldn\'t load your privacy settings. Check your connection.');
       _consent ??= ConsentModel.defaultRestrictive(userId);
     } finally {
       _setLoading(false);
     }
   }
 
-  /// Updates a single consent field in-session.
-  ///
-  /// Applies an optimistic local update immediately (for responsive UI),
-  /// then syncs with the API. If the API call fails, reverts to the
-  /// previous state.
-  ///
-  /// [field] is the snake_case API field name (e.g. 'therapist_summary_access').
-  /// [value] is the new value (String or bool).
-  Future<void> updateField(
-    String userId,
-    String field,
-    dynamic value,
-  ) async {
-    if (_consent == null) return;
+  Future<void> logSummaryShown() async {
+    final userId = await StorageService.getUserId();
+    if (userId == null) return;
+    try {
+      await _apiService.logConsentSummaryShown(userId);
+    } catch (e) {
+      debugPrint('ConsentViewModel.logSummaryShown error: $e');
+    }
+  }
+
+  Future<void> updateField(String field, dynamic value) async {
+    final userId = await StorageService.getUserId();
+    if (userId == null || _consent == null) return;
 
     final previous = _consent!;
-
-    // Optimistic update — apply immediately for responsive UI
     _consent = _applyField(previous, field, value);
     notifyListeners();
 
@@ -79,13 +75,11 @@ class ConsentViewModel extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('ConsentViewModel.updateField error: $e');
-      // Revert on failure
       _consent = previous;
       _setError('Failed to update consent: ${e.toString().replaceAll('Exception: ', '')}');
     }
   }
 
-  /// Applies a field update to a [ConsentModel] via copyWith.
   ConsentModel _applyField(ConsentModel model, String field, dynamic value) {
     switch (field) {
       case 'session_transcript_retention':
@@ -102,6 +96,68 @@ class ConsentViewModel extends ChangeNotifier {
         return model.copyWith(modelImprovementData: value as bool);
       default:
         return model;
+    }
+  }
+
+  Future<void> fetchMemories() async {
+    final userId = await StorageService.getUserId();
+    if (userId == null) return;
+
+    _setLoading(true);
+    try {
+      final data = await _apiService.fetchMemories(userId);
+      _memories = data.map((m) => MemoryModel.fromJson(m)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ConsentViewModel.fetchMemories error: $e');
+      _setError('Failed to fetch memories');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateMemory(
+    String memoryId,
+    String title,
+  ) async {
+    final userId = await StorageService.getUserId();
+    if (userId == null) return;
+
+    final index = _memories.indexWhere((m) => m.id == memoryId);
+    if (index == -1) return;
+
+    final previous = _memories[index];
+    _memories[index] = previous.copyWith(title: title);
+    notifyListeners();
+
+    try {
+      await _apiService.updateMemory(userId, memoryId, {'title': title});
+    } catch (e) {
+      debugPrint('ConsentViewModel.updateMemory error: $e');
+      _memories[index] = previous;
+      _setError('Failed to update memory');
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteMemory(String memoryId) async {
+    final userId = await StorageService.getUserId();
+    if (userId == null) return;
+
+    final index = _memories.indexWhere((m) => m.id == memoryId);
+    if (index == -1) return;
+
+    final previous = _memories[index];
+    _memories.removeAt(index);
+    notifyListeners();
+
+    try {
+      await _apiService.deleteMemory(userId, memoryId);
+    } catch (e) {
+      debugPrint('ConsentViewModel.deleteMemory error: $e');
+      _memories.insert(index, previous);
+      _setError('Failed to delete memory');
+      notifyListeners();
     }
   }
 

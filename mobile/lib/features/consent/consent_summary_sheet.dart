@@ -1,37 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:mobile/core/theme/app_colors.dart';
-import 'package:mobile/features/consent/models/consent_model.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
+import 'package:mobile/features/consent/models/consent_model.dart';
+import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/shared/widgets/animated_button.dart';
 
-/// Displays the per-session consent summary before any session content.
-///
-/// Per Section 4.2: shown at the start of EVERY session. Blocks session
-/// start until the user explicitly taps "Start session". Cannot be
-/// dismissed by dragging.
-///
-/// Usage: call [ConsentSummarySheet.show] and await its result.
-/// Returns `true` when the user taps "Start session", `false` on error.
 class ConsentSummarySheet extends StatefulWidget {
-  final String userId;
+  final VoidCallback onStartSession;
+  final bool isFirstSession;
 
-  const ConsentSummarySheet({super.key, required this.userId});
+  const ConsentSummarySheet({
+    super.key,
+    required this.onStartSession,
+    this.isFirstSession = false,
+  });
 
-  /// Shows the sheet and returns [true] when the user taps "Start session".
-  static Future<bool> show(BuildContext context, String userId) async {
-    final result = await showModalBottomSheet<bool>(
+  /// Displays the consent summary sheet as a modal bottom sheet.
+  /// Returns true if the user tapped "Start session".
+  static Future<bool> show(BuildContext context, String userId, {bool isFirstSession = false}) async {
+    bool started = false;
+    await showModalBottomSheet<void>(
       context: context,
-      // Prevent accidental dismissal — only "Start session" closes this.
-      isDismissible: false,
-      enableDrag: false,
       isScrollControlled: true,
+      isDismissible: !isFirstSession,
+      enableDrag: !isFirstSession,
       backgroundColor: Colors.transparent,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: context.read<ConsentViewModel>(),
-        child: ConsentSummarySheet(userId: userId),
+      builder: (_) => ConsentSummarySheet(
+        isFirstSession: isFirstSession,
+        onStartSession: () {
+          started = true;
+          Navigator.pop(context);
+        },
       ),
     );
-    return result ?? false;
+    return started;
   }
 
   @override
@@ -39,401 +41,177 @@ class ConsentSummarySheet extends StatefulWidget {
 }
 
 class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
+  bool _canDismiss = false;
+
   @override
   void initState() {
     super.initState();
-    // Fetch fresh consent on every sheet open — no cache.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ConsentViewModel>().fetchConsent(widget.userId);
+      final viewModel = context.read<ConsentViewModel>();
+      viewModel.fetchConsent();
+      viewModel.logSummaryShown();
     });
+
+    if (!widget.isFirstSession) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _canDismiss = true);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.55,
-      maxChildSize: 0.75,
-      // Prevent snap-to-dismiss by keeping minChildSize at 55%
-      snap: false,
-      builder: (context, scrollController) {
-        return _SheetContent(
-          userId: widget.userId,
-          scrollController: scrollController,
-        );
-      },
-    );
-  }
-}
+    final viewModel = context.watch<ConsentViewModel>();
+    final consent = viewModel.consent;
 
-class _SheetContent extends StatelessWidget {
-  final String userId;
-  final ScrollController scrollController;
-
-  const _SheetContent({
-    required this.userId,
-    required this.scrollController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      // Ensure the sheet content has a defined height to avoid layout issues in tests
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.75,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.creamWhite,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.softCharcoal.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: Consumer<ConsentViewModel>(
-              builder: (context, vm, _) {
-                if (vm.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.warmCoral),
-                  );
-                }
-
-                final consent = vm.consent;
-                if (consent == null) {
-                  return const _ErrorState();
-                }
-
-                return ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  physics: const ClampingScrollPhysics(),
-                  children: [
-                    _Header(),
-                    const SizedBox(height: 8),
-                    _ConsentDivider(),
-                    const SizedBox(height: 16),
-                    _ConsentRow(
-                      icon: '💬',
-                      label: 'Session history',
-                      value: ConsentModel.labelFor(consent.sessionTranscriptRetention),
-                      field: 'session_transcript_retention',
-                      options: const ['per_session', '30_days', '1_year', 'indefinite'],
-                      userId: userId,
-                    ),
-                    _ConsentRow(
-                      icon: '🔗',
-                      label: 'Partner insights',
-                      value: ConsentModel.labelFor(consent.crossPartnerInsightSharing),
-                      field: 'cross_partner_insight_sharing',
-                      options: const ['never', 'anonymized', 'named'],
-                      userId: userId,
-                    ),
-                    _ConsentRow(
-                      icon: '👥',
-                      label: 'Joint sessions',
-                      value: ConsentModel.labelFor(consent.jointSessionParticipation),
-                      field: 'joint_session_participation',
-                      options: const ['not_enrolled', 'enrolled'],
-                      userId: userId,
-                    ),
-                    _ConsentRow(
-                      icon: '📋',
-                      label: 'Therapist access',
-                      value: consent.therapistSummaryAccess ? 'On' : 'Off',
-                      field: 'therapist_summary_access',
-                      options: null,
-                      isBool: true,
-                      userId: userId,
-                    ),
-                    const SizedBox(height: 24),
-                    _FooterActions(userId: userId),
-                    const SizedBox(height: 30),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return PopScope(
+      canPop: _canDismiss,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.lock_outline, color: AppColors.calmTeal, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Your current privacy settings',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.softCharcoal,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Review what is stored and shared before starting your session.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.softCharcoal.withValues(alpha: 0.6),
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ConsentDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Divider(
-      color: AppColors.softCharcoal.withValues(alpha: 0.1),
-      height: 1,
-    );
-  }
-}
-
-/// A single consent permission row with an inline tap-to-change target.
-class _ConsentRow extends StatelessWidget {
-  final String icon;
-  final String label;
-  final String value;
-  final String field;
-  final List<String>? options;
-  final bool isBool;
-  final String userId;
-
-  const _ConsentRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.field,
-    required this.options,
-    required this.userId,
-    this.isBool = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+            Row(
+              children: [
+                const Icon(Icons.lock_outline, color: AppColors.warmCoral),
+                const SizedBox(width: 12),
+                Text(
+                  'Before we begin',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                     color: AppColors.softCharcoal,
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Here\'s what\'s active for this session:',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            if (viewModel.isLoading)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(40.0),
+                child: CircularProgressIndicator(),
+              ))
+            else if (viewModel.errorMessage != null)
+              _buildErrorState(viewModel)
+            else if (consent != null)
+              _buildConsentList(context, consent)
+            else
+              const SizedBox(height: 200),
+            
+            const Divider(height: 48),
+            
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/consent')
+                  .then((_) {
+                    if (context.mounted) context.read<ConsentViewModel>().fetchConsent();
+                  }),
+              child: const Text('View full privacy settings', 
+                style: TextStyle(color: AppColors.warmCoral, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 16),
+            AnimatedButton(
+              label: 'Start session',
+              onTap: viewModel.consent == null ? null : () {
+                if (mounted) widget.onStartSession();
+              },
+              useGoldGradient: true,
+            ),
+            SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ConsentViewModel viewModel) {
+    return Column(
+      children: [
+        Text(viewModel.errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: () => viewModel.fetchConsent(),
+          child: const Text('Try again'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsentList(BuildContext context, ConsentModel consent) {
+    final summary = consent.plainLanguageSummary;
+    return Column(
+      children: [
+        _buildConsentItem(
+          icon: Icons.folder_outlined,
+          title: 'Session storage',
+          description: summary['session_transcript_retention'] ?? 'Loading...',
+          onEdit: () => _openDashboard(context),
+        ),
+        _buildConsentItem(
+          icon: Icons.handshake_outlined,
+          title: 'Sharing with your partner',
+          description: summary['cross_partner_insight_sharing'] ?? 'Loading...',
+          onEdit: () => _openDashboard(context),
+        ),
+        _buildConsentItem(
+          icon: Icons.person_outline,
+          title: 'Joint sessions',
+          description: summary['joint_session_participation'] ?? 'Loading...',
+          onEdit: () => _openDashboard(context),
+        ),
+        _buildConsentItem(
+          icon: Icons.local_hospital_outlined,
+          title: 'Therapist access',
+          description: summary['therapist_summary_access'] ?? 'Loading...',
+          onEdit: () => _openDashboard(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsentItem({
+    required IconData icon,
+    required String title,
+    required String description,
+    required VoidCallback onEdit,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: AppColors.calmTeal),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(description, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              ],
             ),
           ),
-          _ValueChip(
-            value: value,
-            onTap: () => _showPicker(context),
+          TextButton(
+            onPressed: onEdit,
+            child: const Text('Edit', style: TextStyle(fontSize: 13)),
           ),
         ],
       ),
     );
   }
 
-  void _showPicker(BuildContext context) {
-    final vm = context.read<ConsentViewModel>();
-    if (isBool) {
-      // Toggle boolean — current value is derived from label "On"/"Off"
-      final current = value == 'On';
-      vm.updateField(userId, field, !current);
-      return;
-    }
-    if (options == null) return;
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.softCharcoal.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 8),
-            for (final opt in options!)
-              ListTile(
-                key: Key('consent_option_$opt'),
-                title: Text(ConsentModel.labelFor(opt)),
-                trailing: value == ConsentModel.labelFor(opt)
-                    ? const Icon(Icons.check, color: AppColors.calmTeal)
-                    : null,
-                onTap: () {
-                  vm.updateField(userId, field, opt);
-                  Navigator.pop(context);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Tap target chip showing the current consent value.
-class _ValueChip extends StatelessWidget {
-  final String value;
-  final VoidCallback onTap;
-
-  const _ValueChip({required this.value, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.calmTeal.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppColors.calmTeal.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                value,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.calmTeal,
-                      fontWeight: FontWeight.w600,
-                    ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 16,
-              color: AppColors.calmTeal,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Bottom action buttons — "Change settings" and "Start session".
-class _FooterActions extends StatelessWidget {
-  final String userId;
-
-  const _FooterActions({required this.userId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            key: const Key('change_settings_button'),
-            onPressed: () {
-              // REL-34: push ConsentDashboardScreen
-              // For now, show a snack bar as a placeholder
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Consent dashboard coming in REL-34'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.softCharcoal,
-              side: BorderSide(
-                color: AppColors.softCharcoal.withValues(alpha: 0.3),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            child: const Text('Change settings'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            key: const Key('start_session_button'),
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warmCoral,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Start session',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: AppColors.error, size: 40),
-            const SizedBox(height: 12),
-            Text(
-              'Unable to load consent settings.',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
+  void _openDashboard(BuildContext context) {
+    Navigator.pushNamed(context, '/consent')
+        .then((_) {
+          if (context.mounted) context.read<ConsentViewModel>().fetchConsent();
+        });
   }
 }

@@ -36,7 +36,7 @@ class ConsentBadge extends StatelessWidget {
               size: 16,
             ),
             const SizedBox(width: 5),
-            Text(
+            const Text(
               'Consent',
               style: TextStyle(
                 fontSize: 12,
@@ -146,11 +146,10 @@ class _ConsentInlinePanel extends StatelessWidget {
                       value: ConsentModel.labelFor(
                         consent.sessionTranscriptRetention,
                       ),
-                      onRevoke: () => vm.updateField(
-                        userId,
-                        'session_transcript_retention',
-                        'per_session',
-                      ),
+                        onRevoke: () => vm.updateField(
+                          'session_transcript_retention',
+                          'per_session',
+                        ),
                       isRevocable: consent.sessionTranscriptRetention !=
                           'per_session',
                     ),
@@ -160,11 +159,10 @@ class _ConsentInlinePanel extends StatelessWidget {
                       value: ConsentModel.labelFor(
                         consent.crossPartnerInsightSharing,
                       ),
-                      onRevoke: () => vm.updateField(
-                        userId,
-                        'cross_partner_insight_sharing',
-                        'never',
-                      ),
+                        onRevoke: () => vm.updateField(
+                          'cross_partner_insight_sharing',
+                          'never',
+                        ),
                       isRevocable:
                           consent.crossPartnerInsightSharing != 'never',
                     ),
@@ -174,11 +172,10 @@ class _ConsentInlinePanel extends StatelessWidget {
                       value: ConsentModel.labelFor(
                         consent.jointSessionParticipation,
                       ),
-                      onRevoke: () => vm.updateField(
-                        userId,
-                        'joint_session_participation',
-                        'not_enrolled',
-                      ),
+                        onRevoke: () => vm.updateField(
+                          'joint_session_participation',
+                          'not_enrolled',
+                        ),
                       isRevocable:
                           consent.jointSessionParticipation != 'not_enrolled',
                     ),
@@ -186,11 +183,10 @@ class _ConsentInlinePanel extends StatelessWidget {
                       icon: '📋',
                       label: 'Therapist access',
                       value: consent.therapistSummaryAccess ? 'On' : 'Off',
-                      onRevoke: () => vm.updateField(
-                        userId,
-                        'therapist_summary_access',
-                        false,
-                      ),
+                        onRevoke: () => vm.updateField(
+                          'therapist_summary_access',
+                          false,
+                        ),
                       isRevocable: consent.therapistSummaryAccess,
                     ),
                     if (vm.errorMessage != null)
@@ -204,11 +200,38 @@ class _ConsentInlinePanel extends StatelessWidget {
                           ),
                         ),
                       ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/consent');
+                        },
+                        style: TextButton.styleFrom(
+                          backgroundColor:
+                              AppColors.warmCoral.withValues(alpha: 0.1),
+                          foregroundColor: AppColors.warmCoral,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          minimumSize: const Size(double.infinity, 44),
+                        ),
+                        child: const Text(
+                          'Manage all privacy settings',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 );
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),

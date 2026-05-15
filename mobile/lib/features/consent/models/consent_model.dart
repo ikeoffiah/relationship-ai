@@ -9,6 +9,8 @@ class ConsentModel {
   final String sharedRelationshipContext;
   final bool therapistSummaryAccess;
   final bool modelImprovementData;
+  final String? updatedAt;
+  final Map<String, String> plainLanguageSummary;
 
   const ConsentModel({
     required this.id,
@@ -20,24 +22,30 @@ class ConsentModel {
     this.sharedRelationshipContext = 'not_participating',
     this.therapistSummaryAccess = false,
     this.modelImprovementData = false,
+    this.updatedAt,
+    this.plainLanguageSummary = const {},
   });
 
   factory ConsentModel.fromJson(Map<String, dynamic> json) {
+    final data = json.containsKey('data') ? json['data'] : json;
+    
     return ConsentModel(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      relationshipId: json['relationship_id'] as String?,
+      id: data['id'] as String? ?? '',
+      userId: data['user_id'] as String,
+      relationshipId: data['relationship_id'] as String?,
       sessionTranscriptRetention:
-          json['session_transcript_retention'] as String? ?? 'per_session',
+          data['session_transcript_retention'] as String? ?? 'per_session',
       crossPartnerInsightSharing:
-          json['cross_partner_insight_sharing'] as String? ?? 'never',
+          data['cross_partner_insight_sharing'] as String? ?? 'never',
       jointSessionParticipation:
-          json['joint_session_participation'] as String? ?? 'not_enrolled',
+          data['joint_session_participation'] as String? ?? 'not_enrolled',
       sharedRelationshipContext:
-          json['shared_relationship_context'] as String? ?? 'not_participating',
+          data['shared_relationship_context'] as String? ?? 'not_participating',
       therapistSummaryAccess:
-          json['therapist_summary_access'] as bool? ?? false,
-      modelImprovementData: json['model_improvement_data'] as bool? ?? false,
+          data['therapist_summary_access'] as bool? ?? false,
+      modelImprovementData: data['model_improvement_data'] as bool? ?? false,
+      updatedAt: data['updated_at'] as String?,
+      plainLanguageSummary: Map<String, String>.from(data['plain_language_summary'] ?? {}),
     );
   }
 
@@ -51,6 +59,8 @@ class ConsentModel {
         'shared_relationship_context': sharedRelationshipContext,
         'therapist_summary_access': therapistSummaryAccess,
         'model_improvement_data': modelImprovementData,
+        'updated_at': updatedAt,
+        'plain_language_summary': plainLanguageSummary,
       };
 
   ConsentModel copyWith({
@@ -60,6 +70,8 @@ class ConsentModel {
     String? sharedRelationshipContext,
     bool? therapistSummaryAccess,
     bool? modelImprovementData,
+    Map<String, String>? plainLanguageSummary,
+    String? updatedAt,
   }) {
     return ConsentModel(
       id: id,
@@ -76,11 +88,12 @@ class ConsentModel {
       therapistSummaryAccess:
           therapistSummaryAccess ?? this.therapistSummaryAccess,
       modelImprovementData: modelImprovementData ?? this.modelImprovementData,
+      updatedAt: updatedAt ?? this.updatedAt,
+      plainLanguageSummary: plainLanguageSummary ?? this.plainLanguageSummary,
     );
   }
 
   /// Human-readable display labels for all consent state values.
-  /// Per REL-XX specification.
   static const Map<String, String> displayLabels = {
     'per_session': 'Not saved after session ends',
     '30_days': 'Saved for 30 days',
@@ -105,5 +118,14 @@ class ConsentModel {
   static ConsentModel defaultRestrictive(String userId) => ConsentModel(
         id: '',
         userId: userId,
+        updatedAt: null,
+        plainLanguageSummary: {
+          'session_transcript_retention': 'Your session conversations are deleted when the session ends.',
+          'cross_partner_insight_sharing': 'Nothing from your sessions is shared with your partner.',
+          'joint_session_participation': 'You are not enrolled in joint sessions with your partner.',
+          'shared_relationship_context': 'You are not participating in shared context.',
+          'therapist_summary_access': 'Your therapist cannot see summaries.',
+          'model_improvement_data': 'Your data is not used for improvement.',
+        }
       );
 }
