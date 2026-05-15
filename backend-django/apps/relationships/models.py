@@ -1,60 +1,78 @@
 import uuid
 from django.db import models
 from django.conf import settings
-from utils.fields import encrypt_field_value, decrypt_field_value
 
 
 class Relationship(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="relationships"
+    partner_a = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="relationships_as_a")
+    partner_b = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="relationships_as_b", null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('active', 'Active'),
+            ('dissolved', 'Dissolved'),
+        ],
+        default='active'
     )
-    name = models.CharField(max_length=255)
-    description = models.TextField(
-        blank=True, null=True, help_text="Encrypted description"
-    )
-
-    metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
+    dissolved_at = models.DateTimeField(null=True, blank=True)
+    
     class Meta:
-        db_table = "relationships"
+        db_table = 'relationships'
+        indexes = [
+            models.Index(fields=['partner_a', 'status']),
+            models.Index(fields=['partner_b', 'status']),
+        ]
 
     def __str__(self):
-        return f"{self.name} ({self.user.id})"
-
-    def save(self, *args, **kwargs):
-        if self.description and not self.description.startswith("ENC:"):
-            self.description = encrypt_field_value(self.user, self.description)
-        super().save(*args, **kwargs)
-
-    @property
-    def decrypted_description(self):
-        return decrypt_field_value(self.user, self.description)
+        return f"Relationship {self.id} ({self.status})"
 
 
-class RelationshipNote(models.Model):
+class RelationshipInvite(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    relationship = models.ForeignKey(
-        Relationship, on_delete=models.CASCADE, related_name="notes"
+    inviter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_invites")
+    invitee_email = models.EmailField()
+    token_hash = models.CharField(max_length=255, unique=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('accepted', 'Accepted'),
+            ('declined', 'Declined'),
+            ('expired', 'Expired'),
+        ],
+        default='pending'
     )
-    content = models.TextField(help_text="Encrypted note content")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
 
+    class Meta:
+        db_table = 'relationship_invites'
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at or self.status == 'expired'
+
+    def __str__(self):
+        return f"Invite from {self.inviter.email} to {self.invitee_email}"
+
+
+class SharedRelationshipContext(models.Model):
+    """
+    Per REL-65, stores the shared context between partners.
+    JSONB fields are to be encrypted with a relationship-scoped key.
+    """
+    relationship = models.OneToOneField(Relationship, on_delete=models.CASCADE, primary_key=True, related_name='shared_context')
+    named_recurring_conflicts = models.JSONField(default=list, blank=True)
+    agreed_goals_and_values = models.JSONField(default=list, blank=True)
+    repair_history = models.JSONField(default=list, blank=True)
+    structural_facts = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "relationship_notes"
+        db_table = 'shared_relationship_context'
 
     def __str__(self):
-        return f"Note on {self.relationship.id} at {self.created_at}"
-
-    def save(self, *args, **kwargs):
-        if self.content and not self.content.startswith("ENC:"):
-            self.content = encrypt_field_value(self.relationship.user, self.content)
-        super().save(*args, **kwargs)
-
-    @property
-    def decrypted_content(self):
-        return decrypt_field_value(self.relationship.user, self.content)
+        return f"Shared Context for {self.relationship.id}"
