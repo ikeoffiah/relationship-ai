@@ -1,0 +1,158 @@
+00:00 +0: loading /Users/piusikeoffiah/Developer/relationshipai/mobile/test/features/consent/consent_summary_sheet_test.dart
+00:00 +0: ConsentSummarySheet appears automatically and gates content
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following assertion was thrown building Builder(dirty):
+setState() or markNeedsBuild() called during build.
+This _MediaQueryFromView widget cannot be marked as needing to build because the framework is
+already in the process of building widgets. A widget can be marked as needing to be built during the
+build phase only if one of its ancestors is currently building. This exception is allowed because
+the framework builds parent widgets before children, which means a dirty descendant will always be
+built. Otherwise, the framework might not visit this widget during this build phase.
+The widget on which setState() or markNeedsBuild() was called was:
+  _MediaQueryFromView
+The widget which was currently being built when the offending call was made was:
+  Builder
+
+The relevant error-causing widget was:
+  Builder
+  Builder:file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/features/consent/consent_summary_sheet_test.dart:37:15
+
+When the exception was thrown, this was the stack:
+#0      Element.markNeedsBuild.<anonymous closure> (package:flutter/src/widgets/framework.dart:5373:9)
+#1      Element.markNeedsBuild (package:flutter/src/widgets/framework.dart:5385:6)
+#2      State.setState (package:flutter/src/widgets/framework.dart:1219:15)
+#3      _MediaQueryFromViewState._updateData (package:flutter/src/widgets/media_query.dart:2232:7)
+#4      _MediaQueryFromViewState.didChangeMetrics (package:flutter/src/widgets/media_query.dart:2251:5)
+#5      WidgetsBinding.handleMetricsChanged (package:flutter/src/widgets/binding.dart:860:16)
+#6      TestPlatformDispatcher._handleMetricsChanged (package:flutter_test/src/window.dart:194:24)
+#7      TestFlutterView.physicalConstraints= (package:flutter_test/src/window.dart:1135:42)
+#8      TestFlutterView.physicalSize= (package:flutter_test/src/window.dart:1109:5)
+#9      TestWindow.physicalSizeTestValue= (package:flutter_test/src/window.dart:1595:11)
+#10     main.createWidgetUnderTest.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/features/consent/consent_summary_sheet_test.dart:40:28)
+#11     Builder.build (package:flutter/src/widgets/basic.dart:8396:48)
+#12     StatelessElement.build (package:flutter/src/widgets/framework.dart:5889:49)
+#13     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#14     Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#15     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:5799:5)
+#16     ComponentElement.mount (package:flutter/src/widgets/framework.dart:5793:5)
+...     Normal element mounting (260 frames)
+#276    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#277    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#278    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (473 frames)
+#751    _InheritedProviderScopeElement.mount (package:provider/src/inherited_provider.dart:424:11)
+...     Normal element mounting (7 frames)
+#758    SingleChildWidgetElementMixin.mount (package:nested/nested.dart:222:11)
+#759    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#760    Element.updateChild (package:flutter/src/widgets/framework.dart:4053:20)
+#761    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#762    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#763    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#764    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#765    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#766    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#767    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#768    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#769    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#770    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#771    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#772    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#773    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#774    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#775    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#776    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#777    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#778    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#779    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#780    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#781    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#782    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#783    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#784    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#785    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#786    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#787    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#788    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#789    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#790    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#791    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#792    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#793    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#794    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#795    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#796    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#797    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#798    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#799    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#800    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#801    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#802    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#803    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:481:16)
+#804    _RawViewElement.update (package:flutter/src/widgets/view.dart:568:5)
+#805    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#806    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#807    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#808    StatelessElement.update (package:flutter/src/widgets/framework.dart:5895:5)
+#809    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#810    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#811    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#812    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#813    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#814    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#815    RootElement._rebuild (package:flutter/src/widgets/binding.dart:1822:16)
+#816    RootElement.update (package:flutter/src/widgets/binding.dart:1800:5)
+#817    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:1814:7)
+#818    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#819    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#820    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#821    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#822    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2131:19)
+#823    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495:5)
+#824    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#825    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#826    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:1960:9)
+#829    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#830    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:1949:27)
+#831    WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#834    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#835    WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#836    main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/features/consent/consent_summary_sheet_test.dart:50:18)
+#837    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#838    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Your current privacy settings": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/features/consent/consent_summary_sheet_test.dart:56:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/features/consent/consent_summary_sheet_test.dart line 56
+The test description was:
+  ConsentSummarySheet appears automatically and gates content
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (2) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -1: ConsentSummarySheet appears automatically and gates content [E]
+  Test failed. See exception logs above.
+  The test description was: ConsentSummarySheet appears automatically and gates content
+  
+00:00 +0 -1: Some tests failed.
