@@ -1,13 +1,7 @@
 from django.urls import path
-from . import views
+from apps.consent.views import ConsentDetailView, ConsentHistoryView
 
 urlpatterns = [
-    path(
-        "<uuid:user_id>/consent/", views.UserConsentView.as_view(), name="user-consent"
-    ),
-    path(
-        "<uuid:user_id>/consent/audit/",
-        views.ConsentAuditListView.as_view(),
-        name="consent-audit",
-    ),
+    path('<uuid:user_id>/consent', ConsentDetailView.as_view(), name='consent-detail'),
+    path('<uuid:user_id>/consent/history', ConsentHistoryView.as_view(), name='consent-history'),
 ]
