@@ -1,6 +1,6 @@
 # RelationshipAI Monorepo
 
-RelationshipAI is a sophisticated AI-driven platform for multi-modal relationship counseling and insights.
+RelationshipAI(Bliss) is a sophisticated AI-driven platform for multi-modal relationship counseling and insights.
 
 ## Repository Structure
 
