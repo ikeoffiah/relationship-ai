@@ -1,6 +1,6 @@
 # MVP Infrastructure (0-20 users pilot)
 
-This document outlines the infrastructure choices for the initial RelationshipAI pilot. The focus is on rapid development and low-cost maintenance.
+This document outlines the infrastructure choices for the initial RelationshipAI (bliss) pilot. The focus is on rapid development and low-cost maintenance.
 
 | Component       | MVP Solution                 | Monthly Cost | Migration Path (post-pilot)         |
 | --------------- | ---------------------------- | ------------ | ----------------------------------- |
