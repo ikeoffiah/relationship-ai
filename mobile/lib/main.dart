@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
@@ -19,6 +20,9 @@ import 'package:mobile/features/relationship/invite_partner_screen.dart';
 import 'package:mobile/features/relationship/accept_invite_screen.dart';
 import 'package:mobile/features/relationship/dissolve_relationship_screen.dart';
 import 'package:mobile/features/relationship/our_story_screen.dart';
+import 'package:mobile/features/safety/safety_resources_screen.dart';
+import 'package:mobile/features/history/viewmodels/session_history_viewmodel.dart';
+import 'package:mobile/features/history/session_history_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,8 +46,9 @@ Future<void> main() async {
               RelationshipApiService(),
             ),
           ),
+          ChangeNotifierProvider(create: (_) => SessionHistoryViewModel()),
         ],
-        child: const MyApp(),
+        child: const ProviderScope(child: MyApp()),
       ),
     ),
   );
@@ -119,6 +124,8 @@ class _MyAppState extends State<MyApp> {
         '/relationship/invite': (context) => const InvitePartnerScreen(),
         '/relationship/settings': (context) => const DissolveRelationshipScreen(),
         '/our-story': (context) => const OurStoryScreen(),
+        '/safety': (context) => const SafetyResourcesScreen(),
+        '/history': (context) => const SessionHistoryScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/relationship/accept') {

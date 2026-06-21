@@ -10,6 +10,12 @@ class ConsentApiService extends BaseApiService {
     return ConsentModel.fromJson(response.data);
   }
 
+  /// Fetches the history of consent updates.
+  Future<List<Map<String, dynamic>>> fetchConsentHistory(String userId) async {
+    final response = await dio.get('/api/v1/users/$userId/consent/history');
+    return List<Map<String, dynamic>>.from(response.data['results'] ?? response.data['history'] ?? []);
+  }
+
   /// Updates one or more consent dimensions for the authenticated user.
   Future<ConsentModel> updateConsent(String userId, Map<String, dynamic> data) async {
     final response = await dio.put('/api/v1/users/$userId/consent', data: data);

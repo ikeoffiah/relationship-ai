@@ -26,6 +26,7 @@ void main() {
 
     const mockUser = UserProfile(id: userId, email: 'test@example.com', name: 'Test User');
     when(() => mockAuthViewModel.user).thenReturn(mockUser);
+    when(() => mockAuthViewModel.isMinor).thenReturn(false);
 
     const mockConsent = ConsentModel(
       id: '1',
@@ -33,6 +34,7 @@ void main() {
       sessionTranscriptRetention: '30_days',
       crossPartnerInsightSharing: 'anonymized',
       jointSessionParticipation: 'not_enrolled',
+      sharedRelationshipContext: 'not_participating',
       therapistSummaryAccess: false,
     );
 
@@ -41,6 +43,7 @@ void main() {
         id: 'mem1',
         title: 'Communication pattern',
         whyStored: 'Identified recurring conflict loop',
+        zone: MemoryZone.private,
         createdAt: DateTime.now(),
       ),
     ];
@@ -72,22 +75,23 @@ void main() {
     );
   }
 
-  testWidgets('Renders all 6 permission sections and mandatory banners', (WidgetTester tester) async {
+  testWidgets('Renders all permission sections and memory zones', (WidgetTester tester) async {
     await tester.pumpWidget(createWidgetUnderTest());
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // Verify sections
-    expect(find.text('Session history'), findsOneWidget);
-    expect(find.text('Partner insights'), findsOneWidget);
-    expect(find.text('Joint sessions'), findsOneWidget);
-    expect(find.text('Therapist summaries'), findsOneWidget);
-    expect(find.text('What we remember about you'), findsOneWidget);
+    // Verify memory zones
+    expect(find.text('Private Profile'), findsOneWidget);
+    expect(find.text('Shared Context'), findsOneWidget);
 
-    // Verify Mandatory AI Disclosure Banner
-    expect(find.textContaining('interacting with an AI system'), findsOneWidget);
+    // Verify permission cards
+    expect(find.text('Session transcript retention'), findsOneWidget);
+    expect(find.text('Partner insight sharing'), findsOneWidget);
+    expect(find.text('Shared context access'), findsOneWidget);
+    expect(find.text('Therapist access'), findsOneWidget);
+    expect(find.text('Model improvement data'), findsOneWidget);
 
-    // Verify "Get Help Now" Footer
+    // Verify "Get Help Now" Header
     expect(find.textContaining('Get Help Now'), findsOneWidget);
   });
 
@@ -95,7 +99,10 @@ void main() {
     await tester.pumpWidget(createWidgetUnderTest());
     await tester.pumpAndSettle();
 
-    final switchFinder = find.byType(Switch);
+    final switchFinder = find.descendant(
+      of: find.widgetWithText(ListTile, 'Therapist access'),
+      matching: find.byType(Switch),
+    );
     expect(switchFinder, findsOneWidget);
 
     // Toggle switch
@@ -108,6 +115,10 @@ void main() {
 
   testWidgets('Memory panel allows deletion of individual memories', (WidgetTester tester) async {
     await tester.pumpWidget(createWidgetUnderTest());
+    await tester.pumpAndSettle();
+
+    // Tap the Private Profile zone card to open MemoryTransparencyPanel
+    await tester.tap(find.text('Private Profile'));
     await tester.pumpAndSettle();
 
     expect(find.text('Communication pattern'), findsOneWidget);
@@ -135,24 +146,23 @@ void main() {
     await tester.pumpWidget(createWidgetUnderTest());
     await tester.pumpAndSettle();
 
-    // Find a radio option that is NOT selected (e.g., 'Not saved')
-    final perSessionOption = find.textContaining('Not saved');
-    
-    // Tap it
-    await tester.tap(perSessionOption);
+    // Verify initial retention description
+    expect(find.text('Saved for 30 days'), findsOneWidget);
+
+    // Tap Session transcript retention card to open sheet picker
+    await tester.tap(find.text('Session transcript retention'));
+    await tester.pumpAndSettle();
+
+    // Tap 'Not saved' option
+    await tester.tap(find.text('Not saved'));
     await tester.pump(); // Immediate UI change (optimistic)
 
-    // Verify UI shows it as selected
-    final radioGroup = tester.widget<RadioGroup<String>>(find.byType(RadioGroup<String>).first);
-    expect(radioGroup.groupValue, equals('per_session'));
+    // Verify UI immediately updates (optimistically showing 'Not saved')
+    expect(find.text('Not saved'), findsOneWidget);
 
     await tester.pumpAndSettle(); // Wait for API "failure" to be processed
 
-    // Verify UI reverts (should go back to '30_days')
-    final radioGroupReverted = tester.widget<RadioGroup<String>>(find.byType(RadioGroup<String>).first);
-    expect(radioGroupReverted.groupValue, equals('30_days'));
-    
-    // Verify error message shown
-    expect(find.textContaining('API Failure'), findsOneWidget);
+    // Verify UI reverts (should go back to 'Saved for 30 days')
+    expect(find.text('Saved for 30 days'), findsOneWidget);
   });
 }

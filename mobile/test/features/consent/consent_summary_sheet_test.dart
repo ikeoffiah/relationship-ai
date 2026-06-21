@@ -53,7 +53,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     // Verify sheet is visible
-    expect(find.text('Your current privacy settings', skipOffstage: false), findsOneWidget);
+    expect(find.text('Before we begin', skipOffstage: false), findsOneWidget);
     
     // Verify session content is NOT visible yet
     expect(find.byKey(const Key('chat_body')), findsNothing);
@@ -69,14 +69,14 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     // Verify sheet is there
-    expect(find.text('Your current privacy settings', skipOffstage: false), findsOneWidget);
+    expect(find.text('Before we begin', skipOffstage: false), findsOneWidget);
 
     // Attempt to drag down to dismiss
-    await tester.drag(find.text('Your current privacy settings', skipOffstage: false), const Offset(0, 500));
+    await tester.drag(find.text('Before we begin', skipOffstage: false), const Offset(0, 500));
     await tester.pumpAndSettle();
 
     // Verify sheet is STILL there
-    expect(find.text('Your current privacy settings', skipOffstage: false), findsOneWidget);
+    expect(find.text('Before we begin', skipOffstage: false), findsOneWidget);
   });
 
   testWidgets('Tapping Start session dismisses sheet and reveals content', (WidgetTester tester) async {
@@ -90,10 +90,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify sheet is gone
-    expect(find.text('Your current privacy settings'), findsNothing);
+    expect(find.text('Before we begin'), findsNothing);
 
     // Verify session content IS visible
     expect(find.byKey(const Key('chat_body')), findsOneWidget);
-    expect(find.text('Session started'), findsOneWidget);
+    expect(find.textContaining('Private session'), findsOneWidget);
   });
 }
