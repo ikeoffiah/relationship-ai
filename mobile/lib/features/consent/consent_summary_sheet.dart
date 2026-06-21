@@ -119,6 +119,7 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
             ),
             const SizedBox(height: 16),
             AnimatedButton(
+              key: const Key('start_session_button'),
               label: 'Start session',
               onTap: viewModel.consent == null ? null : () {
                 if (mounted) widget.onStartSession();

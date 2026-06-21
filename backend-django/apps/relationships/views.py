@@ -169,3 +169,33 @@ class RelationshipDetailView(views.APIView):
             RelationshipDissolutionJob.delay(str(relationship.id))
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class RelationshipMeView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """
+        GET /api/v1/relationships/me
+        Get the current user's active relationship.
+        """
+        user = request.user
+        relationship = Relationship.objects.filter(
+            (Q(partner_a=user) | Q(partner_b=user)),
+            status='active'
+        ).first()
+
+        if not relationship:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Serialize simply
+        partner = relationship.partner_b if relationship.partner_a == user else relationship.partner_a
+        
+        return Response({
+            "id": str(relationship.id),
+            "status": relationship.status,
+            "created_at": relationship.created_at.isoformat(),
+            "partner": {
+                "id": str(partner.id),
+                "email": partner.email,
+            }
+        }, status=status.HTTP_200_OK)

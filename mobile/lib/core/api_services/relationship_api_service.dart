@@ -18,10 +18,17 @@ class RelationshipApiService extends BaseApiService {
   Future<Map<String, dynamic>> acceptInvite(String token) async {
     try {
       final response = await dio.post(
-        '/v1/relationships/accept',
-        data: {'token': token},
+        '/v1/relationships/accept/$token',
       );
       return response.data;
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
+  Future<void> declineInvite(String token) async {
+    try {
+      await dio.post('/v1/relationships/decline/$token');
     } catch (e) {
       throw handleError(e);
     }
@@ -68,6 +75,21 @@ class RelationshipApiService extends BaseApiService {
       );
     } catch (e) {
       throw Exception('Failed to log repair event');
+    }
+  }
+
+  Future<void> addConflictEvent(String relationshipId, String description, String sessionId) async {
+    try {
+      await dio.put(
+        'https://ws.relationshipai.com/api/v1/relationships/$relationshipId/context/conflicts',
+        data: {
+          'event_id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'description': description,
+          'session_id': sessionId,
+        },
+      );
+    } catch (e) {
+      throw Exception('Failed to log conflict event');
     }
   }
 

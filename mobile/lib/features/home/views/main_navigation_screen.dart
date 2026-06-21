@@ -132,8 +132,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _launchSafetyResources() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Connecting to crisis resources...'), backgroundColor: Colors.red),
-    );
+    Navigator.of(context).pushNamed('/safety');
   }
 }
