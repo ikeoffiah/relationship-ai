@@ -1,4 +1,4 @@
-# RelationshipAI Monorepo (Bliss App)
+# RelationshipAI Monorepo (Bliss mobile App)
 
 RelationshipAI(Bliss) is a sophisticated AI-driven platform for multi-modal relationship counseling and insights for couples.
 
