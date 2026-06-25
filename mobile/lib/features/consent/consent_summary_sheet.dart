@@ -25,12 +25,15 @@ class ConsentSummarySheet extends StatefulWidget {
       isDismissible: !isFirstSession,
       enableDrag: !isFirstSession,
       backgroundColor: Colors.transparent,
-      builder: (_) => ConsentSummarySheet(
-        isFirstSession: isFirstSession,
-        onStartSession: () {
-          started = true;
-          Navigator.pop(context);
-        },
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 0.9,
+        child: ConsentSummarySheet(
+          isFirstSession: isFirstSession,
+          onStartSession: () {
+            started = true;
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
     return started;
@@ -67,7 +70,7 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
     return PopScope(
       canPop: _canDismiss,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -95,17 +98,26 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 24),
-            if (viewModel.isLoading)
-              const Center(child: Padding(
-                padding: EdgeInsets.all(40.0),
-                child: CircularProgressIndicator(),
-              ))
-            else if (viewModel.errorMessage != null)
-              _buildErrorState(viewModel)
-            else if (consent != null)
-              _buildConsentList(context, consent)
-            else
-              const SizedBox(height: 200),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (viewModel.isLoading)
+                      const Center(child: Padding(
+                        padding: EdgeInsets.all(40.0),
+                        child: CircularProgressIndicator(),
+                      ))
+                    else if (viewModel.errorMessage != null)
+                      _buildErrorState(viewModel)
+                    else if (consent != null)
+                      _buildConsentList(context, consent)
+                    else
+                      const SizedBox(height: 200),
+                  ],
+                ),
+              ),
+            ),
             
             const Divider(height: 48),
             

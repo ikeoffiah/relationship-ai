@@ -59,7 +59,7 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
               children: [
                 const GetHelpNowButton(),
                 const SizedBox(height: 16),
-                if (context.watch<AuthViewModel>().isMinor)
+                if (context.read<AuthViewModel>().isMinor)
                   _buildMinorSafetyBanner(),
                 _buildSectionHeader('What\'s stored about you', 'Your memory zones and item counts'),
                 _buildMemoryZones(vm),
