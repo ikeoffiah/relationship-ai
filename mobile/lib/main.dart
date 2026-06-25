@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod hide Provider;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
+import 'package:mobile/features/chat/chat_screen.dart';
 
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
@@ -23,6 +24,12 @@ import 'package:mobile/features/relationship/our_story_screen.dart';
 import 'package:mobile/features/safety/safety_resources_screen.dart';
 import 'package:mobile/features/history/viewmodels/session_history_viewmodel.dart';
 import 'package:mobile/features/history/session_history_screen.dart';
+import 'package:mobile/features/settings/settings_screen.dart';
+import 'package:mobile/features/settings/email_change_screen.dart';
+import 'package:mobile/features/settings/about_screen.dart';
+import 'package:mobile/features/onboarding/onboarding_viewmodel.dart';
+import 'package:mobile/features/onboarding/onboarding_flow_screen.dart';
+import 'package:mobile/features/onboarding/screens/onboarding_complete_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,20 +42,21 @@ Future<void> main() async {
       options.profilesSampleRate = 1.0;
     },
     appRunner: () => runApp(
-      MultiProvider(
+      provider.MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (_) => AuthViewModel()),
-          ChangeNotifierProvider(create: (_) => SplashViewModel()),
-          ChangeNotifierProvider(create: (_) => WelcomeViewModel()),
-          ChangeNotifierProvider(create: (_) => ConsentViewModel()),
-          ChangeNotifierProvider(
+          provider.ChangeNotifierProvider(create: (_) => AuthViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => SplashViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => WelcomeViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => ConsentViewModel()),
+          provider.ChangeNotifierProvider(
             create: (context) => RelationshipViewModel(
               RelationshipApiService(),
             ),
           ),
-          ChangeNotifierProvider(create: (_) => SessionHistoryViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => SessionHistoryViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => OnboardingViewModel()),
         ],
-        child: const ProviderScope(child: MyApp()),
+        child: const riverpod.ProviderScope(child: MyApp()),
       ),
     ),
   );
@@ -126,6 +134,16 @@ class _MyAppState extends State<MyApp> {
         '/our-story': (context) => const OurStoryScreen(),
         '/safety': (context) => const SafetyResourcesScreen(),
         '/history': (context) => const SessionHistoryScreen(),
+        '/onboarding': (context) => const OnboardingFlowScreen(),
+        '/onboarding/complete': (context) => const OnboardingCompleteScreen(),
+        '/chat': (context) {
+          final authVM = provider.Provider.of<AuthViewModel>(context, listen: false);
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return ChatScreen(
+            userId: authVM.user?.id ?? 'guest',
+            isJointSession: args?['isJoint'] ?? false,
+          );
+        },
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/relationship/accept') {

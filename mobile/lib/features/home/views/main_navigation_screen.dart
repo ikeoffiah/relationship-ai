@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
-import 'package:mobile/features/chat/chat_screen.dart';
 import 'package:mobile/features/consent/consent_dashboard_screen.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
-import 'package:mobile/features/relationship/our_story_screen.dart';
+
+import 'package:mobile/features/home/views/home_screen.dart';
+import 'package:mobile/features/history/session_history_screen.dart';
+import 'package:mobile/features/settings/settings_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -30,9 +32,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final userId = authViewModel.user?.id ?? 'guest';
 
     final List<Widget> screens = [
-      ChatScreen(userId: userId),
-      const OurStoryScreen(),
+      const HomeScreen(),
+      const SessionHistoryScreen(),
       const ConsentDashboardScreen(),
+      const SettingsScreen(),
     ];
 
     final isPending = relationshipViewModel.status == RelationshipStatus.pending;
@@ -56,19 +59,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline_rounded),
-            activeIcon: Icon(Icons.chat_bubble_rounded),
-            label: 'Chat',
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.auto_stories_outlined),
-            activeIcon: Icon(Icons.auto_stories_rounded),
-            label: 'Our Story',
+            icon: Icon(Icons.history_outlined),
+            activeIcon: Icon(Icons.history),
+            label: 'History',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.lock_outline_rounded),
             activeIcon: Icon(Icons.lock_rounded),
             label: 'Privacy',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
         currentIndex: _selectedIndex,
