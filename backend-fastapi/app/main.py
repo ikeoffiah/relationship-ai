@@ -5,6 +5,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.counseling.broker import JointSessionBroker
 from app.api.websockets import router as websockets_router
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.api.dialogue_router import router as dialogue_router
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -61,8 +62,11 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=_ALLOWED_HOSTS)
 # ──────────────────────────────────────────────────────────────────────────────
 
 app.include_router(websockets_router)
+app.include_router(dialogue_router)
 from app.api.relationships import router as relationships_router
 app.include_router(relationships_router)
+from app.api.memory_router import router as memory_router
+app.include_router(memory_router, prefix="/api/v1/memory")
 
 # Instrument Prometheus
 Instrumentator().instrument(app).expose(app)
