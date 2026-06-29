@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:mobile/core/api_services/base_api_service.dart';
 
 class PersonalizationApiService extends BaseApiService {

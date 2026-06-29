@@ -13,9 +13,9 @@ class _FakeSessionHistoryViewModel extends SessionHistoryViewModel {
   final bool startEmpty;
 
   _FakeSessionHistoryViewModel({List<SessionHistoryItem>? items})
-      : _fakeItems = items ?? [],
-        startEmpty = (items == null || items.isEmpty),
-        super();
+    : _fakeItems = items ?? [],
+      startEmpty = (items == null || items.isEmpty),
+      super();
 
   @override
   Future<void> loadSessions() async {
@@ -55,9 +55,7 @@ SessionHistoryItem _makeItem(SessionType type, {String id = 'id-1'}) {
 
 Widget _buildTestWidget(_FakeSessionHistoryViewModel vm) {
   return MaterialApp(
-    routes: {
-      '/safety': (_) => const Scaffold(body: Text('Safety')),
-    },
+    routes: {'/safety': (_) => const Scaffold(body: Text('Safety'))},
     home: ChangeNotifierProvider<SessionHistoryViewModel>.value(
       value: vm,
       child: const SessionHistoryScreen(),
@@ -76,15 +74,19 @@ void main() {
       await tester.pump();
 
       expect(find.text('No sessions yet'), findsOneWidget);
-      expect(find.text('Start your first session from the Home tab.'),
-          findsOneWidget);
+      expect(
+        find.text('Start your first session from the Home tab.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders session cards when sessions exist', (tester) async {
-      final vm = _FakeSessionHistoryViewModel(items: [
-        _makeItem(SessionType.individual, id: 'id-1'),
-        _makeItem(SessionType.joint, id: 'id-2'),
-      ]);
+      final vm = _FakeSessionHistoryViewModel(
+        items: [
+          _makeItem(SessionType.individual, id: 'id-1'),
+          _makeItem(SessionType.joint, id: 'id-2'),
+        ],
+      );
       await tester.pumpWidget(_buildTestWidget(vm));
       await tester.pump();
 
@@ -108,9 +110,9 @@ void main() {
     });
 
     testWidgets('shows summary preview in card', (tester) async {
-      final vm = _FakeSessionHistoryViewModel(items: [
-        _makeItem(SessionType.individual, id: 'id-1'),
-      ]);
+      final vm = _FakeSessionHistoryViewModel(
+        items: [_makeItem(SessionType.individual, id: 'id-1')],
+      );
       await tester.pumpWidget(_buildTestWidget(vm));
       await tester.pump();
 

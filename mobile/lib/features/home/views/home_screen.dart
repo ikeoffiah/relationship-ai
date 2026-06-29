@@ -19,7 +19,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final relVM = provider.Provider.of<RelationshipViewModel>(context, listen: false);
+      final relVM = provider.Provider.of<RelationshipViewModel>(
+        context,
+        listen: false,
+      );
       ref.read(homeProvider.notifier).fetchHomeData(relVM);
     });
   }
@@ -29,7 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final homeState = ref.watch(homeProvider);
     final authVM = provider.Provider.of<AuthViewModel>(context);
     final relVM = provider.Provider.of<RelationshipViewModel>(context);
-    final firstName = authVM.user?.name?.split(' ').first ?? 'User';
+    final firstName = authVM.user?.name.split(' ').first ?? 'User';
 
     return Scaffold(
       backgroundColor: AppColors.creamWhite,
@@ -42,11 +45,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 24),
               Text(
                 'Good day,',
-                style: TextStyle(fontSize: 16, color: AppColors.softCharcoal.withValues(alpha: 0.6)),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.softCharcoal.withValues(alpha: 0.6),
+                ),
               ),
               Text(
                 firstName,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.softCharcoal),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.softCharcoal,
+                ),
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -89,11 +99,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 Icon(Icons.lock_outline_rounded, color: AppColors.calmTeal),
                 SizedBox(width: 8),
-                Text('🟢 Individual session', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  '🟢 Individual session',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 8),
-            const Text('Start a private reflection session with your AI guide.', style: TextStyle(color: Colors.grey)),
+            const Text(
+              'Start a private reflection session with your AI guide.',
+              style: TextStyle(color: Colors.grey),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
@@ -102,9 +118,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.calmTeal,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Begin session', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Begin session',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -112,7 +133,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildJointSessionCard(HomeState homeState, RelationshipViewModel relVM) {
+  Widget _buildJointSessionCard(
+    HomeState homeState,
+    RelationshipViewModel relVM,
+  ) {
     if (homeState.relationshipStatus != RelationshipStatus.active) {
       return const SizedBox.shrink();
     }
@@ -136,26 +160,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 Icon(Icons.people_outline_rounded, color: AppColors.warmCoral),
                 SizedBox(width: 8),
-                Text('👥 Joint session', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  '👥 Joint session',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              isEnrolled ? '$partnerName is enrolled.' : '$partnerName hasn\'t enabled joint sessions.',
+              isEnrolled
+                  ? '$partnerName is enrolled.'
+                  : '$partnerName hasn\'t enabled joint sessions.',
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: isEnrolled
                   ? () {
-                      Navigator.of(context).pushNamed('/chat', arguments: {'isJoint': true});
+                      Navigator.of(
+                        context,
+                      ).pushNamed('/chat', arguments: {'isJoint': true});
                     }
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.warmCoral,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Start joint session', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Start joint session',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -164,7 +200,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildAsyncRelayCard(HomeState homeState) {
-    if (homeState.relationshipStatus != RelationshipStatus.active || homeState.pendingRelayMessageCount == 0) {
+    if (homeState.relationshipStatus != RelationshipStatus.active ||
+        homeState.pendingRelayMessageCount == 0) {
       return const SizedBox.shrink();
     }
 
@@ -184,7 +221,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 Icon(Icons.mail_outline_rounded, color: AppColors.goldMedium),
                 SizedBox(width: 8),
-                Text('📨 Async relay', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  '📨 Async relay',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -196,9 +236,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.goldMedium,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('View relay inbox', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'View relay inbox',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -220,7 +265,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         child: const Text(
           'Waiting for your partner to accept your invite.',
-          style: TextStyle(color: AppColors.softCharcoal, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: AppColors.softCharcoal,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       );
     }
@@ -238,11 +286,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               Icon(Icons.link_rounded, color: AppColors.warmCoral),
               SizedBox(width: 8),
-              Text('🔗 Connect with your partner', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                '🔗 Connect with your partner',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          const Text('Invite them to unlock joint sessions and shared insights.', style: TextStyle(color: Colors.grey)),
+          const Text(
+            'Invite them to unlock joint sessions and shared insights.',
+            style: TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
@@ -250,9 +304,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.warmCoral,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Send invite', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Send invite',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

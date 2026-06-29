@@ -52,12 +52,8 @@ void main() {
     ).thenAnswer((_) async {});
     when(() => mockRelationshipViewModel.sharedContext).thenReturn(null);
 
-    when(
-      () => mockConsentViewModel.fetchConsent(),
-    ).thenAnswer((_) async => null);
-    when(
-      () => mockConsentViewModel.fetchMemories(),
-    ).thenAnswer((_) async => null);
+    when(() => mockConsentViewModel.fetchConsent()).thenAnswer((_) async {});
+    when(() => mockConsentViewModel.fetchMemories()).thenAnswer((_) async {});
     when(() => mockConsentViewModel.logSummaryShown()).thenAnswer((_) async {});
     when(() => mockConsentViewModel.isLoading).thenReturn(false);
     when(() => mockConsentViewModel.consent).thenReturn(

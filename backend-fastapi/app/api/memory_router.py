@@ -3,6 +3,8 @@ from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status
+
 
 # Pydantic schemas
 class MemoryBase(BaseModel):
@@ -25,12 +27,7 @@ class MemoryOut(MemoryBase):
     class Config:
         orm_mode = True
 
-# Dependency placeholder for current user (replace with actual auth dependency)
-async def get_current_user():
-    # In real code, retrieve user from JWT
-    class User:
-        id: UUID = UUID('00000000-0000-0000-0000-000000000001')
-    return User()
+from ..dependencies import get_current_user
 
 router = APIRouter()
 

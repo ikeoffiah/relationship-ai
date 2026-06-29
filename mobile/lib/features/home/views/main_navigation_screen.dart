@@ -27,9 +27,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authViewModel = context.watch<AuthViewModel>();
+    context.watch<AuthViewModel>();
     final relationshipViewModel = context.watch<RelationshipViewModel>();
-    final userId = authViewModel.user?.id ?? 'guest';
 
     final List<Widget> screens = [
       const HomeScreen(),
@@ -38,20 +37,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       const SettingsScreen(),
     ];
 
-    final isPending = relationshipViewModel.status == RelationshipStatus.pending;
-    final pendingEmail = relationshipViewModel.currentRelationship?['invitee_email'] ?? 'your partner';
+    final isPending =
+        relationshipViewModel.status == RelationshipStatus.pending;
+    final pendingEmail =
+        relationshipViewModel.currentRelationship?['invitee_email'] ??
+        'your partner';
 
     return Scaffold(
       body: Column(
         children: [
           _buildAIDisclosureBanner(),
-          if (isPending)
-            _buildPendingInviteBanner(pendingEmail),
+          if (isPending) _buildPendingInviteBanner(pendingEmail),
           Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: screens,
-            ),
+            child: IndexedStack(index: _selectedIndex, children: screens),
           ),
         ],
       ),
@@ -102,7 +100,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           const Expanded(
             child: Text(
               'You are talking to an AI, not a licensed therapist.',
-              style: TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -115,7 +117,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       onPressed: () => _launchSafetyResources(),
       backgroundColor: Colors.red[700],
       icon: const Text('🆘', style: TextStyle(fontSize: 18)),
-      label: const Text('Get Help Now', style: TextStyle(fontWeight: FontWeight.bold)),
+      label: const Text(
+        'Get Help Now',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
     );
   }
 
@@ -126,12 +131,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.favorite_outline, size: 16, color: AppColors.calmTeal),
+          const Icon(
+            Icons.favorite_outline,
+            size: 16,
+            color: AppColors.calmTeal,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Waiting for $email to accept your invitation.',
-              style: const TextStyle(fontSize: 12, color: AppColors.softCharcoal, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.softCharcoal,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

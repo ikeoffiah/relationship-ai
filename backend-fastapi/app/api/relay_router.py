@@ -1,49 +1,141 @@
-from fastapi import APIRouter, HTTPException, Depends, Path
+from fastapi import APIRouter, HTTPException, Depends, Path, Body
 from pydantic import BaseModel, Field
-from typing import List, Dict
+from typing import List, Dict, Optional
 from uuid import uuid4
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
-# In‑memory store for demo purposes – replace with DB models in production
-_relay_store: Dict[str, List[Dict]] = {}
+# In‑memory store for demo purposes
+# relay_id -> Dict
+_relay_store: Dict[str, Dict] = {}
 
-class RelayMessage(BaseModel):
-    content: str = Field(..., description="Message text")
-    attachments: List[str] = Field(default_factory=list, description="Attachment URLs")
+# Audit trail log (list of string event logs)
+_audit_trail: List[str] = []
 
-class RelayPreviewResponse(BaseModel):
-    preview_html: str
+class RelayCreateRequest(BaseModel):
+    content: str = Field(..., description="Original message content")
+    consent_to_relay: bool = Field(..., description="User explicit consent to relay")
 
-def get_user_store(user_id: str) -> List[Dict]:
-    return _relay_store.setdefault(user_id, [])
+class RelayDeliverRequest(BaseModel):
+    recipient_chose_version: str = Field(..., description="'ai_translated' or 'original'")
 
-@router.post("/api/v1/sessions/{session_id}/relay/preview", response_model=RelayPreviewResponse)
-async def preview_relay(session_id: str = Path(...), message: RelayMessage = Depends()):
-    html = f"<div class='relay-preview'><p>{message.content}</p></div>"
-    return RelayPreviewResponse(preview_html=html)
+class RelayResponse(BaseModel):
+    relay_id: str
+    status: str
 
-@router.post("/api/v1/sessions/{session_id}/relay")
-async def send_relay(session_id: str = Path(...), message: RelayMessage = Depends()):
-    user_id = session_id  # placeholder mapping
-    store = get_user_store(user_id)
+class RelayDetail(BaseModel):
+    relay_id: str
+    from_user_id: str
+    to_user_id: str
+    relationship_id: str
+    original_content: str
+    translated_content: Optional[str] = None
+    translation_quality_score: float
+    status: str
+    created_at: datetime
+    delivered_at: Optional[datetime] = None
+    recipient_chose_version: Optional[str] = None
+    expires_at: datetime
+
+def mock_nvc_translate(content: str) -> tuple[str, float]:
+    if "low_quality" in content.lower():
+        return "Failed NVC structure rephrase", 0.4
+    translated = f"Observation: User shared: '{content}'. Feeling: Valued. Need: Safety and connection. Request: Let's discuss this together."
+    return translated, 0.85
+
+@router.post("/api/v1/sessions/{session_id}/relay", response_model=RelayResponse)
+async def send_relay(session_id: str = Path(...), request: RelayCreateRequest = Body(...)):
+    if not request.consent_to_relay:
+        raise HTTPException(status_code=400, detail="Consent to relay is required")
+        
     relay_id = str(uuid4())
-    store.append({"id": relay_id, "session_id": session_id, "content": message.content, "attachments": message.attachments, "read": False})
-    return {"relay_id": relay_id, "status": "sent"}
+    
+    # Run mock translation and quality check
+    translated, score = mock_nvc_translate(request.content)
+    
+    # Determine status based on quality score
+    status = "ready" if score >= 0.6 else "quality_review"
+    
+    # Store record
+    created_at = datetime.utcnow()
+    expires_at = created_at + timedelta(days=7)
+    
+    # Encrypt simulations: we just store them (simulating encryption)
+    _relay_store[relay_id] = {
+        "relay_id": relay_id,
+        "from_user_id": "user-A",  # Mock user mapping
+        "to_user_id": "user-B",
+        "relationship_id": session_id,
+        "original_content": request.content,
+        "translated_content": translated,
+        "translation_quality_score": score,
+        "status": status,
+        "created_at": created_at,
+        "delivered_at": None,
+        "recipient_chose_version": None,
+        "expires_at": expires_at
+    }
+    
+    _audit_trail.append(f"[{datetime.utcnow().isoformat()}] Relay message {relay_id} created with status {status}")
+    
+    return RelayResponse(relay_id=relay_id, status="processing" if status == "quality_review" else status)
 
-@router.get("/api/v1/users/{user_id}/relay/inbox", response_model=List[Dict])
-async def get_inbox(user_id: str = Path(...)):
-    return [msg for msg in get_user_store(user_id) if not msg.get("read", False)]
+@router.get("/api/v1/users/{user_id}/relay/pending", response_model=List[RelayDetail])
+async def get_pending_relays(user_id: str = Path(...)):
+    now = datetime.utcnow()
+    pending = []
+    
+    for relay_id, msg in _relay_store.items():
+        # Clean up / skip expired messages
+        if msg["expires_at"] < now:
+            msg["status"] = "expired"
+            continue
+            
+        if msg["to_user_id"] == user_id and msg["status"] in ["ready", "processing"]:
+            # Note: quality_review messages are held and NOT delivered
+            if msg["status"] == "ready":
+                pending.append(RelayDetail(**msg))
+                
+    return pending
 
-@router.get("/api/v1/users/{user_id}/relay/sent", response_model=List[Dict])
-async def get_sent(user_id: str = Path(...)):
-    return get_user_store(user_id)
+@router.post("/api/v1/relay/{relay_id}/deliver", response_model=RelayDetail)
+async def deliver_relay(relay_id: str = Path(...), request: RelayDeliverRequest = Body(...)):
+    if relay_id not in _relay_store:
+        raise HTTPException(status_code=404, detail="Relay message not found")
+        
+    msg = _relay_store[relay_id]
+    
+    if msg["expires_at"] < datetime.utcnow():
+        msg["status"] = "expired"
+        raise HTTPException(status_code=400, detail="Relay message has expired")
+        
+    if msg["status"] != "ready":
+        raise HTTPException(status_code=400, detail="Relay message is not ready for delivery")
+        
+    msg["status"] = "delivered"
+    msg["delivered_at"] = datetime.utcnow()
+    msg["recipient_chose_version"] = request.recipient_chose_version
+    
+    # Audit log (WITHOUT content)
+    _audit_trail.append(
+        f"[{datetime.utcnow().isoformat()}] Relay message {relay_id} delivered. Recipient chose: {request.recipient_chose_version}"
+    )
+    
+    return RelayDetail(**msg)
 
-@router.post("/api/v1/sessions/{session_id}/relay/{relay_id}/read")
-async def mark_relay_read(session_id: str = Path(...), relay_id: str = Path(...)):
-    for store in _relay_store.values():
-        for msg in store:
-            if msg.get("id") == relay_id and msg.get("session_id") == session_id:
-                msg["read"] = True
-                return {"status": "marked as read"}
-    raise HTTPException(status_code=404, detail="Relay message not found")
+@router.delete("/api/v1/relay/{relay_id}")
+async def withdraw_relay(relay_id: str = Path(...)):
+    if relay_id not in _relay_store:
+        raise HTTPException(status_code=404, detail="Relay message not found")
+        
+    msg = _relay_store[relay_id]
+    
+    if msg["status"] == "delivered":
+        raise HTTPException(status_code=400, detail="Cannot withdraw a message that has already been delivered")
+        
+    msg["status"] = "withdrawn"
+    
+    _audit_trail.append(f"[{datetime.utcnow().isoformat()}] Relay message {relay_id} withdrawn by sender")
+    
+    return {"status": "withdrawn"}
