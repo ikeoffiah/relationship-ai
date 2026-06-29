@@ -9,10 +9,18 @@ router = APIRouter()
 
 @router.websocket("/ws/joint/{session_id}")
 async def joint_session_endpoint(websocket: WebSocket, session_id: str):
+    from app.safety.sensitive_disclosures import SUSPENDED_JOINT_SESSIONS, BOTH_PARTNERS_ABUSE_RESPONSE
+    if session_id in SUSPENDED_JOINT_SESSIONS:
+        await websocket.accept()
+        await websocket.send_text(json.dumps({"type": "error", "content": BOTH_PARTNERS_ABUSE_RESPONSE}))
+        await websocket.close()
+        return
+
     # Retrieve the global broker from app state
     broker = websocket.app.state.broker
 
     await broker.connect(session_id, websocket)
+
     logger.info("joint_session_started", session_id=session_id)
 
     try:

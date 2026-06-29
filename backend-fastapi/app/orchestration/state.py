@@ -1,5 +1,5 @@
 from typing import Optional, Literal, List, Dict, Any, TypedDict, Annotated
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import operator
 
 class AccessPolicy(TypedDict):
@@ -49,3 +49,6 @@ class SessionState:
     system_prompt: Optional[str] = None
     llm_output: Optional[str] = None
     regeneration_count: int = 0
+    active_disclosures: List[str] = field(default_factory=list)
+    abuse_claim_by_user: bool = False
+

@@ -1,13 +1,37 @@
 from langgraph.graph import StateGraph, END
 from app.orchestration.state import SessionState, SafetyState, AccessPolicy, StrategyMix
 import asyncio
+from app.safety.sensitive_disclosures import (
+    SensitiveDisclosureDetector,
+    DisclosureType,
+    LEGAL_REFUSAL_RESPONSE,
+    MANIPULATION_REFUSAL,
+    BOTH_PARTNERS_ABUSE_RESPONSE,
+    get_sensitive_disclosure_injections
+)
+
+from app.safety.layer1_rules import screen_layer1, SignalCategory
+from app.safety.layer2_semantic import screen_layer2
+from app.safety.layer3_contextual import screen_layer3
 
 # --- Mocks for Services ---
 class SafetyPreScreener:
     @staticmethod
-    def screen(message: str, session_context: dict) -> float:
-        # Mock score
-        return 0.1
+    async def screen(message: str, session_context: dict) -> float:
+        # Layer 1 Rule-based check
+        res1 = screen_layer1(message)
+        if res1.score >= 0.8:
+            return res1.score
+            
+        # Ambiguous check: route to Layer 2 and Layer 3 if needed
+        if 0.3 <= res1.score < 0.8:
+            res2 = await screen_layer2(message)
+            if res2.score >= 0.8:
+                return res2.score
+            res3 = await screen_layer3(message, [])
+            return res3.score
+            
+        return res1.score
 
 class SafetyPostScreener:
     @staticmethod
@@ -40,15 +64,60 @@ class LLMService:
 
 async def node_1_safety_prescreen(state: SessionState):
     latest_msg = state.short_term_buffer[-1]["content"] if state.short_term_buffer else ""
-    score = SafetyPreScreener.screen(latest_msg, {"session_id": state.session_id})
+    
+    # Check if this is an abuse claim
+    is_abuse_claim = "abuse" in latest_msg.lower() or "abusive" in latest_msg.lower() or "violence" in latest_msg.lower()
+    other_partner_claims_abuse = state.personalization_modifiers.get("other_partner_claims_abuse", False)
+    
+    dt = SensitiveDisclosureDetector.detect(
+        latest_msg,
+        state.session_type,
+        other_partner_claims_abuse=other_partner_claims_abuse
+    )
+    
+    active_disclosures = list(state.active_disclosures)
+    llm_output = state.llm_output
+    abuse_claim_by_user = state.abuse_claim_by_user
+    
+    if is_abuse_claim:
+        abuse_claim_by_user = True
+        
+    if dt == DisclosureType.LEGAL:
+        llm_output = LEGAL_REFUSAL_RESPONSE
+        if DisclosureType.LEGAL.value not in active_disclosures:
+            active_disclosures.append(DisclosureType.LEGAL.value)
+    elif dt == DisclosureType.MANIPULATION:
+        print(f"[AUDIT] manipulation_attempt detected in session {state.session_id}")
+        llm_output = MANIPULATION_REFUSAL
+        if DisclosureType.MANIPULATION.value not in active_disclosures:
+            active_disclosures.append(DisclosureType.MANIPULATION.value)
+    elif dt == DisclosureType.MUTUAL_ABUSE:
+        llm_output = BOTH_PARTNERS_ABUSE_RESPONSE
+        if DisclosureType.MUTUAL_ABUSE.value not in active_disclosures:
+            active_disclosures.append(DisclosureType.MUTUAL_ABUSE.value)
+        # Suspend joint session capability
+        from app.safety.sensitive_disclosures import SUSPENDED_JOINT_SESSIONS
+        if state.relationship_id:
+            SUSPENDED_JOINT_SESSIONS.add(state.relationship_id)
+    elif dt == DisclosureType.INFIDELITY:
+        if DisclosureType.INFIDELITY.value not in active_disclosures:
+            active_disclosures.append(DisclosureType.INFIDELITY.value)
+
+    score = await SafetyPreScreener.screen(latest_msg, {"session_id": state.session_id})
     
     level = "safe"
-    if score > 0.7:
+    if score > 0.7 or dt in [DisclosureType.LEGAL, DisclosureType.MANIPULATION, DisclosureType.MUTUAL_ABUSE]:
         level = "critical"
     elif score >= 0.3:
         level = "elevated"
         
-    return {"safety_state": SafetyState(level=level, score=score)}
+    return {
+        "safety_state": SafetyState(level=level, score=score),
+        "active_disclosures": active_disclosures,
+        "llm_output": llm_output,
+        "abuse_claim_by_user": abuse_claim_by_user
+    }
+
 
 
 async def node_2_consent_gate(state: SessionState):
@@ -85,7 +154,10 @@ async def node_6_system_prompt_assembly(state: SessionState):
     cons = f"[Consent summary: {state.access_policy}]"
     safe = f"[Safety state: {state.safety_state.get('level')}]"
     
-    prompt = f"{core}\n{strat}\n{prof}\n{mems}\n{cons}\n{safe}\n\nUser Message: {state.short_term_buffer[-1]['content'] if state.short_term_buffer else ''}"
+    injections = get_sensitive_disclosure_injections(state.active_disclosures)
+    injection_text = "\n".join(injections) if injections else ""
+    
+    prompt = f"{core}\n{strat}\n{prof}\n{mems}\n{cons}\n{safe}\n{injection_text}\n\nUser Message: {state.short_term_buffer[-1]['content'] if state.short_term_buffer else ''}"
     return {"system_prompt": prompt}
 
 
@@ -118,7 +190,7 @@ async def node_9_dialogue_manager_format(state: SessionState):
 # --- Routing Functions ---
 
 def route_after_prescreen(state: SessionState) -> str:
-    if state.safety_state["score"] > 0.7:
+    if state.safety_state["score"] > 0.7 or state.llm_output in [LEGAL_REFUSAL_RESPONSE, MANIPULATION_REFUSAL, BOTH_PARTNERS_ABUSE_RESPONSE]:
         return "SAFETY_PROTOCOL"
     return "node_2_consent_gate"
 
@@ -151,7 +223,7 @@ def build_counseling_graph():
     graph.add_node("node_9_dialogue_manager_format", node_9_dialogue_manager_format)
     
     # Safety exit node
-    graph.add_node("SAFETY_PROTOCOL", lambda state: {"llm_output": "Safety protocol triggered. Session paused."})
+    graph.add_node("SAFETY_PROTOCOL", lambda state: {"llm_output": state.llm_output or "Safety protocol triggered. Session paused."})
 
     graph.set_entry_point("node_1_safety_prescreen")
     
@@ -179,3 +251,4 @@ def build_counseling_graph():
     graph.add_edge("SAFETY_PROTOCOL", END)
     
     return graph.compile()
+
