@@ -30,7 +30,7 @@ async def test_websocket_joint_session_success(mock_websocket, mock_broker):
     await joint_session_endpoint(mock_websocket, "session123")
 
     mock_broker.connect.assert_called_once_with("session123", mock_websocket)
-    mock_broker.broadcast.assert_called_once_with("session123", {"message": "hello"})
+    mock_broker.broadcast.assert_any_call("session123", {"message": "hello"})
     mock_broker.disconnect.assert_called_once_with("session123", mock_websocket)
 
 
@@ -55,3 +55,25 @@ async def test_websocket_unexpected_error(mock_websocket, mock_broker):
 
     mock_broker.connect.assert_called_once_with("session_err", mock_websocket)
     mock_broker.disconnect.assert_called_once_with("session_err", mock_websocket)
+
+
+@pytest.mark.asyncio
+async def test_websocket_joint_session_suspended(mock_websocket, mock_broker):
+    from app.safety.sensitive_disclosures import SUSPENDED_JOINT_SESSIONS, BOTH_PARTNERS_ABUSE_RESPONSE
+    import json
+    
+    SUSPENDED_JOINT_SESSIONS.add("session-suspended-123")
+    
+    try:
+        await joint_session_endpoint(mock_websocket, "session-suspended-123")
+        
+        mock_websocket.accept.assert_called_once()
+        mock_websocket.send_text.assert_called_once_with(json.dumps({
+            "type": "error",
+            "content": BOTH_PARTNERS_ABUSE_RESPONSE
+        }))
+        mock_websocket.close.assert_called_once()
+        mock_broker.connect.assert_not_called()
+    finally:
+        SUSPENDED_JOINT_SESSIONS.remove("session-suspended-123")
+

@@ -1,5 +1,5 @@
 /// Data models for the Session History feature (REL-95).
-library session_history_model;
+library;
 
 enum SessionType { individual, joint, relay, unknown }
 
