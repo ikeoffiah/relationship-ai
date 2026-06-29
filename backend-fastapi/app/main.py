@@ -69,6 +69,8 @@ from app.api.memory_router import router as memory_router
 app.include_router(memory_router, prefix="/api/v1/memory")
 from app.api.relay_router import router as relay_router
 app.include_router(relay_router)
+from app.api.feedback_router import router as feedback_router
+app.include_router(feedback_router)
 
 
 # Instrument Prometheus

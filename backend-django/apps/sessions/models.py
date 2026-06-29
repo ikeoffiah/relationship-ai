@@ -57,3 +57,24 @@ class LangGraphSession(models.Model):
 
     def __str__(self):
         return f"LangGraph Session {self.id} ({self.session_type})"
+
+
+class SessionFeedback(models.Model):
+    """Post-session feedback collected from users (1–5 star rating + optional text)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session_id = models.CharField(max_length=64, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='session_feedbacks'
+    )
+    rating = models.PositiveSmallIntegerField()  # 1–5
+    # Encrypted in production at the DB layer
+    feedback_text = models.TextField(blank=True, max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'session_feedback'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Feedback {self.rating}★ for session {self.session_id}"

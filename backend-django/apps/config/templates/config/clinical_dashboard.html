@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Clinical Pilot Dashboard — RelationshipAI</title>
+  <style>
+    body { font-family: sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+    h1 { color: #2D3748; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .card h3 { margin: 0 0 8px; font-size: 14px; color: #718096; text-transform: uppercase; }
+    .card .value { font-size: 32px; font-weight: bold; color: #2D3748; }
+    .card .sub { font-size: 12px; color: #A0AEC0; margin-top: 4px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; color: white; }
+    .critical { background: #DC3545; }
+    .high { background: #fd7e14; }
+    .medium { background: #FFC107; color: #212529; }
+    .low { background: #28A745; }
+    .warning { color: #dc3545; font-weight: bold; }
+    footer { margin-top: 40px; color: #A0AEC0; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>🩺 Clinical Pilot Dashboard</h1>
+  <p style="color:#718096">Read-only. Aggregated metrics only. Generated: {{ generated_at|date:"Y-m-d H:i" }} UTC</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Sessions this week</h3>
+      <div class="value">{{ sessions_total }}</div>
+      <div class="sub">Individual: {{ sessions_individual }} · Joint: {{ sessions_joint }}</div>
+    </div>
+
+    <div class="card">
+      <h3>Avg Helpfulness Rating</h3>
+      <div class="value">{{ avg_rating }}</div>
+      <div class="sub">User-reported 1–5 stars</div>
+    </div>
+
+    <div class="card">
+      <h3>Unreviewed Safety Incidents</h3>
+      <div class="value {% if unreviewed_incidents > 0 %}warning{% endif %}">{{ unreviewed_incidents }}</div>
+      <div class="sub">Requires clinical action</div>
+    </div>
+
+    <div class="card">
+      <h3>Safety Incidents this week</h3>
+      <div class="value">{{ incidents_by_severity.critical|add:incidents_by_severity.high|add:incidents_by_severity.medium|add:incidents_by_severity.low }}</div>
+      <div class="sub">
+        <span class="badge critical">{{ incidents_by_severity.critical }} critical</span>
+        <span class="badge high">{{ incidents_by_severity.high }} high</span>
+        <span class="badge medium">{{ incidents_by_severity.medium }} medium</span>
+        <span class="badge low">{{ incidents_by_severity.low }} low</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Safety Layer Breakdown (14d)</h3>
+      <div class="value" style="font-size:18px">
+        L1: {{ layer_breakdown.layer1 }}% ·
+        L2: {{ layer_breakdown.layer2 }}% ·
+        L3: {{ layer_breakdown.layer3 }}%
+      </div>
+      <div class="sub">% of incidents caught at each layer</div>
+    </div>
+  </div>
+
+  <footer>RelationshipAI — Internal Use Only · <a href="/admin/">Admin Panel</a></footer>
+</body>
+</html>
