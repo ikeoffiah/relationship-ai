@@ -67,6 +67,9 @@ from app.api.relationships import router as relationships_router
 app.include_router(relationships_router)
 from app.api.memory_router import router as memory_router
 app.include_router(memory_router, prefix="/api/v1/memory")
+from app.api.relay_router import router as relay_router
+app.include_router(relay_router)
+
 
 # Instrument Prometheus
 Instrumentator().instrument(app).expose(app)
