@@ -29,9 +29,9 @@ async def test_websocket_joint_session_success(mock_websocket, mock_broker):
 
     await joint_session_endpoint(mock_websocket, "session123")
 
-    mock_broker.connect.assert_called_once_with("session123", mock_websocket)
+    mock_broker.connect.assert_called_once_with("session123", "user-via-ws", mock_websocket)
     mock_broker.broadcast.assert_any_call("session123", {"message": "hello"})
-    mock_broker.disconnect.assert_called_once_with("session123", mock_websocket)
+    mock_broker.disconnect.assert_called_once_with("session123", "user-via-ws", mock_websocket)
 
 
 @pytest.mark.asyncio
@@ -41,9 +41,9 @@ async def test_websocket_joint_session_invalid_json(mock_websocket, mock_broker)
 
     await joint_session_endpoint(mock_websocket, "session321")
 
-    mock_broker.connect.assert_called_once_with("session321", mock_websocket)
+    mock_broker.connect.assert_called_once_with("session321", "user-via-ws", mock_websocket)
     mock_broker.broadcast.assert_not_called()
-    mock_broker.disconnect.assert_called_once_with("session321", mock_websocket)
+    mock_broker.disconnect.assert_called_once_with("session321", "user-via-ws", mock_websocket)
 
 
 @pytest.mark.asyncio
@@ -53,8 +53,8 @@ async def test_websocket_unexpected_error(mock_websocket, mock_broker):
 
     await joint_session_endpoint(mock_websocket, "session_err")
 
-    mock_broker.connect.assert_called_once_with("session_err", mock_websocket)
-    mock_broker.disconnect.assert_called_once_with("session_err", mock_websocket)
+    mock_broker.connect.assert_called_once_with("session_err", "user-via-ws", mock_websocket)
+    mock_broker.disconnect.assert_called_once_with("session_err", "user-via-ws", mock_websocket)
 
 
 @pytest.mark.asyncio
