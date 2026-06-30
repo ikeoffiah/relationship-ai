@@ -4,6 +4,33 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
 import 'package:mobile/features/consent/models/memory_model.dart';
 
+// ---------------------------------------------------------------------------
+// Memory type badge colors (REL-89)
+// ---------------------------------------------------------------------------
+
+extension MemoryTypeColor on MemoryType {
+  Color get badgeColor {
+    switch (this) {
+      case MemoryType.communicationStyle:
+        return const Color(0xFF6366F1); // indigo
+      case MemoryType.trigger:
+        return const Color(0xFFEF4444); // red
+      case MemoryType.conflictPattern:
+        return const Color(0xFFF97316); // orange
+      case MemoryType.repairEvent:
+        return const Color(0xFF22C55E); // green
+      case MemoryType.statedNeed:
+        return const Color(0xFF3B82F6); // blue
+      case MemoryType.unknown:
+        return const Color(0xFF9CA3AF); // gray
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MemoryTransparencyPanel
+// ---------------------------------------------------------------------------
+
 class MemoryTransparencyPanel extends StatefulWidget {
   final MemoryZone initialZone;
 
@@ -18,6 +45,7 @@ class MemoryTransparencyPanel extends StatefulWidget {
 
 class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
   late MemoryZone _selectedZone;
+  MemoryType? _selectedType; // null = show all types
   String _searchQuery = '';
 
   @override
@@ -39,15 +67,19 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
         builder: (context, vm, child) {
           final filteredMemories = vm.memories.where((m) {
             final matchesZone = m.zone == _selectedZone;
-            final matchesSearch = m.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                                 m.whyStored.toLowerCase().contains(_searchQuery.toLowerCase());
-            return matchesZone && matchesSearch;
+            final matchesSearch = _searchQuery.isEmpty ||
+                m.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                m.whyStored.toLowerCase().contains(_searchQuery.toLowerCase());
+            final matchesType =
+                _selectedType == null || m.memoryType == _selectedType;
+            return matchesZone && matchesSearch && matchesType;
           }).toList();
 
           return Column(
             children: [
+              // Search bar
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 child: TextField(
                   onChanged: (val) => setState(() => _searchQuery = val),
                   decoration: InputDecoration(
@@ -62,7 +94,14 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
                   ),
                 ),
               ),
+
+              // Zone selector
               _buildZoneSelector(),
+
+              // Memory type filter (REL-89)
+              _buildTypeFilter(),
+
+              // Memory list
               Expanded(
                 child: filteredMemories.isEmpty
                     ? _buildEmptyState()
@@ -70,7 +109,8 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
                         padding: const EdgeInsets.all(16),
                         itemCount: filteredMemories.length,
                         itemBuilder: (context, index) {
-                          return _buildMemoryItem(context, vm, filteredMemories[index]);
+                          return _buildMemoryItem(
+                              context, vm, filteredMemories[index]);
                         },
                       ),
               ),
@@ -81,9 +121,13 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Zone selector
+  // -------------------------------------------------------------------------
+
   Widget _buildZoneSelector() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Row(
         children: [
           _buildZoneTab(MemoryZone.private, AppColors.calmTeal),
@@ -119,7 +163,60 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
     );
   }
 
-  Widget _buildMemoryItem(BuildContext context, ConsentViewModel vm, MemoryModel memory) {
+  // -------------------------------------------------------------------------
+  // Memory type filter (REL-89)
+  // -------------------------------------------------------------------------
+
+  Widget _buildTypeFilter() {
+    final types = [null, ...MemoryType.values.where((t) => t != MemoryType.unknown)];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      child: SizedBox(
+        height: 34,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: types.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (context, index) {
+            final type = types[index];
+            final isSelected = _selectedType == type;
+            final label = type == null ? 'All' : type.label;
+            final color = type == null ? AppColors.calmTeal : type.badgeColor;
+
+            return GestureDetector(
+              onTap: () => setState(() => _selectedType = type),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected ? color : color.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Memory item card
+  // -------------------------------------------------------------------------
+
+  Widget _buildMemoryItem(
+      BuildContext context, ConsentViewModel vm, MemoryModel memory) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -128,10 +225,19 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Badges row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildBadge(memory.zone),
+                Row(
+                  children: [
+                    _buildZoneBadge(memory.zone),
+                    const SizedBox(width: 6),
+                    // REL-89: memory type badge
+                    if (memory.memoryType != MemoryType.unknown)
+                      _buildTypeBadge(memory.memoryType),
+                  ],
+                ),
                 Text(
                   memory.formattedDate,
                   style: const TextStyle(fontSize: 11, color: Colors.grey),
@@ -146,7 +252,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
             const SizedBox(height: 8),
             Text(
               'Why stored: ${memory.whyStored}',
-              style: TextStyle(fontSize: 13, color: Colors.grey[600], fontStyle: FontStyle.italic),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic),
             ),
             const SizedBox(height: 16),
             Row(
@@ -159,9 +268,12 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
                 ),
                 const SizedBox(width: 8),
                 TextButton.icon(
-                  onPressed: () => _showDeleteConfirmation(context, vm, memory),
-                  icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                  label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                  onPressed: () =>
+                      _showDeleteConfirmation(context, vm, memory),
+                  icon: const Icon(Icons.delete_outline,
+                      size: 16, color: Colors.red),
+                  label: const Text('Delete',
+                      style: TextStyle(color: Colors.red)),
                 ),
               ],
             ),
@@ -171,25 +283,49 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
     );
   }
 
-  Widget _buildBadge(MemoryZone zone) {
+  // -------------------------------------------------------------------------
+  // Badge widgets
+  // -------------------------------------------------------------------------
+
+  Widget _buildZoneBadge(MemoryZone zone) {
     Color color;
     switch (zone) {
-      case MemoryZone.private: color = AppColors.calmTeal; break;
-      case MemoryZone.shared: color = Colors.green; break;
-      case MemoryZone.therapist: color = Colors.orange; break;
+      case MemoryZone.private:
+        color = AppColors.calmTeal;
+        break;
+      case MemoryZone.shared:
+        color = Colors.green;
+        break;
+      case MemoryZone.therapist:
+        color = Colors.orange;
+        break;
     }
+    return _badge(zone.label, color);
+  }
+
+  Widget _buildTypeBadge(MemoryType type) {
+    return _badge(type.label, type.badgeColor);
+  }
+
+  Widget _badge(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
-        zone.label.toUpperCase(),
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        label.toUpperCase(),
+        style:
+            TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Empty state
+  // -------------------------------------------------------------------------
 
   Widget _buildEmptyState() {
     return Center(
@@ -199,15 +335,30 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
           Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
-            'No memories found in this zone',
-            style: TextStyle(color: Colors.grey[400]),
+            'No memories found',
+            style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 16,
+                fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _selectedType != null
+                ? 'No ${_selectedType!.label.toLowerCase()} memories in this zone'
+                : 'No memories found in this zone',
+            style: TextStyle(color: Colors.grey[400], fontSize: 13),
           ),
         ],
       ),
     );
   }
 
-  void _showEditDialog(BuildContext context, ConsentViewModel vm, MemoryModel memory) {
+  // -------------------------------------------------------------------------
+  // Edit / Delete dialogs
+  // -------------------------------------------------------------------------
+
+  void _showEditDialog(
+      BuildContext context, ConsentViewModel vm, MemoryModel memory) {
     final controller = TextEditingController(text: memory.title);
     showDialog(
       context: context,
@@ -222,7 +373,9 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               vm.updateMemory(memory.id, controller.text);
@@ -235,7 +388,8 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, ConsentViewModel vm, MemoryModel memory) {
+  void _showDeleteConfirmation(
+      BuildContext context, ConsentViewModel vm, MemoryModel memory) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -244,7 +398,9 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
           'This action cannot be undone. RelationshipAI will no longer factor this pattern into your insights.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Keep it')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Keep it')),
           TextButton(
             onPressed: () {
               vm.deleteMemory(memory.id);
