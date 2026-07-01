@@ -1,0 +1,45 @@
+name: Weekly Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday 2am UTC
+  workflow_dispatch:
+
+jobs:
+  namespace-isolation-gate:
+    runs-on: ubuntu-latest
+    name: Namespace Isolation CI Gate
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements/base.txt pytest pytest-django
+        working-directory: backend-django
+      - name: Run namespace isolation tests
+        run: pytest tests/security/test_isolation.py -v
+        working-directory: backend-django
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+
+  zap-api-scan:
+    runs-on: ubuntu-latest
+    name: OWASP ZAP API Scan
+    needs: namespace-isolation-gate
+    steps:
+      - name: OWASP ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          target: '${{ secrets.STAGING_API_URL }}/api/v1/'
+          format: openapi
+          fail_action: false   # Report issues, don't block CI (MVP)
+          allow_issue_writing: false
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-weekly-report-${{ github.run_id }}
+          path: report_html.html
+          retention-days: 90

@@ -1,0 +1,1262 @@
+00:00 +0: loading /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/welcome_screen_test.dart
+00:00 +0: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests renders properly
+00:00 +0: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/welcome_screen_test.dart: WelcomeScreen renders UI elements
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following ProviderNotFoundException was thrown building Consumer<WelcomeViewModel>(dirty):
+Error: Could not find the correct Provider<WelcomeViewModel> above this Consumer<WelcomeViewModel>
+Widget
+
+This happens because you used a `BuildContext` that does not include the provider
+of your choice. There are a few common scenarios:
+
+- You added a new provider in your `main.dart` and performed a hot-reload.
+  To fix, perform a hot-restart.
+
+- The provider you are trying to read is in a different route.
+
+  Providers are "scoped". So if you insert of provider inside a route, then
+  other routes will not be able to access that provider.
+
+- You used a `BuildContext` that is an ancestor of the provider you are trying to read.
+
+  Make sure that Consumer<WelcomeViewModel> is under your MultiProvider/Provider<WelcomeViewModel>.
+  This usually happens when you are creating a provider and trying to read it immediately.
+
+  For example, instead of:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // Will throw a ProviderNotFoundError, because `context` is associated
+      // to the widget that is the parent of `Provider<Example>`
+      child: Text(context.watch<Example>().toString()),
+    );
+  }
+  ```
+
+  consider using `builder` like so:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // we use `builder` to obtain a new `BuildContext` that has access to the provider
+      builder: (context, child) {
+        // No longer throws
+        return Text(context.watch<Example>().toString());
+      }
+    );
+  }
+  ```
+
+If none of these solutions work, consider asking for help on StackOverflow:
+https://stackoverflow.com/questions/tagged/flutter
+
+The relevant error-causing widget was:
+  Consumer<WelcomeViewModel>
+  Consumer:file:///Users/piusikeoffiah/Developer/relationshipai/mobile/lib/features/auth/views/welcome_screen.dart:38:13
+
+When the exception was thrown, this was the stack:
+#0      Provider._inheritedElementOf (package:provider/src/provider.dart:377:7)
+#1      Provider.of (package:provider/src/provider.dart:327:30)
+#2      Consumer.buildWithChild (package:provider/src/consumer.dart:181:16)
+#3      SingleChildStatelessWidget.build (package:nested/nested.dart:259:41)
+#4      StatelessElement.build (package:flutter/src/widgets/framework.dart:5889:49)
+#5      SingleChildStatelessElement.build (package:nested/nested.dart:279:18)
+#6      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#7      Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#8      ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:5799:5)
+#9      ComponentElement.mount (package:flutter/src/widgets/framework.dart:5793:5)
+#10     SingleChildWidgetElementMixin.mount (package:nested/nested.dart:222:11)
+...     Normal element mounting (25 frames)
+#35     Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#36     MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#37     MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (372 frames)
+#409    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#410    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#411    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (467 frames)
+#878    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#879    Element.updateChild (package:flutter/src/widgets/framework.dart:4053:20)
+#880    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#881    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#882    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#883    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#884    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#885    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#886    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#887    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#888    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#889    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#890    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#891    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#892    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#893    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#894    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#895    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#896    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#897    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#898    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#899    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#900    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#901    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#902    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#903    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#904    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#905    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#906    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#907    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#908    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#909    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#910    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#911    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#912    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#913    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#914    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#915    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#916    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#917    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#918    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#919    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#920    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#921    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#922    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:481:16)
+#923    _RawViewElement.update (package:flutter/src/widgets/view.dart:568:5)
+#924    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#925    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#926    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#927    StatelessElement.update (package:flutter/src/widgets/framework.dart:5895:5)
+#928    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#929    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#930    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#931    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#932    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#933    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#934    RootElement._rebuild (package:flutter/src/widgets/binding.dart:1822:16)
+#935    RootElement.update (package:flutter/src/widgets/binding.dart:1800:5)
+#936    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:1814:7)
+#937    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#938    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#939    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#940    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#941    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2131:19)
+#942    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495:5)
+#943    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#944    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#945    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:1960:9)
+#948    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#949    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:1949:27)
+#950    WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#953    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#954    WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#955    main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/welcome_screen_test.dart:7:18)
+#956    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#957    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY SCHEDULER LIBRARY ╞═════════════════════════════════════════════════════════
+The following ProviderNotFoundException was thrown during a scheduler callback:
+Error: Could not find the correct Provider<WelcomeViewModel> above this WelcomeScreen Widget
+
+This happens because you used a `BuildContext` that does not include the provider
+of your choice. There are a few common scenarios:
+
+- You added a new provider in your `main.dart` and performed a hot-reload.
+  To fix, perform a hot-restart.
+
+- The provider you are trying to read is in a different route.
+
+  Providers are "scoped". So if you insert of provider inside a route, then
+  other routes will not be able to access that provider.
+
+- You used a `BuildContext` that is an ancestor of the provider you are trying to read.
+
+  Make sure that WelcomeScreen is under your MultiProvider/Provider<WelcomeViewModel>.
+  This usually happens when you are creating a provider and trying to read it immediately.
+
+  For example, instead of:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // Will throw a ProviderNotFoundError, because `context` is associated
+      // to the widget that is the parent of `Provider<Example>`
+      child: Text(context.watch<Example>().toString()),
+    );
+  }
+  ```
+
+  consider using `builder` like so:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // we use `builder` to obtain a new `BuildContext` that has access to the provider
+      builder: (context, child) {
+        // No longer throws
+        return Text(context.watch<Example>().toString());
+      }
+    );
+  }
+  ```
+
+If none of these solutions work, consider asking for help on StackOverflow:
+https://stackoverflow.com/questions/tagged/flutter
+
+When the exception was thrown, this was the stack:
+#0      Provider._inheritedElementOf (package:provider/src/provider.dart:377:7)
+#1      Provider.of (package:provider/src/provider.dart:327:30)
+#2      ReadContext.read (package:provider/src/provider.dart:683:21)
+#3      _WelcomeScreenState.initState.<anonymous closure> (package:mobile/features/auth/views/welcome_screen.dart:28:33)
+#4      SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#5      SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1357:11)
+#6      AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:1960:9)
+#9      TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#10     AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:1949:27)
+#11     WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#14     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#15     WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#16     main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/welcome_screen_test.dart:7:18)
+#17     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#18     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: at least one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Get Started": []>
+   Which: means none were found but some were expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/welcome_screen_test.dart:14:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/welcome_screen_test.dart line 14
+The test description was:
+  WelcomeScreen renders UI elements
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (3) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests renders properly
+00:00 +0 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/welcome_screen_test.dart: WelcomeScreen renders UI elements [E]
+  Test failed. See exception logs above.
+  The test description was: WelcomeScreen renders UI elements
+  
+00:00 +0 -1: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/email_verification_screen_test.dart: EmailVerificationScreen renders perfectly and navigates back to login
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Verify Your Email ✉️": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/email_verification_screen_test.dart:12:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/email_verification_screen_test.dart line 12
+The test description was:
+  EmailVerificationScreen renders perfectly and navigates back to login
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +0 -2: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests renders properly
+00:00 +0 -2: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/email_verification_screen_test.dart: EmailVerificationScreen renders perfectly and navigates back to login [E]
+  Test failed. See exception logs above.
+  The test description was: EmailVerificationScreen renders perfectly and navigates back to login
+  
+00:00 +0 -2: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart: ForgotPasswordScreen Tests renders properly
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Reset Password 🔐": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart:35:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart line 35
+The test description was:
+  renders properly
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +1 -2: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests renders properly
+00:00 +1 -3: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests renders properly
+00:00 +1 -3: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart: ForgotPasswordScreen Tests renders properly [E]
+  Test failed. See exception logs above.
+  The test description was: renders properly
+  
+00:00 +1 -3: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests renders properly
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Create New Password 🔒": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart:36:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart line 36
+The test description was:
+  renders properly
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +1 -4: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms
+00:00 +1 -4: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests renders properly [E]
+  Test failed. See exception logs above.
+  The test description was: renders properly
+  
+00:00 +1 -4: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms
+
+Warning: A call to tap() with finder "Found 1 widget with text containing Terms of Service: [
+  Text(null,
+  ╞═╦══ textSpan ═══
+    ║ TextSpan:
+    ║   inherit: true
+    ║   color: Color(alpha: 0.7000, red: 0.2902, green: 0.2902, blue:
+    ║     0.2902, colorSpace: ColorSpace.sRGB)
+    ║   size: 14.0
+    ║   height: 1.4x
+    ║   "I agree to the "
+    ║   TextSpan:
+    ║     inherit: true
+    ║     color: Color(alpha: 1.0000, red: 1.0000, green: 0.6078, blue:
+    ║       0.5412, colorSpace: ColorSpace.sRGB)
+    ║     weight: 600
+    ║     "Terms of Service"
+    ║   TextSpan:
+    ║     " and "
+    ║   TextSpan:
+    ║     inherit: true
+    ║     color: Color(alpha: 1.0000, red: 1.0000, green: 0.6078, blue:
+    ║       0.5412, colorSpace: ColorSpace.sRGB)
+    ║     weight: 600
+    ║     "Privacy Policy"
+  , dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery]),
+]" derived an Offset (Offset(417.0, 806.0)) that would not hit test on the specified widget.
+Maybe the widget is actually off-screen, or another widget is obscuring it, or the widget cannot receive pointer events.
+Indeed, Offset(417.0, 806.0) is outside the bounds of the root of the render tree, Size(800.0, 600.0).
+The finder corresponds to this RenderBox: RenderParagraph#5bdac relayoutBoundary=up7 NEEDS-PAINT
+The hit test result at that offset is: HitTestResult(HitTestEntry<HitTestTarget>#717e1(_ReusableRenderView#0ed9e), HitTestEntry<HitTestTarget>#fe325(<AutomatedTestWidgetsFlutterBinding>))
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2158:25)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart:51:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+#6      StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+To silence this warning, pass "warnIfMissed: false" to "tap()".
+To make this warning fatal, set WidgetController.hitTestWarningShouldBeFatal to true.
+
+
+Warning: A call to tap() with finder "Found 1 widget with text "Create Account": [
+  Text("Create Account", dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery]),
+]" derived an Offset (Offset(400.0, 866.0)) that would not hit test on the specified widget.
+Maybe the widget is actually off-screen, or another widget is obscuring it, or the widget cannot receive pointer events.
+Indeed, Offset(400.0, 866.0) is outside the bounds of the root of the render tree, Size(800.0, 600.0).
+The finder corresponds to this RenderBox: RenderParagraph#678cb relayoutBoundary=up1 NEEDS-PAINT
+The hit test result at that offset is: HitTestResult(HitTestEntry<HitTestTarget>#912b6(_ReusableRenderView#0ed9e), HitTestEntry<HitTestTarget>#6402a(<AutomatedTestWidgetsFlutterBinding>))
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2158:25)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart:57:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+#6      StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+To silence this warning, pass "warnIfMissed: false" to "tap()".
+To make this warning fatal, set WidgetController.hitTestWarningShouldBeFatal to true.
+
+00:00 +1 -4: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart: ForgotPasswordScreen Tests triggers sendPasswordResetEmail
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+The finder "Found 0 widgets with text "Send Reset Link": []" (used in a call to "tap()") could not
+find any matching widgets.
+
+When the exception was thrown, this was the stack:
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2090:7)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart:45:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  triggers sendPasswordResetEmail
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +1 -5: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms
+00:00 +1 -5: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart: ForgotPasswordScreen Tests triggers sendPasswordResetEmail [E]
+  Test failed. See exception logs above.
+  The test description was: triggers sendPasswordResetEmail
+  
+00:00 +1 -5: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests triggers resetPassword
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+The finder "Found 0 widgets with text "Update Password": []" (used in a call to "tap()") could not
+find any matching widgets.
+
+When the exception was thrown, this was the stack:
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2090:7)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart:46:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  triggers resetPassword
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:00 +1 -6: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms
+00:00 +1 -6: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests triggers resetPassword [E]
+  Test failed. See exception logs above.
+  The test description was: triggers resetPassword
+  
+00:01 +1 -6: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart: ForgotPasswordScreen Tests routes to NewPasswordScreen on success
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+The finder "Found 0 widgets with text "Send Reset Link": []" (used in a call to "tap()") could not
+find any matching widgets.
+
+When the exception was thrown, this was the stack:
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2090:7)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart:56:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  routes to NewPasswordScreen on success
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:01 +1 -7: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms
+00:01 +1 -7: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/forgot_password_screen_test.dart: ForgotPasswordScreen Tests routes to NewPasswordScreen on success [E]
+  Test failed. See exception logs above.
+  The test description was: routes to NewPasswordScreen on success
+  
+00:01 +1 -7: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests routes to LoginScreen on success
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+The finder "Found 0 widgets with text "Update Password": []" (used in a call to "tap()") could not
+find any matching widgets.
+
+When the exception was thrown, this was the stack:
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2090:7)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart:57:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  routes to LoginScreen on success
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:01 +1 -8: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms
+00:01 +1 -8: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/new_password_screen_test.dart: NewPasswordScreen Tests routes to LoginScreen on success [E]
+  Test failed. See exception logs above.
+  The test description was: routes to LoginScreen on success
+  
+00:01 +1 -8: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+No matching calls. All calls: MockAuthViewModel.addListener(Closure: () => void from Function
+'markNeedsNotifyDependents':.), MockAuthViewModel.isLoading, MockAuthViewModel.isLoading,
+MockAuthViewModel.errorMessage, MockAuthViewModel.isLoading, MockAuthViewModel.isLoading
+(If you called `verify(...).called(0);`, please instead use `verifyNever(...);`.)
+
+When the exception was thrown, this was the stack:
+#0      fail (package:matcher/src/expect/expect.dart:187:31)
+#1      _VerifyCall._checkWith (package:mocktail/src/mocktail.dart:728:7)
+#2      _makeVerify.<anonymous closure> (package:mocktail/src/mocktail.dart:519:18)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart:60:13)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  Tapping Terms Checkbox accepts Terms
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:01 +1 -9: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart: SplashScreen renders gracefully
+00:01 +1 -9: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Tapping Terms Checkbox accepts Terms [E]
+  Test failed. See exception logs above.
+  The test description was: Tapping Terms Checkbox accepts Terms
+  
+00:01 +1 -9: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Signup routes to EmailVerificationScreen on success
+
+Warning: A call to tap() with finder "Found 1 widget with text containing Terms of Service: [
+  Text(null,
+  ╞═╦══ textSpan ═══
+    ║ TextSpan:
+    ║   inherit: true
+    ║   color: Color(alpha: 0.7000, red: 0.2902, green: 0.2902, blue:
+    ║     0.2902, colorSpace: ColorSpace.sRGB)
+    ║   size: 14.0
+    ║   height: 1.4x
+    ║   "I agree to the "
+    ║   TextSpan:
+    ║     inherit: true
+    ║     color: Color(alpha: 1.0000, red: 1.0000, green: 0.6078, blue:
+    ║       0.5412, colorSpace: ColorSpace.sRGB)
+    ║     weight: 600
+    ║     "Terms of Service"
+    ║   TextSpan:
+    ║     " and "
+    ║   TextSpan:
+    ║     inherit: true
+    ║     color: Color(alpha: 1.0000, red: 1.0000, green: 0.6078, blue:
+    ║       0.5412, colorSpace: ColorSpace.sRGB)
+    ║     weight: 600
+    ║     "Privacy Policy"
+  , dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery]),
+]" derived an Offset (Offset(417.0, 806.0)) that would not hit test on the specified widget.
+Maybe the widget is actually off-screen, or another widget is obscuring it, or the widget cannot receive pointer events.
+Indeed, Offset(417.0, 806.0) is outside the bounds of the root of the render tree, Size(800.0, 600.0).
+The finder corresponds to this RenderBox: RenderParagraph#b8002 relayoutBoundary=up7 NEEDS-PAINT
+The hit test result at that offset is: HitTestResult(HitTestEntry<HitTestTarget>#f87e0(_ReusableRenderView#0ed9e), HitTestEntry<HitTestTarget>#a97ac(<AutomatedTestWidgetsFlutterBinding>))
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2158:25)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart:67:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+#6      StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+To silence this warning, pass "warnIfMissed: false" to "tap()".
+To make this warning fatal, set WidgetController.hitTestWarningShouldBeFatal to true.
+
+
+Warning: A call to tap() with finder "Found 1 widget with text "Create Account": [
+  Text("Create Account", dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery]),
+]" derived an Offset (Offset(400.0, 866.0)) that would not hit test on the specified widget.
+Maybe the widget is actually off-screen, or another widget is obscuring it, or the widget cannot receive pointer events.
+Indeed, Offset(400.0, 866.0) is outside the bounds of the root of the render tree, Size(800.0, 600.0).
+The finder corresponds to this RenderBox: RenderParagraph#aa500 relayoutBoundary=up1 NEEDS-PAINT
+The hit test result at that offset is: HitTestResult(HitTestEntry<HitTestTarget>#df6b1(_ReusableRenderView#0ed9e), HitTestEntry<HitTestTarget>#14e94(<AutomatedTestWidgetsFlutterBinding>))
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2158:25)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart:72:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+#6      StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+To silence this warning, pass "warnIfMissed: false" to "tap()".
+To make this warning fatal, set WidgetController.hitTestWarningShouldBeFatal to true.
+
+00:01 +1 -9: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart: SplashScreen renders gracefully
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following ProviderNotFoundException was thrown building Consumer<SplashViewModel>(dirty):
+Error: Could not find the correct Provider<SplashViewModel> above this Consumer<SplashViewModel>
+Widget
+
+This happens because you used a `BuildContext` that does not include the provider
+of your choice. There are a few common scenarios:
+
+- You added a new provider in your `main.dart` and performed a hot-reload.
+  To fix, perform a hot-restart.
+
+- The provider you are trying to read is in a different route.
+
+  Providers are "scoped". So if you insert of provider inside a route, then
+  other routes will not be able to access that provider.
+
+- You used a `BuildContext` that is an ancestor of the provider you are trying to read.
+
+  Make sure that Consumer<SplashViewModel> is under your MultiProvider/Provider<SplashViewModel>.
+  This usually happens when you are creating a provider and trying to read it immediately.
+
+  For example, instead of:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // Will throw a ProviderNotFoundError, because `context` is associated
+      // to the widget that is the parent of `Provider<Example>`
+      child: Text(context.watch<Example>().toString()),
+    );
+  }
+  ```
+
+  consider using `builder` like so:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // we use `builder` to obtain a new `BuildContext` that has access to the provider
+      builder: (context, child) {
+        // No longer throws
+        return Text(context.watch<Example>().toString());
+      }
+    );
+  }
+  ```
+
+If none of these solutions work, consider asking for help on StackOverflow:
+https://stackoverflow.com/questions/tagged/flutter
+
+The relevant error-causing widget was:
+  Consumer<SplashViewModel>
+  Consumer:file:///Users/piusikeoffiah/Developer/relationshipai/mobile/lib/features/auth/views/splash_screen.dart:59:13
+
+When the exception was thrown, this was the stack:
+#0      Provider._inheritedElementOf (package:provider/src/provider.dart:377:7)
+#1      Provider.of (package:provider/src/provider.dart:327:30)
+#2      Consumer.buildWithChild (package:provider/src/consumer.dart:181:16)
+#3      SingleChildStatelessWidget.build (package:nested/nested.dart:259:41)
+#4      StatelessElement.build (package:flutter/src/widgets/framework.dart:5889:49)
+#5      SingleChildStatelessElement.build (package:nested/nested.dart:279:18)
+#6      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#7      Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#8      ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:5799:5)
+#9      ComponentElement.mount (package:flutter/src/widgets/framework.dart:5793:5)
+#10     SingleChildWidgetElementMixin.mount (package:nested/nested.dart:222:11)
+#11     Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#12     MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#13     MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (37 frames)
+#50     Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#51     MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#52     MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (372 frames)
+#424    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#425    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#426    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (467 frames)
+#893    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#894    Element.updateChild (package:flutter/src/widgets/framework.dart:4053:20)
+#895    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#896    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#897    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#898    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#899    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#900    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#901    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#902    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#903    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#904    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#905    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#906    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#907    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#908    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#909    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#910    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#911    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#912    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#913    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#914    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#915    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#916    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#917    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#918    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#919    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#920    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#921    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#922    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#923    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#924    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#925    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#926    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#927    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#928    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#929    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#930    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#931    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#932    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#933    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#934    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#935    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#936    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#937    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:481:16)
+#938    _RawViewElement.update (package:flutter/src/widgets/view.dart:568:5)
+#939    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#940    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#941    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#942    StatelessElement.update (package:flutter/src/widgets/framework.dart:5895:5)
+#943    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#944    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#945    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#946    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#947    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#948    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#949    RootElement._rebuild (package:flutter/src/widgets/binding.dart:1822:16)
+#950    RootElement.update (package:flutter/src/widgets/binding.dart:1800:5)
+#951    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:1814:7)
+#952    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#953    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#954    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#955    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#956    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2131:19)
+#957    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495:5)
+#958    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#959    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#960    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:1960:9)
+#963    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#964    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:1949:27)
+#965    WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#968    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#969    WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#970    main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart:8:18)
+#971    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#972    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following ProviderNotFoundException was thrown building Consumer<SplashViewModel>(dirty):
+Error: Could not find the correct Provider<SplashViewModel> above this Consumer<SplashViewModel>
+Widget
+
+This happens because you used a `BuildContext` that does not include the provider
+of your choice. There are a few common scenarios:
+
+- You added a new provider in your `main.dart` and performed a hot-reload.
+  To fix, perform a hot-restart.
+
+- The provider you are trying to read is in a different route.
+
+  Providers are "scoped". So if you insert of provider inside a route, then
+  other routes will not be able to access that provider.
+
+- You used a `BuildContext` that is an ancestor of the provider you are trying to read.
+
+  Make sure that Consumer<SplashViewModel> is under your MultiProvider/Provider<SplashViewModel>.
+  This usually happens when you are creating a provider and trying to read it immediately.
+
+  For example, instead of:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // Will throw a ProviderNotFoundError, because `context` is associated
+      // to the widget that is the parent of `Provider<Example>`
+      child: Text(context.watch<Example>().toString()),
+    );
+  }
+  ```
+
+  consider using `builder` like so:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // we use `builder` to obtain a new `BuildContext` that has access to the provider
+      builder: (context, child) {
+        // No longer throws
+        return Text(context.watch<Example>().toString());
+      }
+    );
+  }
+  ```
+
+If none of these solutions work, consider asking for help on StackOverflow:
+https://stackoverflow.com/questions/tagged/flutter
+
+The relevant error-causing widget was:
+  Consumer<SplashViewModel>
+  Consumer:file:///Users/piusikeoffiah/Developer/relationshipai/mobile/lib/features/auth/views/splash_screen.dart:84:22
+
+When the exception was thrown, this was the stack:
+#0      Provider._inheritedElementOf (package:provider/src/provider.dart:377:7)
+#1      Provider.of (package:provider/src/provider.dart:327:30)
+#2      Consumer.buildWithChild (package:provider/src/consumer.dart:181:16)
+#3      SingleChildStatelessWidget.build (package:nested/nested.dart:259:41)
+#4      StatelessElement.build (package:flutter/src/widgets/framework.dart:5889:49)
+#5      SingleChildStatelessElement.build (package:nested/nested.dart:279:18)
+#6      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#7      Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#8      ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:5799:5)
+#9      ComponentElement.mount (package:flutter/src/widgets/framework.dart:5793:5)
+#10     SingleChildWidgetElementMixin.mount (package:nested/nested.dart:222:11)
+...     Normal element mounting (7 frames)
+#17     Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#18     MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#19     MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (37 frames)
+#56     Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#57     MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#58     MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (372 frames)
+#430    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#431    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#432    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (467 frames)
+#899    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#900    Element.updateChild (package:flutter/src/widgets/framework.dart:4053:20)
+#901    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#902    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#903    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#904    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#905    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#906    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#907    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#908    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#909    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#910    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#911    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#912    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#913    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#914    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#915    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#916    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#917    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#918    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#919    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#920    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#921    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#922    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#923    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#924    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#925    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#926    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#927    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#928    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#929    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#930    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#931    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#932    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#933    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#934    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#935    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#936    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#937    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#938    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#939    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#940    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#941    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#942    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#943    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:481:16)
+#944    _RawViewElement.update (package:flutter/src/widgets/view.dart:568:5)
+#945    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#946    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#947    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#948    StatelessElement.update (package:flutter/src/widgets/framework.dart:5895:5)
+#949    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#950    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#951    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#952    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#953    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#954    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#955    RootElement._rebuild (package:flutter/src/widgets/binding.dart:1822:16)
+#956    RootElement.update (package:flutter/src/widgets/binding.dart:1800:5)
+#957    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:1814:7)
+#958    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#959    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#960    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#961    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#962    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2131:19)
+#963    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495:5)
+#964    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#965    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#966    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:1960:9)
+#969    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#970    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:1949:27)
+#971    WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#974    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#975    WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#976    main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart:8:18)
+#977    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#978    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY SCHEDULER LIBRARY ╞═════════════════════════════════════════════════════════
+The following ProviderNotFoundException was thrown during a scheduler callback:
+Error: Could not find the correct Provider<SplashViewModel> above this SplashScreen Widget
+
+This happens because you used a `BuildContext` that does not include the provider
+of your choice. There are a few common scenarios:
+
+- You added a new provider in your `main.dart` and performed a hot-reload.
+  To fix, perform a hot-restart.
+
+- The provider you are trying to read is in a different route.
+
+  Providers are "scoped". So if you insert of provider inside a route, then
+  other routes will not be able to access that provider.
+
+- You used a `BuildContext` that is an ancestor of the provider you are trying to read.
+
+  Make sure that SplashScreen is under your MultiProvider/Provider<SplashViewModel>.
+  This usually happens when you are creating a provider and trying to read it immediately.
+
+  For example, instead of:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // Will throw a ProviderNotFoundError, because `context` is associated
+      // to the widget that is the parent of `Provider<Example>`
+      child: Text(context.watch<Example>().toString()),
+    );
+  }
+  ```
+
+  consider using `builder` like so:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // we use `builder` to obtain a new `BuildContext` that has access to the provider
+      builder: (context, child) {
+        // No longer throws
+        return Text(context.watch<Example>().toString());
+      }
+    );
+  }
+  ```
+
+If none of these solutions work, consider asking for help on StackOverflow:
+https://stackoverflow.com/questions/tagged/flutter
+
+When the exception was thrown, this was the stack:
+#0      Provider._inheritedElementOf (package:provider/src/provider.dart:377:7)
+#1      Provider.of (package:provider/src/provider.dart:327:30)
+#2      ReadContext.read (package:provider/src/provider.dart:683:21)
+#3      _SplashScreenState.initState.<anonymous closure> (package:mobile/features/auth/views/splash_screen.dart:27:33)
+#4      SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#5      SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1357:11)
+#6      AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:1960:9)
+#9      TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#10     AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:1949:27)
+#11     WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#14     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#15     WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#16     main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart:8:18)
+#17     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#18     TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "relationship.ai": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart:12:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart line 12
+The test description was:
+  SplashScreen renders gracefully
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (4) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:01 +1 -10: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/login_screen_test.dart: LoginScreen renders fields and buttons
+00:01 +1 -10: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/splash_screen_test.dart: SplashScreen renders gracefully [E]
+  Test failed. See exception logs above.
+  The test description was: SplashScreen renders gracefully
+  
+00:01 +2 -10: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Signup routes to EmailVerificationScreen on success
+00:01 +3 -10: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Signup routes to EmailVerificationScreen on success
+00:01 +3 -10: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/route_guard_test_screen_test.dart: RouteGuardTestScreen renders properly and allows back navigation
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following ProviderNotFoundException was thrown building RouteGuardTestScreen(dirty):
+Error: Could not find the correct Provider<AuthViewModel> above this RouteGuardTestScreen Widget
+
+This happens because you used a `BuildContext` that does not include the provider
+of your choice. There are a few common scenarios:
+
+- You added a new provider in your `main.dart` and performed a hot-reload.
+  To fix, perform a hot-restart.
+
+- The provider you are trying to read is in a different route.
+
+  Providers are "scoped". So if you insert of provider inside a route, then
+  other routes will not be able to access that provider.
+
+- You used a `BuildContext` that is an ancestor of the provider you are trying to read.
+
+  Make sure that RouteGuardTestScreen is under your MultiProvider/Provider<AuthViewModel>.
+  This usually happens when you are creating a provider and trying to read it immediately.
+
+  For example, instead of:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // Will throw a ProviderNotFoundError, because `context` is associated
+      // to the widget that is the parent of `Provider<Example>`
+      child: Text(context.watch<Example>().toString()),
+    );
+  }
+  ```
+
+  consider using `builder` like so:
+
+  ```
+  Widget build(BuildContext context) {
+    return Provider<Example>(
+      create: (_) => Example(),
+      // we use `builder` to obtain a new `BuildContext` that has access to the provider
+      builder: (context, child) {
+        // No longer throws
+        return Text(context.watch<Example>().toString());
+      }
+    );
+  }
+  ```
+
+If none of these solutions work, consider asking for help on StackOverflow:
+https://stackoverflow.com/questions/tagged/flutter
+
+The relevant error-causing widget was:
+  RouteGuardTestScreen
+  RouteGuardTestScreen:file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/route_guard_test_screen_test.dart:8:13
+
+When the exception was thrown, this was the stack:
+#0      Provider._inheritedElementOf (package:provider/src/provider.dart:377:7)
+#1      Provider.of (package:provider/src/provider.dart:327:30)
+#2      WatchContext.watch (package:provider/src/provider.dart:727:21)
+#3      RouteGuardTestScreen.build (package:mobile/features/auth/views/route_guard_test_screen.dart:14:35)
+#4      StatelessElement.build (package:flutter/src/widgets/framework.dart:5889:49)
+#5      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#6      Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#7      ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:5799:5)
+#8      ComponentElement.mount (package:flutter/src/widgets/framework.dart:5793:5)
+...     Normal element mounting (260 frames)
+#268    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#269    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#270    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (467 frames)
+#737    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#738    Element.updateChild (package:flutter/src/widgets/framework.dart:4053:20)
+#739    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#740    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#741    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#742    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#743    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#744    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#745    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#746    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#747    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#748    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#749    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#750    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#751    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#752    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#753    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#754    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#755    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#756    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#757    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#758    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#759    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#760    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#761    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#762    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#763    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#764    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#765    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#766    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#767    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#768    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#769    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#770    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#771    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#772    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#773    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#774    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#775    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#776    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#777    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#778    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#779    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#780    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#781    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:481:16)
+#782    _RawViewElement.update (package:flutter/src/widgets/view.dart:568:5)
+#783    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#784    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#785    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#786    StatelessElement.update (package:flutter/src/widgets/framework.dart:5895:5)
+#787    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#788    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#789    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#790    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#791    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#792    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#793    RootElement._rebuild (package:flutter/src/widgets/binding.dart:1822:16)
+#794    RootElement.update (package:flutter/src/widgets/binding.dart:1800:5)
+#795    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:1814:7)
+#796    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#797    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#798    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#799    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#800    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2131:19)
+#801    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495:5)
+#802    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#803    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#804    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:1960:9)
+#807    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#808    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:1949:27)
+#809    WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#812    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#813    WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#814    main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/route_guard_test_screen_test.dart:7:18)
+#815    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#816    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Profile Missing Placeholder Screen": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/route_guard_test_screen_test.dart:11:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/route_guard_test_screen_test.dart line 11
+The test description was:
+  RouteGuardTestScreen renders properly and allows back navigation
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (2) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:01 +3 -11: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Signup routes to EmailVerificationScreen on success
+00:01 +3 -11: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/route_guard_test_screen_test.dart: RouteGuardTestScreen renders properly and allows back navigation [E]
+  Test failed. See exception logs above.
+  The test description was: RouteGuardTestScreen renders properly and allows back navigation
+  
+00:01 +4 -11: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Signup routes to EmailVerificationScreen on success
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+pumpAndSettle timed out
+
+When the exception was thrown, this was the stack:
+#0      WidgetTester.pumpAndSettle.<anonymous closure> (package:flutter_test/src/widget_tester.dart:717:11)
+<asynchronous suspension>
+#1      TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
+<asynchronous suspension>
+#2      main.<anonymous closure>.<anonymous closure> (file:///Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart:73:7)
+<asynchronous suspension>
+#3      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#4      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  Signup routes to EmailVerificationScreen on success
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:03 +4 -12: /Users/piusikeoffiah/Developer/relationshipai/mobile/test/widgets/signup_screen_test.dart: SignupScreen Widget Tests Signup routes to EmailVerificationScreen on success [E]
+  Test failed. See exception logs above.
+  The test description was: Signup routes to EmailVerificationScreen on success
+  
+00:03 +4 -12: Some tests failed.
