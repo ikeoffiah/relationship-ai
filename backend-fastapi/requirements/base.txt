@@ -16,6 +16,7 @@ prometheus-fastapi-instrumentator
 structlog
 redis
 websockets
+pyjwt
 
 langgraph
 langchain-core
