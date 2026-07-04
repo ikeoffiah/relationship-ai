@@ -84,3 +84,9 @@ class MemoryVector(models.Model):
 
     def __str__(self):
         return f"Vector for Memory {self.memory_id}"
+
+
+# Alias for compatibility with tests
+UserMemory = Memory
+
+

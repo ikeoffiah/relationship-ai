@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
+from ..dependencies import get_current_user
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +76,7 @@ class ExtractionResponse(BaseModel):
 # Router
 # ---------------------------------------------------------------------------
 
-from ..dependencies import get_current_user
+
 
 router = APIRouter()
 

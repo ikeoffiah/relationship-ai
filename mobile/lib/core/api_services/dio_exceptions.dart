@@ -31,6 +31,9 @@ class DioExceptions implements Exception {
         errorData["status"] = 503;
       case DioExceptionType.badResponse:
         errorData = _handleError(dioException.response!);
+      case DioExceptionType.transformTimeout:
+        errorData["userMsg"] = "Data transformation timeout";
+        errorData["status"] = 503;
     }
   }
 

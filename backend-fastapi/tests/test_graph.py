@@ -6,7 +6,6 @@ from app.orchestration.graph import (
     node_6_system_prompt_assembly, node_7_llm_call, node_8_safety_postscreen,
     node_9_dialogue_manager_format, build_counseling_graph, route_after_prescreen
 )
-import asyncio
 
 @pytest.fixture
 def mock_session_state():

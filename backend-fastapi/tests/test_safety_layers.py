@@ -2,7 +2,6 @@ import pytest
 import time
 from app.safety.layer1_rules import screen_layer1, SignalCategory
 from app.safety.layer2_semantic import screen_layer2
-from app.safety.layer3_contextual import screen_layer3
 from app.orchestration.graph import SafetyPreScreener
 
 def test_layer1_rules():

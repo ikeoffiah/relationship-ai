@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Path, Body
+from fastapi import APIRouter, HTTPException, Path, Body
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 from uuid import uuid4

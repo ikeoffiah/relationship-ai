@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Any
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 import asyncpg

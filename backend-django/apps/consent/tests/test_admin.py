@@ -2,8 +2,8 @@ import pytest
 from django.contrib import admin
 from django.test import RequestFactory
 from django.contrib.auth import get_user_model
-from apps.consent.models import ConsentAuditEntry
-from apps.consent.admin import ConsentAuditEntryAdmin
+from apps.consent.models import ConsentChangeLog
+from apps.consent.admin import ConsentChangeLogAdmin
 
 User = get_user_model()
 
@@ -19,8 +19,8 @@ class TestConsentAdminCoverage:
 
     def test_consent_audit_entry_admin_permissions(self):
         # Coverage for lines 25, 28, 31 in admin.py
-        ma = ConsentAuditEntryAdmin(ConsentAuditEntry, self.admin_site)
-        request = self.factory.get("/admin/consent/consentauditentry/")
+        ma = ConsentChangeLogAdmin(ConsentChangeLog, self.admin_site)
+        request = self.factory.get("/admin/consent/consentchangelog/")
         request.user = self.user
 
         # Should always return False as defined in the admin class

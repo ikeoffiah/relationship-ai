@@ -1,11 +1,9 @@
 import pytest
-import json
-import asyncio
 from jwt import encode
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import WebSocket, WebSocketDisconnect
-from app.api.websockets import joint_session_websocket, verify_session_and_user, get_partner_id
-from app.counseling.broker import JointSessionBroker, TurnHoldManager
+from app.api.websockets import joint_session_websocket
+from app.counseling.broker import TurnHoldManager
 
 
 @pytest.fixture

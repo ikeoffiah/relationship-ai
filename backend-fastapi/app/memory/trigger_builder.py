@@ -8,7 +8,7 @@ Analyzes message sequences for emotional triggers:
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 import json
 import structlog
 import asyncio
@@ -227,7 +227,7 @@ async def handle_websocket_session(websocket: WebSocket, session_id: str, token:
                         session_id,
                         {
                             "type": "partner_message_summary",
-                            "summary": f"Your partner is sharing that they feel..."
+                            "summary": "Your partner is sharing that they feel..."
                         },
                         exclude_user_id=user_id
                     )

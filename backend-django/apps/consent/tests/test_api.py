@@ -2,7 +2,7 @@ import pytest
 from uuid import uuid4
 from django.urls import reverse
 from rest_framework.test import APIClient
-from apps.consent.models import UserConsent, ConsentAuditEntry
+from apps.consent.models import UserConsent, ConsentChangeLog
 
 
 @pytest.mark.django_db
@@ -59,13 +59,12 @@ class TestConsentAPI:
         assert response.data["therapist_summary_access"] is True
 
         # Verify audit logs
-        audit_logs = ConsentAuditEntry.objects.filter(user_id=user.id)
+        audit_logs = ConsentChangeLog.objects.filter(user=user)
         assert audit_logs.count() == 2
 
         # Check session context was preserved
-        # Note: Depending on the backend model implementation, ensure session_context is correctly cast and stored
         for log in audit_logs:
-            assert str(log.session_context) == session_id
+            assert str(log.changed_from_session_id) == session_id
 
     def test_put_consent_ignores_read_only_user_id(self, django_user_model):
         user = django_user_model.objects.create_user(

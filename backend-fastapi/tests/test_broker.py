@@ -1,5 +1,4 @@
 import asyncio
-import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from app.counseling.broker import JointSessionBroker

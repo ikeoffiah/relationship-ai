@@ -1,6 +1,5 @@
 from langgraph.graph import StateGraph, END
 from app.orchestration.state import SessionState, SafetyState, AccessPolicy, StrategyMix
-import asyncio
 from app.safety.sensitive_disclosures import (
     SensitiveDisclosureDetector,
     DisclosureType,
@@ -10,7 +9,7 @@ from app.safety.sensitive_disclosures import (
     get_sensitive_disclosure_injections
 )
 
-from app.safety.layer1_rules import screen_layer1, SignalCategory
+from app.safety.layer1_rules import screen_layer1
 from app.safety.layer2_semantic import screen_layer2
 from app.safety.layer3_contextual import screen_layer3
 
