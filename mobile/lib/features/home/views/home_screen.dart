@@ -5,6 +5,7 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 import 'package:mobile/features/home/home_notifier.dart';
+import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
 import 'package:mobile/shared/widgets/get_help_now_button.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         listen: false,
       );
       ref.read(homeProvider.notifier).fetchHomeData(relVM);
+      final authVM = provider.Provider.of<AuthViewModel>(context, listen: false);
+      final userId = authVM.user?.id;
+      if (userId != null) {
+        provider.Provider.of<NotificationViewModel>(context, listen: false).fetchUnreadCount(userId);
+      }
     });
   }
 
@@ -36,13 +42,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.creamWhite,
+      appBar: AppBar(
+        title: const Text(
+          'RelationshipAI',
+          style: TextStyle(
+            color: AppColors.softCharcoal,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          provider.Consumer<NotificationViewModel>(
+            builder: (context, notifVM, _) {
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: AppColors.softCharcoal,
+                      size: 26,
+                    ),
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/notifications');
+                    },
+                  ),
+                  if (notifVM.unreadCount > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.warmCoral,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '${notifVM.unreadCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
               Text(
                 'Good day,',
                 style: TextStyle(

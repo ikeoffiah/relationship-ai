@@ -29,6 +29,9 @@ import 'package:mobile/features/history/session_history_screen.dart';
 import 'package:mobile/features/onboarding/onboarding_viewmodel.dart';
 import 'package:mobile/features/onboarding/onboarding_flow_screen.dart';
 import 'package:mobile/features/onboarding/screens/onboarding_complete_screen.dart';
+import 'package:mobile/features/notifications/notification_center_screen.dart';
+import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
+import 'package:mobile/core/api_services/notification_api_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +58,9 @@ Future<void> main() async {
             create: (_) => SessionHistoryViewModel(),
           ),
           provider.ChangeNotifierProvider(create: (_) => OnboardingViewModel()),
+          provider.ChangeNotifierProvider(
+            create: (_) => NotificationViewModel(apiService: NotificationApiService()),
+          ),
         ],
         child: const riverpod.ProviderScope(child: MyApp()),
       ),
@@ -135,6 +141,7 @@ class _MyAppState extends State<MyApp> {
         '/our-story': (context) => const OurStoryScreen(),
         '/safety': (context) => const SafetyResourcesScreen(),
         '/history': (context) => const SessionHistoryScreen(),
+        '/notifications': (context) => const NotificationCenterScreen(),
         '/onboarding': (context) => const OnboardingFlowScreen(),
         '/onboarding/complete': (context) => const OnboardingCompleteScreen(),
         '/chat': (context) {
