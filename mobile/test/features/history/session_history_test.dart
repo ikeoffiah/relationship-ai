@@ -19,11 +19,8 @@ class _FakeSessionHistoryViewModel extends SessionHistoryViewModel {
 
   @override
   Future<void> loadSessions() async {
-    // Populate synchronously so pumpAndSettle resolves immediately.
-    for (final item in _fakeItems) {
-      sessions; // warm getter
-    }
-    // Use the private backing field via the notifier.
+    // Items are already populated via the constructor; notify synchronously so
+    // pumpAndSettle resolves immediately.
     notifyListeners();
   }
 
