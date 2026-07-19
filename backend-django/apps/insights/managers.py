@@ -1,5 +1,4 @@
 from django.db import models
-from .models import RelationshipInsight
 
 class InsightQuerySet(models.QuerySet):
     """Custom queryset for RelationshipInsight providing consent‑aware filters.

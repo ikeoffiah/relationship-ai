@@ -3,6 +3,8 @@ from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from django.core.management import call_command
 from apps.safety.models import SafetySignal
+from apps.accounts.models import User, GuardianConsent
+from apps.safety.guardian_safety import check_guardian_abuse_disclosure
 
 
 class SafetySignalModelTest(TestCase):
@@ -58,8 +60,6 @@ class LoadSafetySignalsCommandTest(TestCase):
         # Running command should not raise exit but print error
         call_command("load_safety_signals")
         self.assertEqual(SafetySignal.objects.count(), 0)
-from apps.accounts.models import User, GuardianConsent
-from apps.safety.guardian_safety import check_guardian_abuse_disclosure
 
 class GuardianAbuseDisclosureTest(TestCase):
     def setUp(self):

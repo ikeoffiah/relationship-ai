@@ -5,7 +5,6 @@ from apps.accounts.models import User, AgeVerification
 from apps.relationships.models import Relationship
 from apps.consent.models import UserConsent
 from apps.sessions.models import JointSession
-from apps.sessions.joint_session import JointSessionState
 
 @pytest.fixture
 def api_client():

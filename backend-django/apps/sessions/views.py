@@ -1,4 +1,3 @@
-import uuid
 from datetime import timedelta
 from dataclasses import dataclass
 from django.utils import timezone
@@ -7,10 +6,10 @@ from django.db import models
 from rest_framework import views, status, response, permissions
 from apps.relationships.models import Relationship
 from apps.consent.models import UserConsent
-from apps.accounts.models import User, AgeVerification
+from apps.accounts.models import AgeVerification
 from apps.accounts.permissions import IsAdult
 from apps.sessions.models import JointSession
-from apps.sessions.joint_session import JointSessionState, VALID_TRANSITIONS
+from apps.sessions.joint_session import JointSessionState
 from apps.audit.logger import AuditLogger
 
 @dataclass

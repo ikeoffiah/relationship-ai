@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Therapist, TherapistConnection, TherapistStrategyNote
+from .models import TherapistConnection, TherapistStrategyNote
 from .serializers import TherapistLoginSerializer, TherapistConnectionSerializer, TherapistStrategyNoteSerializer
 from apps.accounts.auth import generate_jwt
 
@@ -18,7 +18,6 @@ class TherapistLoginView(APIView):
         serializer = TherapistLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        therapist = serializer.validated_data["therapist"]
         token, _ = generate_jwt(user, ["therapist:read", "therapist:write"])
         return Response({"access_token": token, "token_type": "Bearer"})
 

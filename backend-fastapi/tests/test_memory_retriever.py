@@ -88,6 +88,7 @@ def test_non_string_stored_at_returns_raw_score():
 # retrieve_for_session
 # ---------------------------------------------------------------------------
 
+@pytest.mark.asyncio
 async def test_default_policy_queries_private_zone_only(retriever, mock_store):
     mock_store.query.return_value = [record("m1", 0.9)]
 
@@ -104,6 +105,7 @@ async def test_default_policy_queries_private_zone_only(retriever, mock_store):
     assert [r.memory_id for r in results] == ["m1"]
 
 
+@pytest.mark.asyncio
 async def test_shared_consent_queries_both_zones(retriever, mock_store):
     mock_store.query.side_effect = [
         [record("priv-1", 0.9)],
@@ -122,6 +124,7 @@ async def test_shared_consent_queries_both_zones(retriever, mock_store):
     assert [r.memory_id for r in results] == ["priv-1", "shared-1"]
 
 
+@pytest.mark.asyncio
 async def test_private_disabled_skips_private_query(retriever, mock_store):
     mock_store.query.return_value = [record("shared-1", 0.8)]
 
@@ -137,6 +140,7 @@ async def test_private_disabled_skips_private_query(retriever, mock_store):
     assert [r.memory_id for r in results] == ["shared-1"]
 
 
+@pytest.mark.asyncio
 async def test_policy_denying_everything_makes_no_queries(retriever, mock_store):
     results = await retriever.retrieve_for_session(
         user_id="u1",
@@ -149,6 +153,7 @@ async def test_policy_denying_everything_makes_no_queries(retriever, mock_store)
     mock_store.query.assert_not_awaited()
 
 
+@pytest.mark.asyncio
 async def test_custom_top_k_values_are_forwarded(retriever, mock_store):
     await retriever.retrieve_for_session(
         user_id="u1",
@@ -164,6 +169,7 @@ async def test_custom_top_k_values_are_forwarded(retriever, mock_store):
     assert calls[1].kwargs["top_k"] == 2
 
 
+@pytest.mark.asyncio
 async def test_duplicate_memory_id_across_zones_is_deduped(retriever, mock_store):
     mock_store.query.side_effect = [
         [record("dup", 0.9), record("priv-only", 0.5)],
@@ -184,6 +190,7 @@ async def test_duplicate_memory_id_across_zones_is_deduped(retriever, mock_store
     assert next(r for r in results if r.memory_id == "dup").similarity == 0.9
 
 
+@pytest.mark.asyncio
 async def test_duplicates_within_one_zone_are_deduped(retriever, mock_store):
     mock_store.query.return_value = [record("m1", 0.9), record("m1", 0.7)]
 
@@ -194,6 +201,7 @@ async def test_duplicates_within_one_zone_are_deduped(retriever, mock_store):
     assert [r.memory_id for r in results] == ["m1"]
 
 
+@pytest.mark.asyncio
 async def test_results_sorted_by_adjusted_score_descending(retriever, mock_store):
     # "old-high" has the better raw score, but "new-mid" gets the recency boost
     # (0.80 * 1.2 = 0.96) which pushes it above 0.90.
@@ -210,6 +218,7 @@ async def test_results_sorted_by_adjusted_score_descending(retriever, mock_store
     assert [r.memory_id for r in results] == ["new-mid", "old-high", "old-low"]
 
 
+@pytest.mark.asyncio
 async def test_empty_store_returns_empty_list(retriever, mock_store):
     mock_store.query.return_value = []
 

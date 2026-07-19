@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.utils.html import format_html
 from apps.config.models import SystemConfig, SystemConfigAudit
 
 THRESHOLD_KEYS = [

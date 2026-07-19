@@ -1,5 +1,4 @@
 import logging
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from django.core.cache import cache
 from apps.consent.models import UserConsent

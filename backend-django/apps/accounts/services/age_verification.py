@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from django.utils import timezone
 from apps.accounts.models import AgeVerification, User, GuardianConsent
 

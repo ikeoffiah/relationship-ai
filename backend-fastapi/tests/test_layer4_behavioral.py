@@ -5,6 +5,7 @@ import pytest
 from app.safety.layer4_behavioral import Layer4Result, screen_layer4
 
 
+@pytest.mark.asyncio
 async def test_high_severity_event_requires_action():
     result = await screen_layer4("user-1", 0.95)
 
@@ -14,6 +15,7 @@ async def test_high_severity_event_requires_action():
     assert result.escalation_reason == "High severity safety event detected"
 
 
+@pytest.mark.asyncio
 async def test_severity_exactly_at_threshold_requires_action():
     result = await screen_layer4("user-1", 0.8)
 
@@ -21,6 +23,7 @@ async def test_severity_exactly_at_threshold_requires_action():
     assert result.escalation_reason == "High severity safety event detected"
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("severity", [0.0, 0.5, 0.79])
 async def test_below_threshold_does_not_escalate(severity):
     result = await screen_layer4("user-1", severity)

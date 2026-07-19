@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from .models import AgeVerification
 
 User = get_user_model()
 
@@ -53,8 +54,6 @@ class ResetPasswordSerializer(serializers.Serializer):
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True)
 
-
-from .models import AgeVerification
 
 class AgeVerificationSerializer(serializers.ModelSerializer):
     class Meta:

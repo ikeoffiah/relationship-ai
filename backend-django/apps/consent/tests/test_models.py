@@ -1,5 +1,4 @@
 import pytest
-from uuid import uuid4
 from django.db import InternalError, IntegrityError, connection, transaction
 from apps.consent.models import UserConsent, ConsentChangeLog
 

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Avg, Count
+from django.db.models import Avg
 from django.utils import timezone
 from datetime import timedelta
 

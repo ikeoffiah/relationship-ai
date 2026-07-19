@@ -3,7 +3,6 @@ Namespace Isolation Test Suite (REL-85)
 CI gate: these tests must pass on every deploy to staging and main.
 Failure blocks merge.
 """
-import pytest
 from unittest.mock import patch, MagicMock
 
 
@@ -17,7 +16,6 @@ class TestNamespaceIsolation:
         """
         Authenticate as user A → query user_memories WHERE user_id = B → expect 0 rows (RLS).
         """
-        user_a_id = "user-a-uuid"
         user_b_id = "user-b-uuid"
 
         # Simulate what happens when A's JWT is used to query B's memories

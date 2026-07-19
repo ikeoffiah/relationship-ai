@@ -103,6 +103,7 @@ def test_format_conversation_of_empty_list_is_empty_string():
 # extract
 # ---------------------------------------------------------------------------
 
+@pytest.mark.asyncio
 async def test_empty_session_returns_empty_without_calling_api():
     client = make_client("[]")
     extractor = MemoryExtractor(anthropic_client=client)
@@ -111,6 +112,7 @@ async def test_empty_session_returns_empty_without_calling_api():
     client.messages.create.assert_not_awaited()
 
 
+@pytest.mark.asyncio
 async def test_happy_path_parses_candidates(messages):
     payload = json.dumps(
         [
@@ -130,6 +132,7 @@ async def test_happy_path_parses_candidates(messages):
     assert results[1].confidence == 0.82
 
 
+@pytest.mark.asyncio
 async def test_prompt_includes_the_formatted_conversation(messages):
     client = make_client("[]")
     extractor = MemoryExtractor(anthropic_client=client)
@@ -144,6 +147,7 @@ async def test_prompt_includes_the_formatted_conversation(messages):
     assert "ASSISTANT: What did that feel like?" in prompt
 
 
+@pytest.mark.asyncio
 async def test_low_confidence_candidates_are_dropped(messages):
     payload = json.dumps(
         [
@@ -159,12 +163,14 @@ async def test_low_confidence_candidates_are_dropped(messages):
     assert [r.content for r in results] == ["kept"]
 
 
+@pytest.mark.asyncio
 async def test_malformed_json_returns_empty_list(messages):
     extractor = MemoryExtractor(anthropic_client=make_client("Sure! Here you go: {oops"))
 
     assert await extractor.extract(session_messages=messages, user_id="u1") == []
 
 
+@pytest.mark.asyncio
 async def test_json_code_fence_is_stripped(messages):
     payload = "```json\n" + json.dumps([candidate_dict(content="fenced")]) + "\n```"
     extractor = MemoryExtractor(anthropic_client=make_client(payload))
@@ -174,6 +180,7 @@ async def test_json_code_fence_is_stripped(messages):
     assert [r.content for r in results] == ["fenced"]
 
 
+@pytest.mark.asyncio
 async def test_bare_code_fence_is_stripped(messages):
     payload = "```\n" + json.dumps([candidate_dict(content="bare fence")]) + "\n```"
     extractor = MemoryExtractor(anthropic_client=make_client(payload))
@@ -183,6 +190,7 @@ async def test_bare_code_fence_is_stripped(messages):
     assert [r.content for r in results] == ["bare fence"]
 
 
+@pytest.mark.asyncio
 async def test_surrounding_whitespace_is_tolerated(messages):
     payload = "\n\n  " + json.dumps([candidate_dict(content="padded")]) + "  \n"
     extractor = MemoryExtractor(anthropic_client=make_client(payload))
@@ -192,6 +200,7 @@ async def test_surrounding_whitespace_is_tolerated(messages):
     assert [r.content for r in results] == ["padded"]
 
 
+@pytest.mark.asyncio
 async def test_malformed_item_is_skipped_but_siblings_survive(messages):
     payload = json.dumps(
         [
@@ -208,6 +217,7 @@ async def test_malformed_item_is_skipped_but_siblings_survive(messages):
     assert [r.content for r in results] == ["good one", "good two"]
 
 
+@pytest.mark.asyncio
 async def test_invalid_memory_type_item_is_skipped(messages):
     payload = json.dumps(
         [
@@ -222,6 +232,7 @@ async def test_invalid_memory_type_item_is_skipped(messages):
     assert [r.content for r in results] == ["valid"]
 
 
+@pytest.mark.asyncio
 async def test_empty_json_array_returns_empty_list(messages):
     extractor = MemoryExtractor(anthropic_client=make_client("[]"))
 

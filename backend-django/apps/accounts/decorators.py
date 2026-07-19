@@ -1,6 +1,5 @@
 from functools import wraps
 from django.http import JsonResponse
-from apps.accounts.models import AgeVerification
 
 def require_age_verified(view_func):
     """

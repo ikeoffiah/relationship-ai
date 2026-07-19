@@ -52,7 +52,6 @@ coverage.xml
 *.pyo
 .hypothesis/
 .pytest_cache/
-pytest.ini
 
 # Translations
 *.mo
