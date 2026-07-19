@@ -19,11 +19,11 @@ void main() {
 
   group('AuthApiService Tests', () {
     test('login returns AuthResponse on success', () async {
-      when(() => mockDio.post('/auth/login', data: any(named: 'data')))
+      when(() => mockDio.post('/api/v1/auth/login/', data: any(named: 'data')))
           .thenAnswer((_) async => Response(
-                data: {'token': 'secret123', 'user': {'id': '1', 'name': 'Pius', 'email': 'test@example.com'}},
+                data: {'access_token': 'secret123', 'user': {'id': '1', 'full_name': 'Pius', 'email': 'test@example.com'}},
                 statusCode: 200,
-                requestOptions: RequestOptions(path: '/auth/login'),
+                requestOptions: RequestOptions(path: '/api/v1/auth/login/'),
               ));
 
       final response = await authApiService.login('test@example.com', 'password');
@@ -32,9 +32,9 @@ void main() {
     });
 
     test('login throws Exception on DioError', () async {
-      when(() => mockDio.post('/auth/login', data: any(named: 'data')))
+      when(() => mockDio.post('/api/v1/auth/login/', data: any(named: 'data')))
           .thenThrow(DioException(
-            requestOptions: RequestOptions(path: '/auth/login'),
+            requestOptions: RequestOptions(path: '/api/v1/auth/login/'),
             response: Response(
               data: {'message': 'Invalid credentials'},
               statusCode: 401,
@@ -46,11 +46,11 @@ void main() {
     });
 
     test('signup returns AuthResponse on success', () async {
-      when(() => mockDio.post('/auth/signup', data: any(named: 'data')))
+      when(() => mockDio.post('/api/v1/auth/signup/', data: any(named: 'data')))
           .thenAnswer((_) async => Response(
-                data: {'token': 'signed_up_token', 'user': null},
+                data: {'access_token': 'signed_up_token', 'user': null},
                 statusCode: 201,
-                requestOptions: RequestOptions(path: '/auth/signup'),
+                requestOptions: RequestOptions(path: '/api/v1/auth/signup/'),
               ));
 
       final response = await authApiService.signup('Pius', 'test@test.com', '123');
@@ -58,11 +58,11 @@ void main() {
     });
 
     test('googleSignIn works', () async {
-      when(() => mockDio.post('/auth/google', data: any(named: 'data')))
+      when(() => mockDio.post('/api/v1/auth/google/', data: any(named: 'data')))
           .thenAnswer((_) async => Response(
-                data: {'token': 'google_jwt', 'user': null},
+                data: {'access_token': 'google_jwt', 'user': null},
                 statusCode: 200,
-                requestOptions: RequestOptions(path: '/auth/google'),
+                requestOptions: RequestOptions(path: '/api/v1/auth/google/'),
               ));
 
       final response = await authApiService.googleSignIn('id_token_123');
@@ -70,30 +70,30 @@ void main() {
     });
 
     test('logout resolves', () async {
-      when(() => mockDio.post('/auth/logout')).thenAnswer((_) async => Response(
-          requestOptions: RequestOptions(path: '/auth/logout'),
+      when(() => mockDio.post('/api/v1/auth/logout/')).thenAnswer((_) async => Response(
+          requestOptions: RequestOptions(path: '/api/v1/auth/logout/'),
       ));
       
       await authApiService.logout();
-      verify(() => mockDio.post('/auth/logout')).called(1);
+      verify(() => mockDio.post('/api/v1/auth/logout/')).called(1);
     });
 
     test('forgotPassword resolves', () async {
-      when(() => mockDio.post('/auth/forgot-password', data: any(named: 'data'))).thenAnswer((_) async => Response(
-          requestOptions: RequestOptions(path: '/auth/forgot-password'),
+      when(() => mockDio.post('/api/v1/auth/forgot-password/', data: any(named: 'data'))).thenAnswer((_) async => Response(
+          requestOptions: RequestOptions(path: '/api/v1/auth/forgot-password/'),
       ));
       
       await authApiService.forgotPassword('test@test.com');
-      verify(() => mockDio.post('/auth/forgot-password', data: {'email': 'test@test.com'})).called(1);
+      verify(() => mockDio.post('/api/v1/auth/forgot-password/', data: {'email': 'test@test.com'})).called(1);
     });
 
     test('resetPassword resolves', () async {
-      when(() => mockDio.post('/auth/reset-password', data: any(named: 'data'))).thenAnswer((_) async => Response(
-          requestOptions: RequestOptions(path: '/auth/reset-password'),
+      when(() => mockDio.post('/api/v1/auth/reset-password/', data: any(named: 'data'))).thenAnswer((_) async => Response(
+          requestOptions: RequestOptions(path: '/api/v1/auth/reset-password/'),
       ));
       
       await authApiService.resetPassword('new_pass', 'token123');
-      verify(() => mockDio.post('/auth/reset-password', data: {'new_password': 'new_pass', 'token': 'token123'})).called(1);
+      verify(() => mockDio.post('/api/v1/auth/reset-password/', data: {'new_password': 'new_pass', 'token': 'token123'})).called(1);
     });
   });
 }

@@ -6,7 +6,7 @@ class RelationshipApiService extends BaseApiService {
   Future<Map<String, dynamic>> invitePartner(String email) async {
     try {
       final response = await dio.post(
-        '/v1/relationships/invite',
+        '/api/v1/relationships/invite',
         data: {'invitee_email': email},
       );
       return response.data;
@@ -18,7 +18,7 @@ class RelationshipApiService extends BaseApiService {
   Future<Map<String, dynamic>> acceptInvite(String token) async {
     try {
       final response = await dio.post(
-        '/v1/relationships/accept/$token',
+        '/api/v1/relationships/accept/$token',
       );
       return response.data;
     } catch (e) {
@@ -28,7 +28,7 @@ class RelationshipApiService extends BaseApiService {
 
   Future<void> declineInvite(String token) async {
     try {
-      await dio.post('/v1/relationships/decline/$token');
+      await dio.post('/api/v1/relationships/decline/$token');
     } catch (e) {
       throw handleError(e);
     }
@@ -36,7 +36,7 @@ class RelationshipApiService extends BaseApiService {
 
   Future<Map<String, dynamic>> getMyRelationship() async {
     try {
-      final response = await dio.get('/v1/relationships/me');
+      final response = await dio.get('/api/v1/relationships/me');
       return response.data;
     } catch (e) {
       throw handleError(e);
@@ -45,7 +45,7 @@ class RelationshipApiService extends BaseApiService {
 
   Future<void> dissolveRelationship(String relationshipId) async {
     try {
-      await dio.delete('/v1/relationships/$relationshipId');
+      await dio.delete('/api/v1/relationships/$relationshipId');
     } catch (e) {
       throw Exception('Failed to dissolve relationship');
     }
@@ -78,14 +78,24 @@ class RelationshipApiService extends BaseApiService {
     }
   }
 
-  Future<void> addConflictEvent(String relationshipId, String description, String sessionId) async {
+  /// Logs a conflict pattern on the shared relationship context.
+  ///
+  /// Field names mirror the backend's `ConflictPayload`
+  /// (backend-fastapi/app/api/relationships.py:51) — all four are required.
+  Future<void> addConflictEvent(
+    String relationshipId,
+    String label,
+    String description, {
+    bool acknowledgedByBoth = false,
+  }) async {
     try {
       await dio.put(
         'https://ws.relationshipai.com/api/v1/relationships/$relationshipId/context/conflicts',
         data: {
-          'event_id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'conflict_id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'label': label,
           'description': description,
-          'session_id': sessionId,
+          'acknowledged_by_both': acknowledgedByBoth,
         },
       );
     } catch (e) {

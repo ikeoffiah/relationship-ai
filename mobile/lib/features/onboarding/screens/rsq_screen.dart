@@ -23,7 +23,7 @@ class RsqScreen extends StatelessWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 itemCount: questions.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.transparent),
+                separatorBuilder: (_, _) => const Divider(height: 1, color: Colors.transparent),
                 itemBuilder: (context, index) {
                   final q = questions[index];
                   final qId = q['id'].toString();

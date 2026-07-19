@@ -30,7 +30,9 @@ class UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as String,
-      name: json['name'] as String,
+      // Django's UserSerializer emits `full_name`; `name` is kept as a
+      // fallback for locally-persisted profiles written by [toJson].
+      name: (json['full_name'] ?? json['name']) as String? ?? '',
       email: json['email'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String?,
     );

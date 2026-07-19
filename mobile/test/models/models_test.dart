@@ -46,7 +46,7 @@ void main() {
   group('AuthResponse Tests', () {
     test('fromJson parses full data correctly', () {
       final json = {
-        'token': 'super_secret',
+        'access_token': 'super_secret',
         'user': {
           'id': '1',
           'name': 'Test',
@@ -64,7 +64,7 @@ void main() {
 
     test('fromJson parses null user correctly', () {
       final json = {
-        'token': 'hello',
+        'access_token': 'hello',
         'user': null
       };
       

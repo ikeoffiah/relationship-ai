@@ -6,7 +6,7 @@ class AuthApiService extends BaseApiService {
   Future<AuthResponse> login(String email, String password) async {
     try {
       final response = await dio.post(
-        '/auth/login',
+        '/api/v1/auth/login/',
         data: {'email': email, 'password': password},
       );
       return AuthResponse.fromJson(response.data);
@@ -22,8 +22,8 @@ class AuthApiService extends BaseApiService {
   ) async {
     try {
       final response = await dio.post(
-        '/auth/signup',
-        data: {'name': name, 'email': email, 'password': password},
+        '/api/v1/auth/signup/',
+        data: {'full_name': name, 'email': email, 'password': password},
       );
       return AuthResponse.fromJson(response.data);
     } catch (e) {
@@ -34,7 +34,7 @@ class AuthApiService extends BaseApiService {
   Future<AuthResponse> googleSignIn(String idToken) async {
     try {
       final response = await dio.post(
-        '/auth/google',
+        '/api/v1/auth/google/',
         data: {'id_token': idToken},
       );
       return AuthResponse.fromJson(response.data);
@@ -45,7 +45,7 @@ class AuthApiService extends BaseApiService {
 
   Future<void> logout() async {
     try {
-      await dio.post('/auth/logout');
+      await dio.post('/api/v1/auth/logout/');
     } catch (e) {
       throw handleError(e);
     }
@@ -53,7 +53,7 @@ class AuthApiService extends BaseApiService {
 
   Future<void> forgotPassword(String email) async {
     try {
-      await dio.post('/auth/forgot-password', data: {'email': email});
+      await dio.post('/api/v1/auth/forgot-password/', data: {'email': email});
     } catch (e) {
       throw handleError(e);
     }
@@ -62,7 +62,7 @@ class AuthApiService extends BaseApiService {
   Future<void> resetPassword(String newPassword, String token) async {
     try {
       await dio.post(
-        '/auth/reset-password',
+        '/api/v1/auth/reset-password/',
         data: {'new_password': newPassword, 'token': token},
       );
     } catch (e) {
@@ -73,7 +73,7 @@ class AuthApiService extends BaseApiService {
   Future<Map<String, dynamic>> verifyAge(DateTime dob) async {
     try {
       final response = await dio.post(
-        '/auth/verify-age/',
+        '/api/v1/auth/verify-age/',
         data: {
           'dob': dob.toIso8601String().split('T')[0], // YYYY-MM-DD
         },
@@ -87,7 +87,7 @@ class AuthApiService extends BaseApiService {
   Future<void> submitGuardianEmail(String guardianEmail) async {
     try {
       await dio.post(
-        '/auth/guardian-consent/',
+        '/api/v1/auth/guardian-consent/',
         data: {'guardian_email': guardianEmail},
       );
     } catch (e) {

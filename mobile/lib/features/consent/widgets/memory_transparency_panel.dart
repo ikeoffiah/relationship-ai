@@ -176,7 +176,7 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: types.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          separatorBuilder: (_, _) => const SizedBox(width: 6),
           itemBuilder: (context, index) {
             final type = types[index];
             final isSelected = _selectedType == type;
