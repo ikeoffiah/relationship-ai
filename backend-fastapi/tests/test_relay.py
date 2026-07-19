@@ -56,7 +56,7 @@ def test_get_pending_relays():
     )
     
     # Send a low quality one
-    res2 = client.post(
+    client.post(
         "/api/v1/sessions/session123/relay",
         json={"content": "low_quality hello", "consent_to_relay": True}
     )

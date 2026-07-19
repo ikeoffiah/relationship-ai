@@ -6,6 +6,10 @@ from app.counseling.broker import JointSessionBroker
 from app.api.websockets import router as websockets_router
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.api.dialogue_router import router as dialogue_router
+from app.api.relationships import router as relationships_router
+from app.api.memory_router import router as memory_router
+from app.api.relay_router import router as relay_router
+from app.api.feedback_router import router as feedback_router
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -63,13 +67,9 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=_ALLOWED_HOSTS)
 
 app.include_router(websockets_router)
 app.include_router(dialogue_router)
-from app.api.relationships import router as relationships_router
 app.include_router(relationships_router)
-from app.api.memory_router import router as memory_router
 app.include_router(memory_router, prefix="/api/v1/memory")
-from app.api.relay_router import router as relay_router
 app.include_router(relay_router)
-from app.api.feedback_router import router as feedback_router
 app.include_router(feedback_router)
 
 
