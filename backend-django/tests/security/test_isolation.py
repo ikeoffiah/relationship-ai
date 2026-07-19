@@ -56,6 +56,7 @@ class TestNamespaceIsolation:
 
         mock_queryset = MagicMock()
         mock_queryset.filter.return_value.count.return_value = 0
+        mock_queryset.filter.return_value.union.return_value.count.return_value = 0
 
         with patch("apps.relationships.models.Relationship.objects", mock_queryset):
             result_count = mock_queryset.filter(
