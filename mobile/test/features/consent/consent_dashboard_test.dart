@@ -9,6 +9,7 @@ import 'package:mobile/features/consent/models/consent_model.dart';
 import 'package:mobile/features/consent/models/memory_model.dart';
 import 'package:mobile/features/consent/consent_dashboard_screen.dart';
 import 'package:mobile/core/api_services/consent_api_service.dart';
+import '../../helpers/mock_services.dart';
 
 class MockConsentApiService extends Mock implements ConsentApiService {}
 class MockAuthViewModel extends Mock implements AuthViewModel {}
@@ -20,6 +21,7 @@ void main() {
   const userId = 'user123';
 
   setUp(() {
+    setupMockSecureStorage(userId: userId);
     mockApiService = MockConsentApiService();
     mockAuthViewModel = MockAuthViewModel();
     consentViewModel = ConsentViewModel(apiService: mockApiService);
@@ -96,6 +98,12 @@ void main() {
   });
 
   testWidgets('Toggle Therapist Access calls API with correct parameters', (WidgetTester tester) async {
+    // The therapist switch renders below the default 800x600 test surface.
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+    addTearDown(() => tester.view.resetDevicePixelRatio());
+
     await tester.pumpWidget(createWidgetUnderTest());
     await tester.pumpAndSettle();
 
@@ -140,8 +148,13 @@ void main() {
   });
 
   testWidgets('Optimistic updates: UI changes immediately and reverts on failure', (WidgetTester tester) async {
-    // Mock failure
-    when(() => mockApiService.updateConsent(any(), any())).thenThrow(Exception('API Failure'));
+    // Mock failure (asynchronous, like a real network call)
+    when(() => mockApiService.updateConsent(any(), any())).thenAnswer((_) async {
+      // Fail after a short delay so the optimistic state is observable in a frame,
+      // the same way a real network round-trip would behave.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      throw Exception('API Failure');
+    });
 
     await tester.pumpWidget(createWidgetUnderTest());
     await tester.pumpAndSettle();
@@ -155,10 +168,12 @@ void main() {
 
     // Tap 'Not saved' option
     await tester.tap(find.text('Not saved'));
-    await tester.pump(); // Immediate UI change (optimistic)
+    // Let the optimistic local update land, but not the in-flight API failure.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 10));
 
-    // Verify UI immediately updates (optimistically showing 'Not saved')
-    expect(find.text('Not saved'), findsOneWidget);
+    // Verify UI immediately updates (optimistically showing the per-session label)
+    expect(find.text(ConsentModel.labelFor('per_session')), findsOneWidget);
 
     await tester.pumpAndSettle(); // Wait for API "failure" to be processed
 

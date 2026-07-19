@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:mobile/features/chat/chat_screen.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
 import 'package:mobile/features/consent/models/consent_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/core/api_services/consent_api_service.dart';
+import '../../helpers/mock_services.dart';
 
 class MockConsentApiService extends Mock implements ConsentApiService {}
 
@@ -15,6 +17,7 @@ void main() {
   const userId = 'user123';
 
   setUp(() {
+    setupMockSecureStorage(userId: userId);
     mockApiService = MockConsentApiService();
     consentViewModel = ConsentViewModel(apiService: mockApiService);
     
@@ -33,8 +36,10 @@ void main() {
   Widget createWidgetUnderTest() {
     return ChangeNotifierProvider<ConsentViewModel>.value(
       value: consentViewModel,
-      child: const MaterialApp(
-        home: ChatScreen(userId: userId),
+      child: const ProviderScope(
+        child: MaterialApp(
+          home: ChatScreen(userId: userId),
+        ),
       ),
     );
   }

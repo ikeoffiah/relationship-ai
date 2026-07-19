@@ -7,19 +7,30 @@ import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/auth/models/user_profile.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 import 'package:mobile/features/home/views/home_screen.dart';
+import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
 
 class MockAuthViewModel extends Mock implements AuthViewModel {}
 
 class MockRelationshipViewModel extends Mock implements RelationshipViewModel {}
 
+class MockNotificationViewModel extends Mock
+    implements NotificationViewModel {}
+
 void main() {
   late MockAuthViewModel mockAuthViewModel;
   late MockRelationshipViewModel mockRelationshipViewModel;
+  late MockNotificationViewModel mockNotificationViewModel;
   const userId = 'user123';
 
   setUp(() {
     mockAuthViewModel = MockAuthViewModel();
     mockRelationshipViewModel = MockRelationshipViewModel();
+    mockNotificationViewModel = MockNotificationViewModel();
+
+    when(() => mockNotificationViewModel.unreadCount).thenReturn(0);
+    when(
+      () => mockNotificationViewModel.fetchUnreadCount(any()),
+    ).thenAnswer((_) async {});
 
     const mockUser = UserProfile(
       id: userId,
@@ -45,6 +56,9 @@ void main() {
         ),
         provider.ChangeNotifierProvider<RelationshipViewModel>.value(
           value: mockRelationshipViewModel,
+        ),
+        provider.ChangeNotifierProvider<NotificationViewModel>.value(
+          value: mockNotificationViewModel,
         ),
       ],
       child: const ProviderScope(child: MaterialApp(home: HomeScreen())),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
@@ -45,6 +47,7 @@ class ConsentSummarySheet extends StatefulWidget {
 
 class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
   bool _canDismiss = false;
+  Timer? _dismissTimer;
 
   @override
   void initState() {
@@ -56,10 +59,16 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
     });
 
     if (!widget.isFirstSession) {
-      Future.delayed(const Duration(seconds: 2), () {
+      _dismissTimer = Timer(const Duration(seconds: 2), () {
         if (mounted) setState(() => _canDismiss = true);
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    super.dispose();
   }
 
   @override

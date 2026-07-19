@@ -49,7 +49,10 @@ class RelationshipInsight(models.Model):
     class Meta:
         db_table = "relationship_insights"
         indexes = [
-            models.Index(fields=["relationship", "type"]),
+            models.Index(
+                fields=["relationship", "type"],
+                name="idx_insight_rel_type",
+            ),
         ]
 
     def __str__(self):

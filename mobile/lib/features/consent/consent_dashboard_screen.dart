@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
+import 'package:mobile/features/consent/models/consent_model.dart';
 import 'package:mobile/features/consent/models/memory_model.dart';
 import 'package:mobile/features/consent/widgets/memory_transparency_panel.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
@@ -174,25 +175,31 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
       children: [
         _buildPermissionCard(
           title: 'Session transcript retention',
-          description: summary['session_transcript_retention'] ?? '...',
+          description: summary['session_transcript_retention'] ??
+              ConsentModel.labelFor(consent.sessionTranscriptRetention),
           icon: Icons.history,
           onEdit: () => _showRetentionPicker(vm),
         ),
         _buildPermissionCard(
           title: 'Partner insight sharing',
-          description: summary['cross_partner_insight_sharing'] ?? '...',
+          description: summary['cross_partner_insight_sharing'] ??
+              ConsentModel.labelFor(consent.crossPartnerInsightSharing),
           icon: Icons.share_outlined,
           onEdit: () => _showInsightPicker(vm),
         ),
         _buildPermissionCard(
           title: 'Shared context access',
-          description: summary['shared_relationship_context'] ?? '...',
+          description: summary['shared_relationship_context'] ??
+              ConsentModel.labelFor(consent.sharedRelationshipContext),
           icon: Icons.connect_without_contact_outlined,
           onEdit: () => _showContextPicker(vm),
         ),
         _buildPermissionCard(
           title: 'Therapist access',
-          description: summary['therapist_summary_access'] ?? '...',
+          description: summary['therapist_summary_access'] ??
+              (consent.therapistSummaryAccess
+                  ? 'Your therapist can see session summaries'
+                  : 'Your therapist cannot see your sessions'),
           icon: Icons.medical_services_outlined,
           onEdit: () => vm.updateField('therapist_summary_access', !consent.therapistSummaryAccess),
           isToggle: true,

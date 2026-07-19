@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'relationship_insights',
-                'indexes': [models.Index(fields=['relationship', 'type'])],
+                'indexes': [models.Index(fields=['relationship', 'type'], name='idx_insight_rel_type')],
             },
         ),
     ]
