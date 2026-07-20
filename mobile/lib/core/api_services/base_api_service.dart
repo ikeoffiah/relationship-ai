@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mobile/core/security/certificate_config.dart';
 import 'package:mobile/core/security/pinned_http_client.dart';
 import 'package:mobile/core/services/storage_service.dart';
 
@@ -12,11 +13,20 @@ abstract class BaseApiService {
   /// enforces TLS 1.3 and SPKI certificate pinning.  Debug builds fall back
   /// to the standard [Dio] so local development with self-signed certificates
   /// remains possible.
-  BaseApiService({Dio? injectedDio}) {
+  /// [baseUrl] defaults to the Django REST host. Services that talk to the
+  /// FastAPI host pass it explicitly.
+  ///
+  /// [receiveTimeout] may be set to null for streaming endpoints (SSE), where
+  /// a fixed receive timeout would abort a healthy long-lived response.
+  BaseApiService({
+    Dio? injectedDio,
+    String baseUrl = 'https://${CertConfig.djangoApiHost}',
+    Duration? receiveTimeout = const Duration(seconds: 10),
+  }) {
     final baseOptions = BaseOptions(
-      baseUrl: 'https://api.relationshipai.com',
+      baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      receiveTimeout: receiveTimeout,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
@@ -8,7 +7,7 @@ import 'package:mobile/features/chat/services/session_service.dart';
 
 part 'chat_provider.g.dart';
 
-final sessionServiceProvider = Provider((ref) => SessionService(Dio()));
+final sessionServiceProvider = Provider((ref) => SessionService());
 
 @riverpod
 class ChatNotifier extends _$ChatNotifier {
