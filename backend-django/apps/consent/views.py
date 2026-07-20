@@ -39,8 +39,9 @@ class ConsentHistoryView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # User can only see their own history
-        user_id = self.kwargs.get('user_id')
+        # User can only see their own history. The <uuid:...> path converter
+        # yields a UUID instance, so both sides must be normalised to str.
+        user_id = str(self.kwargs.get('user_id'))
         if str(self.request.user.id) != user_id:
             return ConsentChangeLog.objects.none()
         
@@ -48,7 +49,7 @@ class ConsentHistoryView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        if not queryset.exists() and str(request.user.id) != self.kwargs.get('user_id'):
+        if not queryset.exists() and str(request.user.id) != str(self.kwargs.get('user_id')):
              return response.Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
              
         page = self.paginate_queryset(queryset)

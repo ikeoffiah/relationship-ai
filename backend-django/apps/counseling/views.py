@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from django.db.models import Q
 from django.utils import timezone
 from apps.counseling.models import Session
 from apps.counseling.tasks import process_post_session_async
@@ -34,7 +35,8 @@ class EndSessionView(APIView):
 
         try:
             relationship = Relationship.objects.get(
-                id=relationship_id, user=request.user
+                Q(partner_a=request.user) | Q(partner_b=request.user),
+                id=relationship_id,
             )
 
             # Create a new completed session

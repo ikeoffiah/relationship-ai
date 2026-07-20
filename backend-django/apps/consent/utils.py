@@ -5,6 +5,7 @@ import logging
 
 from .models import UserConsent
 from apps.audit.logger import AuditLogger
+from apps.relationships.models import Relationship
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +72,17 @@ def check_consent(
 
     # 3. Check partner consent if relationship_id is provided
     if relationship_id:
-        # Fetch all consents for this relationship
-        relationship_consents = UserConsent.objects.filter(
-            relationship_id=relationship_id
-        )
+        # UserConsent has no relationship column; partners are resolved through
+        # the Relationship model (same idiom as AccessPolicy.from_user_id).
+        relationship = Relationship.objects.filter(id=relationship_id).first()
+        partner_ids = []
+        if relationship:
+            partner_ids = [
+                pid
+                for pid in (relationship.partner_a_id, relationship.partner_b_id)
+                if pid is not None and str(pid) != str(user_id)
+            ]
+        relationship_consents = UserConsent.objects.filter(user_id__in=partner_ids)
 
         # Cross-partner check logic: for certain permissions, BOTH must consent
         # Specifically: cross_partner_insight_sharing, shared_relationship_context

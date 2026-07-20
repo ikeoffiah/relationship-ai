@@ -24,8 +24,11 @@ class CounselingModelTests(TestCase):
         self.user = User.objects.create_user(
             email="model@example.com", password="password"
         )
+        self.partner = User.objects.create_user(
+            email="model_partner@example.com", password="password"
+        )
         self.relationship = Relationship.objects.create(
-            user=self.user, name="Model Relationship"
+            partner_a=self.user, partner_b=self.partner, status="active"
         )
 
     def test_session_str(self):
@@ -58,8 +61,11 @@ class EndSessionViewTests(APITestCase):
             email="view@example.com", password="password"
         )
         self.client.force_authenticate(user=self.user)
+        self.partner = User.objects.create_user(
+            email="view_partner@example.com", password="password"
+        )
         self.relationship = Relationship.objects.create(
-            user=self.user, name="View Relationship"
+            partner_a=self.user, partner_b=self.partner, status="active"
         )
         self.url = "/api/counseling/sessions/end/"
 
@@ -104,8 +110,11 @@ class CounselingTaskTests(TestCase):
         self.user = User.objects.create_user(
             email="task@example.com", password="password"
         )
+        self.partner = User.objects.create_user(
+            email="task_partner@example.com", password="password"
+        )
         self.relationship = Relationship.objects.create(
-            user=self.user, name="Task Relationship"
+            partner_a=self.user, partner_b=self.partner, status="active"
         )
         self.session = Session.objects.create(
             user=self.user,

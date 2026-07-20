@@ -22,8 +22,8 @@ def setup_users():
     consent_b, _ = UserConsent.objects.get_or_create(user=user_b)
     
     # Setup age verification
-    AgeVerification.objects.create(user=user_a, status='verified', age_range='25-34')
-    AgeVerification.objects.create(user=user_b, status='verified', age_range='25-34')
+    AgeVerification.objects.create(user=user_a, status='verified', method='card_check')
+    AgeVerification.objects.create(user=user_b, status='verified', method='card_check')
     
     return user_a, user_b, relationship, consent_a, consent_b
 

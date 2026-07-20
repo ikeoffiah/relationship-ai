@@ -16,12 +16,12 @@ class TestConsentAPI:
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse("user-consent", kwargs={"user_id": user.id})
+        url = reverse("consent-detail", kwargs={"user_id": user.id})
         response = self.client.get(url)
 
         assert response.status_code == 200
-        assert response.data["user_id"] == str(user.id)
-        assert response.data["session_transcript_retention"] == "per_session"
+        assert str(response.data["data"]["user_id"]) == str(user.id)
+        assert response.data["data"]["session_transcript_retention"] == "per_session"
 
     def test_get_consent_unauthorized_user(self, django_user_model):
         owner = django_user_model.objects.create_user(
@@ -33,7 +33,7 @@ class TestConsentAPI:
 
         self.client.force_authenticate(user=other_user)
 
-        url = reverse("user-consent", kwargs={"user_id": owner.id})
+        url = reverse("consent-detail", kwargs={"user_id": owner.id})
         response = self.client.get(url)
 
         assert response.status_code == 403
@@ -44,27 +44,29 @@ class TestConsentAPI:
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse("user-consent", kwargs={"user_id": user.id})
+        url = reverse("consent-detail", kwargs={"user_id": user.id})
         data = {
             "session_transcript_retention": "30_days",
             "therapist_summary_access": True,
         }
 
-        # Pass optional session context via headers
-        session_id = str(uuid4())
-        response = self.client.put(url, data, headers={"X-Session-Context": session_id})
+        response = self.client.put(url, data)
 
         assert response.status_code == 200
-        assert response.data["session_transcript_retention"] == "30_days"
-        assert response.data["therapist_summary_access"] is True
+        assert response.data["data"]["session_transcript_retention"] == "30_days"
+        assert response.data["data"]["therapist_summary_access"] is True
 
-        # Verify audit logs
-        audit_logs = ConsentChangeLog.objects.filter(user=user)
+        # Verify one append-only audit log per changed dimension
+        audit_logs = ConsentChangeLog.objects.filter(user=user).order_by("dimension")
         assert audit_logs.count() == 2
 
-        # Check session context was preserved
-        for log in audit_logs:
-            assert str(log.changed_from_session_id) == session_id
+        assert audit_logs[0].dimension == "session_transcript_retention"
+        assert audit_logs[0].old_value == "per_session"
+        assert audit_logs[0].new_value == "30_days"
+
+        assert audit_logs[1].dimension == "therapist_summary_access"
+        assert audit_logs[1].old_value == "False"
+        assert audit_logs[1].new_value == "True"
 
     def test_put_consent_ignores_read_only_user_id(self, django_user_model):
         user = django_user_model.objects.create_user(
@@ -73,19 +75,19 @@ class TestConsentAPI:
         self.client.force_authenticate(user=user)
 
         new_user_id = str(uuid4())
-        url = reverse("user-consent", kwargs={"user_id": user.id})
+        url = reverse("consent-detail", kwargs={"user_id": user.id})
         data = {"user_id": new_user_id, "session_transcript_retention": "1_year"}
 
         response = self.client.put(url, data)
         assert response.status_code == 200
-        assert response.data["user_id"] == str(user.id)  # Should NOT have changed
+        assert str(response.data["data"]["user_id"]) == str(user.id)  # Should NOT have changed
 
         consent = UserConsent.objects.get(user_id=user.id)
         assert str(consent.user_id) == str(user.id)
 
     def test_unauthenticated_access_denied(self, django_user_model):
         user_id = uuid4()
-        url = reverse("user-consent", kwargs={"user_id": user_id})
+        url = reverse("consent-detail", kwargs={"user_id": user_id})
 
         response = self.client.get(url)
         # DRF returns 403 Forbidden for unauthenticated users when no custom authenticators
@@ -101,9 +103,9 @@ class TestConsentAPI:
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse("user-consent", kwargs={"user_id": user.id})
+        url = reverse("consent-detail", kwargs={"user_id": user.id})
 
-        with patch("apps.consent.serializers.UserConsentSerializer.save") as mock_save:
+        with patch("apps.consent.serializers.ConsentSerializer.save") as mock_save:
             mock_save.side_effect = DjangoValidationError(
                 "Direct model validation failure"
             )
@@ -118,13 +120,13 @@ class TestConsentAPI:
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse("user-consent", kwargs={"user_id": user.id})
+        url = reverse("consent-detail", kwargs={"user_id": user.id})
 
         # Make multiple updates
         self.client.put(url, {"session_transcript_retention": "30_days"})
         self.client.put(url, {"therapist_summary_access": True})
 
-        audit_url = reverse("consent-audit", kwargs={"user_id": user.id})
+        audit_url = reverse("consent-history", kwargs={"user_id": user.id})
         response = self.client.get(audit_url)
 
         assert response.status_code == 200
@@ -132,14 +134,11 @@ class TestConsentAPI:
         # but the signal creates it with defaults.
         # Actually, the model save() only logs CHANGES.
         # The two PUTs should definitely create 2 audit entries.
-        assert len(response.data["results"]) == 2
+        assert len(response.data["data"]) == 2
         # Check ordering (descending by changed_at)
+        assert response.data["data"][0]["dimension"] == "therapist_summary_access"
         assert (
-            response.data["results"][0]["changed_field"] == "therapist_summary_access"
-        )
-        assert (
-            response.data["results"][1]["changed_field"]
-            == "session_transcript_retention"
+            response.data["data"][1]["dimension"] == "session_transcript_retention"
         )
 
     def test_put_consent_model_improvement_opt_in_required(self, django_user_model):
@@ -148,19 +147,21 @@ class TestConsentAPI:
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse("user-consent", kwargs={"user_id": user.id})
+        url = reverse("consent-detail", kwargs={"user_id": user.id})
 
-        # Attempt to set model_improvement_data=True WITHOUT explicit_opt_in flag
+        # Attempt to set model_improvement_data=True WITHOUT acknowledgment
         response = self.client.put(url, {"model_improvement_data": True})
         assert response.status_code == 400
-        assert "explicit_opt_in" in str(response.data["model_improvement_data"])
+        assert "acknowledge" in str(response.data["model_improvement_acknowledged"])
 
-        # Attempt WITH explicit_opt_in flag
+        # Attempt WITH the explicit acknowledgment flag
         response = self.client.put(
-            url, {"model_improvement_data": True, "explicit_opt_in": True}
+            url,
+            {"model_improvement_data": True, "model_improvement_acknowledged": True},
+            format="json",
         )
         assert response.status_code == 200
-        assert response.data["model_improvement_data"] is True
+        assert response.data["data"]["model_improvement_data"] is True
 
     def test_check_consent_utility(self, django_user_model):
         from apps.consent.utils import check_consent, ConsentDeniedError
@@ -187,9 +188,8 @@ class TestConsentAPI:
 
     def test_check_consent_cross_partner(self, django_user_model):
         from apps.consent.utils import check_consent
-        from uuid import uuid4
+        from apps.relationships.models import Relationship
 
-        rel_id = uuid4()
         user1 = django_user_model.objects.create_user(
             email="p1@example.com", password="p"
         )
@@ -197,14 +197,19 @@ class TestConsentAPI:
             email="p2@example.com", password="p"
         )
 
+        # Partners are linked through the Relationship model; UserConsent has
+        # no relationship column of its own.
+        relationship = Relationship.objects.create(
+            partner_a=user1, partner_b=user2, status="active"
+        )
+        rel_id = relationship.id
+
         # Update existing records created by signal
         c1 = UserConsent.objects.get(user_id=user1.id)
-        c1.relationship_id = rel_id
         c1.cross_partner_insight_sharing = "named"
         c1.save()
 
         c2 = UserConsent.objects.get(user_id=user2.id)
-        c2.relationship_id = rel_id
         c2.cross_partner_insight_sharing = "never"
         c2.save()
 

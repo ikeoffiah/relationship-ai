@@ -60,7 +60,7 @@ class TestConsentAPI:
         api_client.force_authenticate(user=user)
         
         url = reverse("consent-detail", kwargs={"user_id": user.id})
-        response = api_client.put(url, {"model_improvement_data": True})
+        response = api_client.put(url, {"model_improvement_data": True}, format="json")
         
         assert response.status_code == 400
         assert "model_improvement_acknowledged" in response.data
@@ -68,14 +68,15 @@ class TestConsentAPI:
     def test_consent_owner_permission(self, api_client, setup_user):
         user, consent = setup_user
         other_user = User.objects.create_user(email="other@example.com", password="password123")
-        UserConsent.objects.create(user=other_user)
+        UserConsent.objects.get_or_create(user=other_user)
         
         api_client.force_authenticate(user=user)
         url = reverse("consent-detail", kwargs={"user_id": other_user.id})
         response = api_client.get(url)
         
-        assert response.status_code == 404 # get_object_or_404 returns 404 for object doesn't exist, but permission check happens before that? 
-        # Actually get_object_or_404 is in the view.
+        # The consent row exists, so get_object_or_404 succeeds and the
+        # IsConsentOwner object permission is what rejects the request.
+        assert response.status_code == 403
 
     def test_consent_gate_caching(self, setup_user):
         user, consent = setup_user

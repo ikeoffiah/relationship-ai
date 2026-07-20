@@ -282,6 +282,7 @@ structlog.configure(
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "utils.exception_handler.exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],

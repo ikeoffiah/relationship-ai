@@ -1,5 +1,6 @@
 import pytest
-from django.db import InternalError, IntegrityError, connection, transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import InternalError, connection, transaction
 from apps.consent.models import UserConsent, ConsentChangeLog
 
 
@@ -67,19 +68,27 @@ class TestConsentSystem:
                         "DELETE FROM consent_change_log WHERE id=%s", [str(entry.id)]
                     )
 
-    def test_db_check_constraints_enforcement(self, django_user_model):
+    def test_consent_choice_values_are_enforced(self, django_user_model):
+        """
+        Consent dimensions only accept their declared choice values.
+
+        NOTE: this is enforced at the model layer (Django `choices` +
+        full_clean), not by a database CHECK constraint -- no CHECK constraint
+        is created for these columns by apps/consent/migrations/0001_initial.py,
+        so a raw UPDATE can still write an out-of-domain value.
+        """
         user = django_user_model.objects.create_user(
             email="constraint@example.com", password="pw"
         )
         consent = UserConsent.objects.get(user_id=user.id)
 
-        # Check constraint check via raw query
-        # Since sqlite doesn't enforce check constraints in the exact same way or name, let's verify on postgresql only if vendor is postgresql
-        if connection.vendor == 'postgresql':
-            with transaction.atomic():
-                with pytest.raises(IntegrityError):
-                    with connection.cursor() as cursor:
-                        cursor.execute(
-                            "UPDATE user_consents SET session_transcript_retention='invalid' WHERE id=%s",
-                            [str(consent.id)],
-                        )
+        # An out-of-domain value is rejected by model validation...
+        consent.session_transcript_retention = "invalid"
+        with pytest.raises(DjangoValidationError) as excinfo:
+            consent.full_clean()
+        assert "session_transcript_retention" in excinfo.value.message_dict
+
+        # ...while every declared choice is accepted.
+        for value, _label in UserConsent.SESSION_RETENTION_CHOICES:
+            consent.session_transcript_retention = value
+            consent.full_clean()
