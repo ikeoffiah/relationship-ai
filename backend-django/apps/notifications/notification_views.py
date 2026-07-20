@@ -22,6 +22,24 @@ from apps.notifications.notification_serializers import (
 )
 
 
+# ── Ownership helpers ───────────────────────────────────────────────────
+# Every route is addressed by a user_id or notification_id in the URL, so
+# authentication alone is not enough: without these checks any logged-in user
+# could read, mutate or delete another user's notifications.
+
+
+def _is_self(request, user_id) -> bool:
+    """True when the authenticated caller owns the addressed user_id."""
+    return str(request.user.id) == str(user_id)
+
+
+def _forbidden():
+    return Response(
+        {"message": "You may only access your own notifications"},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
 # ── Paginated list ──────────────────────────────────────────────────────
 
 
@@ -29,6 +47,8 @@ from apps.notifications.notification_serializers import (
 @permission_classes([IsAuthenticated])
 def list_notifications(request, user_id):
     """Return a paginated list of in-app notifications, newest first."""
+    if not _is_self(request, user_id):
+        return _forbidden()
     page = int(request.query_params.get("page", 1))
     limit = min(int(request.query_params.get("limit", 20)), 50)
     offset = (page - 1) * limit
@@ -56,6 +76,8 @@ def list_notifications(request, user_id):
 @permission_classes([IsAuthenticated])
 def unread_count(request, user_id):
     """Return the number of unread notifications for badge display."""
+    if not _is_self(request, user_id):
+        return _forbidden()
     count = Notification.objects.filter(user_id=user_id, read=False).count()
     serializer = UnreadCountSerializer({"count": count})
     return Response(serializer.data)
@@ -69,7 +91,9 @@ def unread_count(request, user_id):
 def mark_read(request, notification_id):
     """Mark a single notification as read."""
     try:
-        notification = Notification.objects.get(id=notification_id)
+        notification = Notification.objects.get(
+            id=notification_id, user_id=request.user.id
+        )
     except Notification.DoesNotExist:
         return Response(
             {"message": "Notification not found"},
@@ -88,6 +112,8 @@ def mark_read(request, notification_id):
 @permission_classes([IsAuthenticated])
 def mark_all_read(request, user_id):
     """Mark every unread notification for the user as read."""
+    if not _is_self(request, user_id):
+        return _forbidden()
     updated = Notification.objects.filter(user_id=user_id, read=False).update(
         read=True
     )
@@ -102,7 +128,9 @@ def mark_all_read(request, user_id):
 def delete_notification(request, notification_id):
     """Delete a single notification (swipe-to-dismiss)."""
     try:
-        notification = Notification.objects.get(id=notification_id)
+        notification = Notification.objects.get(
+            id=notification_id, user_id=request.user.id
+        )
     except Notification.DoesNotExist:
         return Response(
             {"message": "Notification not found"},

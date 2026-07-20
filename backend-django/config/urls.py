@@ -30,4 +30,8 @@ urlpatterns = [
     path("api/counseling/", include("apps.counseling.urls")),
     path("api/v1/therapist/", include("apps.therapist.urls")),
     path("api/v1/personalization/", include("apps.personalization.urls")),
+    # notification_urls declares absolute paths (api/v1/users/... and
+    # api/v1/notifications/...), so it mounts at the root rather than under a
+    # prefix.
+    path("", include("apps.notifications.notification_urls")),
 ]
