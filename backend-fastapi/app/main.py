@@ -10,6 +10,7 @@ from app.api.relationships import router as relationships_router
 from app.api.memory_router import router as memory_router
 from app.api.relay_router import router as relay_router
 from app.api.feedback_router import router as feedback_router
+from app.api.chat_router import router as chat_router
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -71,6 +72,7 @@ app.include_router(relationships_router)
 app.include_router(memory_router, prefix="/api/v1/memory")
 app.include_router(relay_router)
 app.include_router(feedback_router)
+app.include_router(chat_router)
 
 
 # Instrument Prometheus
