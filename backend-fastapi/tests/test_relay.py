@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock
 
 from app.api.relationships import get_db_pool
+from tests.conftest import auth_headers
 from app.main import app
 
 client = TestClient(app)
@@ -15,8 +16,8 @@ SENDER = "user-a"
 RECIPIENT = "user-b"
 REL_ID = "rel-1"
 SESSION = "session123"
-HEADERS = {"X-User-ID": SENDER}
-RECIPIENT_HEADERS = {"X-User-ID": RECIPIENT}
+HEADERS = auth_headers(SENDER)
+RECIPIENT_HEADERS = auth_headers(RECIPIENT)
 
 
 class FakeConn:

@@ -13,6 +13,7 @@ from app.api.relationships import (
     router,
 )
 from app.main import app
+from tests.conftest import auth_headers
 
 client = TestClient(app)
 
@@ -20,7 +21,7 @@ REL_ID = "rel-123"
 PARTNER_A = "user-a"
 PARTNER_B = "user-b"
 BASE = f"/api/v1/relationships/{REL_ID}"
-HEADERS = {"X-User-ID": PARTNER_A}
+HEADERS = auth_headers(PARTNER_A)
 
 
 class FakeConn:
@@ -131,13 +132,13 @@ def test_router_is_mounted_under_expected_prefix():
 # Auth
 # ---------------------------------------------------------------------------
 
-def test_missing_user_header_returns_401(use_pool):
+def test_missing_credentials_returns_401(use_pool):
     use_pool([], [])
 
     response = client.get(f"{BASE}/context")
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "X-User-ID header required"
+    assert response.json()["detail"] == "Bearer token required"
 
 
 # ---------------------------------------------------------------------------

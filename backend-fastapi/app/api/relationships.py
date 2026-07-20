@@ -2,9 +2,11 @@ import json
 import os
 from datetime import datetime
 from typing import List, Any
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import asyncpg
+
+from app.auth import get_current_user_id
 
 router = APIRouter(prefix="/api/v1/relationships", tags=["relationships"])
 
@@ -37,13 +39,9 @@ def decrypt_context(data_str: str, relationship_id: str) -> Any:
         return {}
 
 
-# Dependency to extract User Context (mocking authentication)
-async def get_current_user_id(request: Request) -> str:
-    # In a real app, we'd verify the JWT
-    user_id = request.headers.get("X-User-ID")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="X-User-ID header required")
-    return user_id
+# `get_current_user_id` is imported at the top of this module and re-exported
+# here so existing `from app.api.relationships import get_current_user_id`
+# imports keep working.
 
 
 # --- API Models ---

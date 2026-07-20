@@ -6,12 +6,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.memory_router import _memory_store, MemoryOut
-from app.dependencies import User
 from app.main import app
+from tests.conftest import auth_headers
 
 client = TestClient(app)
 BASE = "/api/v1/memory"
-CURRENT_USER_ID = User.id
+CURRENT_USER_ID = UUID("11111111-1111-1111-1111-111111111111")
+HEADERS = auth_headers(str(CURRENT_USER_ID))
 
 
 @pytest.fixture(autouse=True)
@@ -23,7 +24,9 @@ def clean_store():
 
 def create_memory(content="I feel unheard during money talks.", metadata=None):
     response = client.post(
-        f"{BASE}/", json={"content": content, "metadata": metadata or {}}
+f"{BASE}/",
+headers=HEADERS,
+json={"content": content, "metadata": metadata or {}}
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -76,7 +79,10 @@ def test_create_memory_without_memory_type_leaves_it_null():
 
 
 def test_create_memory_requires_content():
-    assert client.post(f"{BASE}/", json={"metadata": {}}).status_code == 422
+    assert client.post(
+f"{BASE}/",
+headers=HEADERS,
+json={"metadata": {}}).status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +93,7 @@ def test_list_memories_returns_only_current_users_memories():
     created = create_memory("mine")
     foreign_memory()
 
-    response = client.get(f"{BASE}/")
+    response = client.get(f"{BASE}/", headers=HEADERS)
 
     assert response.status_code == 200
     body = response.json()
@@ -96,14 +102,14 @@ def test_list_memories_returns_only_current_users_memories():
 
 
 def test_list_memories_empty_by_default():
-    assert client.get(f"{BASE}/").json() == []
+    assert client.get(f"{BASE}/", headers=HEADERS).json() == []
 
 
 def test_list_memories_respects_limit_and_offset():
     for i in range(5):
         create_memory(f"memory {i}")
 
-    page = client.get(f"{BASE}/", params={"limit": 2, "offset": 1}).json()
+    page = client.get(f"{BASE}/", headers=HEADERS, params={"limit": 2, "offset": 1}).json()
 
     assert len(page) == 2
     assert [m["content"] for m in page] == ["memory 1", "memory 2"]
@@ -113,7 +119,7 @@ def test_list_memories_filters_by_memory_type():
     create_memory("conflict one", {"memory_type": "conflict_pattern"})
     create_memory("a trigger", {"memory_type": "trigger"})
 
-    filtered = client.get(f"{BASE}/", params={"type": "conflict_pattern"}).json()
+    filtered = client.get(f"{BASE}/", headers=HEADERS, params={"type": "conflict_pattern"}).json()
 
     assert [m["content"] for m in filtered] == ["conflict one"]
 
@@ -122,7 +128,7 @@ def test_list_memories_filters_by_metadata_type_key():
     create_memory("tagged via metadata", {"type": "repair_event"})
     create_memory("untagged")
 
-    filtered = client.get(f"{BASE}/", params={"type": "repair_event"}).json()
+    filtered = client.get(f"{BASE}/", headers=HEADERS, params={"type": "repair_event"}).json()
 
     assert [m["content"] for m in filtered] == ["tagged via metadata"]
 
@@ -130,7 +136,7 @@ def test_list_memories_filters_by_metadata_type_key():
 def test_list_memories_type_filter_with_no_matches():
     create_memory("conflict one", {"memory_type": "conflict_pattern"})
 
-    assert client.get(f"{BASE}/", params={"type": "trigger"}).json() == []
+    assert client.get(f"{BASE}/", headers=HEADERS, params={"type": "trigger"}).json() == []
 
 
 # ---------------------------------------------------------------------------
@@ -140,25 +146,25 @@ def test_list_memories_type_filter_with_no_matches():
 def test_get_memory_by_id():
     created = create_memory("retrieve me")
 
-    response = client.get(f"{BASE}/{created['id']}")
+    response = client.get(f"{BASE}/{created['id']}", headers=HEADERS)
 
     assert response.status_code == 200
     assert response.json()["content"] == "retrieve me"
 
 
 def test_get_missing_memory_returns_404():
-    response = client.get(f"{BASE}/{uuid4()}")
+    response = client.get(f"{BASE}/{uuid4()}", headers=HEADERS)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Memory not found"
 
 
 def test_get_another_users_memory_returns_404():
-    assert client.get(f"{BASE}/{foreign_memory()}").status_code == 404
+    assert client.get(f"{BASE}/{foreign_memory()}", headers=HEADERS).status_code == 404
 
 
 def test_get_memory_with_non_uuid_id_returns_422():
-    assert client.get(f"{BASE}/not-a-uuid").status_code == 422
+    assert client.get(f"{BASE}/not-a-uuid", headers=HEADERS).status_code == 422
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +174,10 @@ def test_get_memory_with_non_uuid_id_returns_422():
 def test_update_memory_content_recomputes_preview():
     created = create_memory("original")
 
-    response = client.put(f"{BASE}/{created['id']}", json={"content": "y" * 80})
+    response = client.put(
+f"{BASE}/{created['id']}",
+headers=HEADERS,
+json={"content": "y" * 80})
 
     assert response.status_code == 200
     body = response.json()
@@ -181,7 +190,9 @@ def test_update_memory_metadata_only_leaves_content_alone():
     created = create_memory("keep me")
 
     body = client.put(
-        f"{BASE}/{created['id']}", json={"metadata": {"reviewed": True}}
+f"{BASE}/{created['id']}",
+headers=HEADERS,
+json={"metadata": {"reviewed": True}}
     ).json()
 
     assert body["content"] == "keep me"
@@ -192,13 +203,19 @@ def test_update_memory_metadata_only_leaves_content_alone():
 def test_update_memory_persists_to_store():
     created = create_memory("before")
 
-    client.put(f"{BASE}/{created['id']}", json={"content": "after"})
+    client.put(
+f"{BASE}/{created['id']}",
+headers=HEADERS,
+json={"content": "after"})
 
     assert _memory_store[UUID(created["id"])].content == "after"
 
 
 def test_update_missing_memory_returns_404():
-    response = client.put(f"{BASE}/{uuid4()}", json={"content": "nope"})
+    response = client.put(
+f"{BASE}/{uuid4()}",
+headers=HEADERS,
+json={"content": "nope"})
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Memory not found"
@@ -207,7 +224,10 @@ def test_update_missing_memory_returns_404():
 def test_update_another_users_memory_returns_404():
     mem_id = foreign_memory()
 
-    assert client.put(f"{BASE}/{mem_id}", json={"content": "hijack"}).status_code == 404
+    assert client.put(
+f"{BASE}/{mem_id}",
+headers=HEADERS,
+json={"content": "hijack"}).status_code == 404
     assert _memory_store[mem_id].content == "someone else's memory"
 
 
@@ -218,21 +238,21 @@ def test_update_another_users_memory_returns_404():
 def test_delete_memory_returns_204_and_removes_it():
     created = create_memory("delete me")
 
-    response = client.delete(f"{BASE}/{created['id']}")
+    response = client.delete(f"{BASE}/{created['id']}", headers=HEADERS)
 
     assert response.status_code == 204
     assert UUID(created["id"]) not in _memory_store
-    assert client.get(f"{BASE}/{created['id']}").status_code == 404
+    assert client.get(f"{BASE}/{created['id']}", headers=HEADERS).status_code == 404
 
 
 def test_delete_missing_memory_returns_404():
-    assert client.delete(f"{BASE}/{uuid4()}").status_code == 404
+    assert client.delete(f"{BASE}/{uuid4()}", headers=HEADERS).status_code == 404
 
 
 def test_delete_another_users_memory_returns_404():
     mem_id = foreign_memory()
 
-    assert client.delete(f"{BASE}/{mem_id}").status_code == 404
+    assert client.delete(f"{BASE}/{mem_id}", headers=HEADERS).status_code == 404
     assert mem_id in _memory_store
 
 
@@ -246,7 +266,9 @@ def test_bulk_delete_removes_owned_memories():
     keep = create_memory("keep")
 
     response = client.post(
-        f"{BASE}/bulk-delete/", json={"memory_ids": [a["id"], b["id"]]}
+f"{BASE}/bulk-delete/",
+headers=HEADERS,
+json={"memory_ids": [a["id"], b["id"]]}
     )
 
     assert response.status_code == 202
@@ -262,8 +284,9 @@ def test_bulk_delete_skips_unknown_and_foreign_ids():
     unknown = uuid4()
 
     body = client.post(
-        f"{BASE}/bulk-delete/",
-        json={"memory_ids": [mine["id"], str(theirs), str(unknown)]},
+f"{BASE}/bulk-delete/",
+headers=HEADERS,
+json={"memory_ids": [mine["id"], str(theirs), str(unknown)]},
     ).json()
 
     assert body["deleted"] == [mine["id"]]
@@ -274,7 +297,10 @@ def test_bulk_delete_skips_unknown_and_foreign_ids():
 def test_bulk_delete_with_empty_list():
     create_memory("untouched")
 
-    body = client.post(f"{BASE}/bulk-delete/", json={"memory_ids": []}).json()
+    body = client.post(
+f"{BASE}/bulk-delete/",
+headers=HEADERS,
+json={"memory_ids": []}).json()
 
     assert body == {"deleted": [], "requested": 0}
     assert len(_memory_store) == 1
@@ -289,20 +315,20 @@ def test_count_memories_counts_only_current_user():
     create_memory("two")
     foreign_memory()
 
-    response = client.get(f"{BASE}/count/")
+    response = client.get(f"{BASE}/count/", headers=HEADERS)
 
     assert response.status_code == 200
     assert response.json() == 2
 
 
 def test_count_is_zero_when_empty():
-    assert client.get(f"{BASE}/count/").json() == 0
+    assert client.get(f"{BASE}/count/", headers=HEADERS).json() == 0
 
 
 def test_count_reflects_deletions():
     a = create_memory("one")
     create_memory("two")
 
-    client.delete(f"{BASE}/{a['id']}")
+    client.delete(f"{BASE}/{a['id']}", headers=HEADERS)
 
-    assert client.get(f"{BASE}/count/").json() == 1
+    assert client.get(f"{BASE}/count/", headers=HEADERS).json() == 1

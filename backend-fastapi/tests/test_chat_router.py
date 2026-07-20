@@ -7,12 +7,13 @@ from fastapi.testclient import TestClient
 
 from app.api import chat_router as chat
 from app.main import app
+from tests.conftest import auth_headers
 
 client = TestClient(app)
 
 SESSION = "session-1"
 USER = "user-a"
-HEADERS = {"X-User-ID": USER}
+HEADERS = auth_headers(USER)
 URL = f"/api/v1/sessions/{SESSION}/messages"
 
 

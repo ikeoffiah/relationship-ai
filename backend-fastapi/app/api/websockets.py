@@ -1,8 +1,8 @@
+from app.auth import decode_token
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 import json
 import structlog
 import asyncio
-import jwt
 import os
 from typing import Optional
 
@@ -11,10 +11,16 @@ router = APIRouter()
 
 
 async def verify_session_and_user(session_id: str, user_id: str) -> bool:
-    db_url = os.environ.get("DATABASE_URL")
-    if not db_url or "mock" in db_url.lower() or "test" in db_url.lower():
-        # Bypassed/Mocked in tests
+    # Only an explicit opt-out disables this. Sniffing DATABASE_URL for
+    # "test"/"mock" silently disabled participant verification for any
+    # deployment whose database name happened to contain those substrings.
+    if os.environ.get("WS_SKIP_PARTICIPANT_CHECK") == "1":
         return True
+
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        # Fail closed: without a database we cannot prove membership.
+        return False
 
     try:
         import asyncpg
@@ -100,10 +106,17 @@ async def get_partner_id(session_id: str, user_id: str) -> Optional[str]:
 
 
 @router.websocket("/ws/joint/{session_id}")
-async def joint_session_endpoint(websocket: WebSocket, session_id: str):
-    # Support legacy endpoint for compatibility, defaults to dummy user
-    token = "legacy_token"
-    # Call the primary endpoint logic directly
+async def joint_session_endpoint(
+    websocket: WebSocket, session_id: str, token: str = Query(...)
+):
+    """
+    Legacy path, retained for compatibility.
+
+    It previously accepted a literal "legacy_token" and skipped both JWT
+    verification and the participant check, which allowed anyone to join any
+    couple's live counseling session. It now authenticates identically to
+    /ws/sessions/{session_id}.
+    """
     await handle_websocket_session(websocket, session_id, token, is_legacy=True)
 
 
@@ -116,7 +129,11 @@ async def joint_session_websocket(
     await handle_websocket_session(websocket, session_id, token, is_legacy=False)
 
 
-async def handle_websocket_session(websocket: WebSocket, session_id: str, token: str, is_legacy: bool = False):
+async def handle_websocket_session(
+    websocket: WebSocket, session_id: str, token: str, is_legacy: bool = False
+):
+    """`is_legacy` selects the older message-handling semantics only; it no
+    longer affects authentication, which is enforced identically either way."""
     from app.safety.sensitive_disclosures import SUSPENDED_JOINT_SESSIONS, BOTH_PARTNERS_ABUSE_RESPONSE
     if session_id in SUSPENDED_JOINT_SESSIONS:
         await websocket.accept()
@@ -124,19 +141,22 @@ async def handle_websocket_session(websocket: WebSocket, session_id: str, token:
         await websocket.close()
         return
 
-    # 1. Validate JWT token
-    user_id = "user-via-ws"
-    secret_key = os.environ.get("SECRET_KEY", "fastapi-secret-key-here")
-    if not is_legacy and token != "legacy_token":
-        try:
-            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
-            user_id = payload.get("sub", "user-via-ws")
-        except Exception:
-            await websocket.close(code=4001)
-            return
+    # 1. Validate the token. There is deliberately no fallback secret: the old
+    #    default ("fastapi-secret-key-here") is a published placeholder, so any
+    #    deployment missing SECRET_KEY would have accepted forged tokens.
+    try:
+        payload = decode_token(token)
+        user_id = str(payload.get("sub") or "")
+    except Exception:
+        await websocket.close(code=4001)
+        return
 
-    # 2. Verify user is participant in session_id
-    if not is_legacy and not await verify_session_and_user(session_id, user_id):
+    if not user_id:
+        await websocket.close(code=4001)
+        return
+
+    # 2. Verify the caller actually participates in this session.
+    if not await verify_session_and_user(session_id, user_id):
         await websocket.close(code=4003)
         return
 

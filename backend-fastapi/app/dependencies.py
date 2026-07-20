@@ -1,8 +1,10 @@
-from uuid import UUID
+"""
+Backwards-compatible re-export of the real auth dependencies.
 
-class User:
-    id: UUID = UUID('00000000-0000-0000-0000-000000000001')
+Previously defined a placeholder user with a hardcoded UUID; identity now
+comes from a verified token. See app/auth.py.
+"""
 
-# Dependency placeholder for current user (replace with actual auth dependency)
-async def get_current_user():
-    return User()
+from app.auth import User, get_current_user, get_current_user_id
+
+__all__ = ["User", "get_current_user", "get_current_user_id"]

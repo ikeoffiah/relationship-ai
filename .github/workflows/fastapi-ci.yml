@@ -62,4 +62,6 @@ jobs:
           DATABASE_URL: postgresql://postgres:testpass@localhost/testdb
           REDIS_URL: redis://localhost:6379/0
           ANTHROPIC_API_KEY: sk-test-key
+          SECRET_KEY: ci-test-secret-key
+          WS_SKIP_PARTICIPANT_CHECK: "1"
           ENCRYPTION_MASTER_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"

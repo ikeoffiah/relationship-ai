@@ -1,5 +1,5 @@
 import pytest
-from jwt import encode
+from tests.conftest import make_token
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import WebSocket, WebSocketDisconnect
 from app.api.websockets import joint_session_websocket
@@ -23,7 +23,7 @@ async def test_jwt_validation_failure(mock_websocket):
 
 @pytest.mark.asyncio
 async def test_jwt_validation_success_and_routing(mock_websocket):
-    token = encode({"sub": "user123"}, "fastapi-secret-key-here", algorithm="HS256")
+    token = make_token("user123")
     
     broker = AsyncMock()
     mock_websocket.app.state.broker = broker
