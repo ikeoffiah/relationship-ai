@@ -372,7 +372,10 @@ class RevokeView(views.APIView):
 
         jti, _ = refresh_token.split(":", 1)
         try:
-            rt = RefreshToken.objects.get(jti=jti)
+            # Scoped to the caller: the jti is parsed off before the secret
+            # half is validated, so without this filter possession of another
+            # user's jti alone was enough to revoke their whole token family.
+            rt = RefreshToken.objects.get(jti=jti, user=request.user)
             revoke_family(rt.family_id)
             return Response({"status": "revoked"})
         except (RefreshToken.DoesNotExist, ValidationError):

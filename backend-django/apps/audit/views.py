@@ -20,10 +20,13 @@ class AuditLogView(views.APIView):
             return Response({"error": "event_type is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         metadata = request.data.get("metadata", {})
-        # Note: In mobile consent_api_service it sends `{'event_type': 'session_consent_summary_shown', 'user_id': userId}`.
-        # We handle any extra top-level keys by merging them into metadata, except event_type and user_id.
-        user_id = request.data.get("user_id", request.user.id)
-        
+        # The audit trail is the evidence the consent and joint-session
+        # features rely on, so the subject is always the authenticated caller.
+        # A caller-supplied user_id previously won over request.user, which let
+        # any logged-in user forge events attributed to anyone else. The mobile
+        # client still sends its own user_id; it is ignored rather than trusted.
+        user_id = request.user.id
+
         # Pull out session/relationship if provided
         session_id = request.data.get("session_id")
         relationship_id = request.data.get("relationship_id")

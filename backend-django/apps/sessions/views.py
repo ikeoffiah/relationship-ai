@@ -87,12 +87,28 @@ class JointSessionInitiateView(views.APIView):
             "expires_at": joint_session.expires_at.isoformat()
         }, status=status.HTTP_201_CREATED)
 
+def get_participant_session(session_id, user):
+    """
+    Fetch a joint session, scoped to one of its two partners.
+
+    These views are addressed by session id with only IsAuthenticated+IsAdult,
+    so an unscoped fetch let any logged-in adult confirm, terminate or read a
+    joint session belonging to two other people. 404 rather than 403 so the
+    existence of someone else's session is not confirmed.
+    """
+    return get_object_or_404(
+        JointSession,
+        models.Q(relationship__partner_a=user) | models.Q(relationship__partner_b=user),
+        id=session_id,
+    )
+
+
 class JointSessionConfirmView(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdult]
 
     def post(self, request, session_id):
         user = request.user
-        joint_session = get_object_or_404(JointSession, id=session_id)
+        joint_session = get_participant_session(session_id, user)
         
         if joint_session.state == JointSessionState.ACTIVE.value:
             return response.Response({
@@ -154,7 +170,7 @@ class JointSessionExitView(views.APIView):
 
     def post(self, request, session_id):
         user = request.user
-        joint_session = get_object_or_404(JointSession, id=session_id)
+        joint_session = get_participant_session(session_id, user)
         
         from_state = JointSessionState(joint_session.state)
         joint_session.state = JointSessionState.EXITED.value
@@ -178,7 +194,7 @@ class JointSessionStatusView(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdult]
 
     def get(self, request, session_id):
-        joint_session = get_object_or_404(JointSession, id=session_id)
+        joint_session = get_participant_session(session_id, request.user)
         
         if joint_session.is_expired:
             joint_session.state = JointSessionState.TERMINATED.value
