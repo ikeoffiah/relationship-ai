@@ -24,6 +24,19 @@ class TherapistConnection(models.Model):
     class Meta:
         unique_together = ("therapist", "client")
 
+    @property
+    def is_active(self) -> bool:
+        """
+        Whether this connection actually authorises access to client data.
+
+        Both sides must have consented. Anything that exposes client data to a
+        therapist must gate on this rather than on the connection's existence
+        or on `consent_therapist` alone -- a therapist can create their own
+        connection row, so its existence proves nothing about the client's
+        wishes.
+        """
+        return self.consent_therapist and self.consent_client
+
     def __str__(self):
         return f"Connection {self.therapist.email} ↔ {self.client.email}"
 

@@ -23,6 +23,10 @@ class TherapistLoginSerializer(serializers.Serializer):
 class TherapistConnectionSerializer(serializers.ModelSerializer):
     therapist = serializers.PrimaryKeyRelatedField(read_only=True)
     client = serializers.PrimaryKeyRelatedField(read_only=True)
+    # The client's consent belongs to the client. It was a writable field, so
+    # a therapist could POST consent_client=true and manufacture a
+    # fully-consented connection to any user without their involvement.
+    consent_client = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = TherapistConnection
@@ -39,6 +43,11 @@ class ClientListSerializer(serializers.ModelSerializer):
         fields = ['client_id', 'client_email', 'consent_therapist', 'consent_client']
 
 class TherapistStrategyNoteSerializer(serializers.ModelSerializer):
+    # Set from the authenticated therapist and the validated client in the
+    # view; declaring them writable invited a payload override.
+    therapist = serializers.PrimaryKeyRelatedField(read_only=True)
+    client = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = TherapistStrategyNote
         fields = ['id', 'therapist', 'client', 'note', 'created_at']
