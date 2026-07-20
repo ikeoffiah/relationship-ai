@@ -4,46 +4,58 @@ from django.conf import settings
 from django.core.cache import cache
 from apps.audit.logger import AuditLogger
 
+# Choice domains live at module scope so Meta.constraints can reference them;
+# a nested Meta cannot see its outer class's attributes. Keeping one source of
+# truth means the DB CHECK and the Django-level choices cannot drift apart.
+_SESSION_RETENTION_CHOICES = [
+    ('per_session', 'Per session only'),   # DEFAULT - cleared on session end
+    ('30_days',     '30 days'),
+    ('1_year',      '1 year'),
+    ('indefinite',  'Indefinite'),
+]
+_INSIGHT_SHARING_CHOICES = [
+    ('never',      'Never share anything with partner'),  # DEFAULT
+    ('anonymized', 'Share anonymized themes only'),
+    ('named',      'Share named insights'),
+]
+_JOINT_SESSION_CHOICES = [
+    ('not_enrolled', 'Not enrolled in joint sessions'),  # DEFAULT
+    ('enrolled',     'Enrolled in joint sessions'),
+]
+_SHARED_CONTEXT_CHOICES = [
+    ('not_participating', 'Not participating'),  # DEFAULT
+    ('read_only',         'Read only'),
+    ('read_write',        'Read and contribute'),
+]
+
+
+def _values(choices):
+    return [value for value, _label in choices]
+
 class UserConsent(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='consent')
 
     # DIMENSION 1: How long session transcripts are kept
-    SESSION_RETENTION_CHOICES = [
-        ('per_session', 'Per session only'),   # DEFAULT — cleared on session end
-        ('30_days',     '30 days'),
-        ('1_year',      '1 year'),
-        ('indefinite',  'Indefinite'),
-    ]
+    SESSION_RETENTION_CHOICES = _SESSION_RETENTION_CHOICES
     session_transcript_retention = models.CharField(
         max_length=20, choices=SESSION_RETENTION_CHOICES, default='per_session'
     )
 
     # DIMENSION 2: What insights can be shared cross-partner
-    INSIGHT_SHARING_CHOICES = [
-        ('never',      'Never share anything with partner'),  # DEFAULT
-        ('anonymized', 'Share anonymized themes only'),
-        ('named',      'Share named insights'),
-    ]
+    INSIGHT_SHARING_CHOICES = _INSIGHT_SHARING_CHOICES
     cross_partner_insight_sharing = models.CharField(
         max_length=20, choices=INSIGHT_SHARING_CHOICES, default='never'
     )
 
     # DIMENSION 3: Joint session enrollment
-    JOINT_SESSION_CHOICES = [
-        ('not_enrolled', 'Not enrolled in joint sessions'),  # DEFAULT
-        ('enrolled',     'Enrolled in joint sessions'),
-    ]
+    JOINT_SESSION_CHOICES = _JOINT_SESSION_CHOICES
     joint_session_participation = models.CharField(
         max_length=20, choices=JOINT_SESSION_CHOICES, default='not_enrolled'
     )
 
     # DIMENSION 4: Shared relationship context access
-    SHARED_CONTEXT_CHOICES = [
-        ('not_participating', 'Not participating'),  # DEFAULT
-        ('read_only',         'Read only'),
-        ('read_write',        'Read and contribute'),
-    ]
+    SHARED_CONTEXT_CHOICES = _SHARED_CONTEXT_CHOICES
     shared_relationship_context = models.CharField(
         max_length=20, choices=SHARED_CONTEXT_CHOICES, default='not_participating'
     )
@@ -58,6 +70,35 @@ class UserConsent(models.Model):
 
     class Meta:
         db_table = 'user_consents'
+        # Django's `choices` is validated in Python only, so a raw UPDATE could
+        # previously write arbitrary values into a consent column. These CHECKs
+        # enforce the domain in the database itself.
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    session_transcript_retention__in=_values(_SESSION_RETENTION_CHOICES)
+                ),
+                name='ck_consent_session_transcript_retention',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    cross_partner_insight_sharing__in=_values(_INSIGHT_SHARING_CHOICES)
+                ),
+                name='ck_consent_cross_partner_insight_sharing',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    joint_session_participation__in=_values(_JOINT_SESSION_CHOICES)
+                ),
+                name='ck_consent_joint_session_participation',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    shared_relationship_context__in=_values(_SHARED_CONTEXT_CHOICES)
+                ),
+                name='ck_consent_shared_relationship_context',
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         """

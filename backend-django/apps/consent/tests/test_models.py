@@ -1,6 +1,6 @@
 import pytest
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import InternalError, connection, transaction
+from django.db import IntegrityError, InternalError, connection, transaction
 from apps.consent.models import UserConsent, ConsentChangeLog
 
 
@@ -72,10 +72,9 @@ class TestConsentSystem:
         """
         Consent dimensions only accept their declared choice values.
 
-        NOTE: this is enforced at the model layer (Django `choices` +
-        full_clean), not by a database CHECK constraint -- no CHECK constraint
-        is created for these columns by apps/consent/migrations/0001_initial.py,
-        so a raw UPDATE can still write an out-of-domain value.
+        Enforced at both layers: Django `choices`/full_clean, and a database
+        CHECK constraint (apps/consent/migrations/0002_*) so that a raw UPDATE
+        bypassing the ORM cannot write an out-of-domain value either.
         """
         user = django_user_model.objects.create_user(
             email="constraint@example.com", password="pw"
@@ -92,3 +91,19 @@ class TestConsentSystem:
         for value, _label in UserConsent.SESSION_RETENTION_CHOICES:
             consent.session_transcript_retention = value
             consent.full_clean()
+
+        # The database rejects an out-of-domain write even when the ORM is
+        # bypassed entirely -- this is the guarantee full_clean cannot give.
+        for column in (
+            "session_transcript_retention",
+            "cross_partner_insight_sharing",
+            "joint_session_participation",
+            "shared_relationship_context",
+        ):
+            with pytest.raises(IntegrityError):
+                with transaction.atomic():
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            f"UPDATE user_consents SET {column} = %s WHERE id = %s",
+                            ["garbage", str(consent.id)],
+                        )

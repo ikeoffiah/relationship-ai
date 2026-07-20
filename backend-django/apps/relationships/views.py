@@ -162,6 +162,7 @@ class RelationshipDetailView(views.APIView):
         with transaction.atomic():
             relationship.status = 'dissolved'
             relationship.dissolved_at = timezone.now()
+            relationship.dissolved_by = user
             relationship.save()
 
             # Trigger Celery Task for cleanup

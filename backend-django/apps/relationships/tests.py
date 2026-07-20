@@ -112,3 +112,5 @@ class RelationshipPairingTests(APITestCase):
         rel.refresh_from_db()
         self.assertEqual(rel.status, 'dissolved')
         self.assertIsNotNone(rel.dissolved_at)
+        # Dissolution is unilateral, so it must record who performed it.
+        self.assertEqual(rel.dissolved_by, self.user_a)

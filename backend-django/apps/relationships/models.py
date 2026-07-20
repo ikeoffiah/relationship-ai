@@ -17,7 +17,17 @@ class Relationship(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     dissolved_at = models.DateTimeField(null=True, blank=True)
-    
+    # Dissolution is unilateral and destructive, so it must be attributable.
+    # SET_NULL rather than CASCADE: erasing the actor must not erase the
+    # record that the relationship was dissolved.
+    dissolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dissolved_relationships',
+    )
+
     class Meta:
         db_table = 'relationships'
         indexes = [
