@@ -1,3 +1,4 @@
+import json
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -123,5 +124,39 @@ async def test_listen_to_redis_exception(mocker, mock_redis, mock_websocket):
 
     pubsub_mock.listen = mock_listen_error
 
-    # Shouldn't crash
+    broker.RECONNECT_BASE_DELAY = 0  # no backoff sleeps in tests
+
+    # A persistently failing connection is retried, then abandoned rather than
+    # hanging forever -- and the call still returns instead of crashing.
     await broker._listen_to_redis("session1", pubsub_mock)
+
+    # One initial attempt plus RECONNECT_MAX_ATTEMPTS resubscribes.
+    assert pubsub_mock.subscribe.await_count == broker.RECONNECT_MAX_ATTEMPTS
+
+
+@pytest.mark.asyncio
+async def test_listen_to_redis_recovers_after_transient_error(
+    mocker, mock_redis, mock_websocket
+):
+    """A dropped connection resubscribes and keeps delivering messages."""
+    mocker.patch("app.counseling.broker.redis.from_url", return_value=mock_redis)
+    broker = JointSessionBroker("redis://mock")
+    broker.RECONNECT_BASE_DELAY = 0
+    broker.user_connections[("session1", "user1")] = mock_websocket
+
+    calls = {"n": 0}
+
+    async def flaky_listen():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ConnectionError("connection reset by peer")
+        yield {"type": "message", "data": json.dumps({"event": {"type": "ping"}})}
+        raise asyncio.CancelledError()
+
+    mock_redis.pubsub.return_value.listen = flaky_listen
+
+    # Cancellation is absorbed by the listener's cleanup path, as elsewhere.
+    await broker._listen_to_redis("session1", mock_redis.pubsub())
+
+    # The message published after the reconnect still reached the websocket.
+    mock_websocket.send_text.assert_awaited_once_with(json.dumps({"type": "ping"}))

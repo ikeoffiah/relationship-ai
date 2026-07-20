@@ -83,8 +83,22 @@ class JointSessionBroker:
     Redis Pub/Sub to synchronize messages across multiple backend instances.
     """
 
+    # Pub/Sub listener resilience. A managed Redis (Upstash, ElastiCache) is
+    # reached over the network, so dropped connections are routine rather than
+    # exceptional — the listener reconnects instead of dying silently.
+    RECONNECT_MAX_ATTEMPTS = 5
+    RECONNECT_BASE_DELAY = 0.5
+
     def __init__(self, redis_url: str):
-        self.redis = redis.from_url(redis_url, decode_responses=True)
+        self.redis = redis.from_url(
+            redis_url,
+            decode_responses=True,
+            # Keep long-lived idle connections alive and detect half-open
+            # sockets, which a remote Redis will otherwise silently drop.
+            health_check_interval=30,
+            socket_keepalive=True,
+            retry_on_timeout=True,
+        )
         self.pod_id = str(uuid.uuid4())
         # Mapping from session_id to a list of connected local WebSockets
         self.active_sessions: dict[str, list[WebSocket]] = {}
@@ -186,29 +200,67 @@ class JointSessionBroker:
         Continuously listens for messages on the Redis Pub/Sub channel and
         broadcasts them to all locally connected websockets for this session.
         """
+        channel = f"joint_session:{session_id}"
+        # Reconnects are bounded for the lifetime of this listener rather than
+        # reset on traffic: a session is short-lived, and an unbounded loop
+        # against a genuinely dead endpoint would spin forever.
+        attempt = 0
         try:
-            async for message in pubsub.listen():
-                if message["type"] == "message":
-                    data = json.loads(message["data"])
-                    target_user_id = data.get("target_user_id")
-                    exclude_user_id = data.get("exclude_user_id")
-                    event = data.get("event")
+            while True:
+                try:
+                    async for message in pubsub.listen():
+                        if message["type"] != "message":
+                            continue
+                        try:
+                            data = json.loads(message["data"])
+                        except (ValueError, TypeError):
+                            # A malformed payload is not a connection fault --
+                            # skip it rather than tearing down the subscription.
+                            logger.warning(
+                                "redis_pubsub_bad_payload", session_id=session_id
+                            )
+                            continue
 
-                    for (s_id, u_id), ws in list(self.user_connections.items()):
-                        if s_id == session_id:
-                            if target_user_id and u_id != target_user_id:
-                                continue
-                            if exclude_user_id and u_id == exclude_user_id:
-                                continue
-                            try:
-                                await ws.send_text(json.dumps(event))
-                            except Exception:
-                                pass
+                        target_user_id = data.get("target_user_id")
+                        exclude_user_id = data.get("exclude_user_id")
+                        event = data.get("event")
+
+                        for (s_id, u_id), ws in list(self.user_connections.items()):
+                            if s_id == session_id:
+                                if target_user_id and u_id != target_user_id:
+                                    continue
+                                if exclude_user_id and u_id == exclude_user_id:
+                                    continue
+                                try:
+                                    await ws.send_text(json.dumps(event))
+                                except Exception:
+                                    pass
+                    # listen() ended without error: the subscription is gone and
+                    # will not yield again, so stop rather than spin.
+                    return
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    attempt += 1
+                    logger.error(
+                        "redis_pubsub_listener_error",
+                        session_id=session_id,
+                        error=str(e),
+                        attempt=attempt,
+                    )
+                    if attempt > self.RECONNECT_MAX_ATTEMPTS:
+                        # Give up: the WebSockets for this session would
+                        # otherwise stay open receiving nothing at all.
+                        logger.error(
+                            "redis_pubsub_listener_abandoned",
+                            session_id=session_id,
+                            attempts=attempt,
+                        )
+                        return
+                    await asyncio.sleep(self.RECONNECT_BASE_DELAY * (2 ** (attempt - 1)))
+                    pubsub = self.redis.pubsub()
+                    await pubsub.subscribe(channel)
         except asyncio.CancelledError:
-            await pubsub.unsubscribe(f"joint_session:{session_id}")
+            await pubsub.unsubscribe(channel)
             await pubsub.close()
-        except Exception as e:
-            logger.error(
-                "redis_pubsub_listener_error", session_id=session_id, error=str(e)
-            )
 
