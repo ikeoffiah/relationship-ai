@@ -8,7 +8,7 @@ from apps.relationships.models import Relationship
 from apps.consent.models import UserConsent
 from apps.accounts.models import AgeVerification
 from apps.accounts.permissions import IsAdult
-from apps.sessions.models import JointSession
+from apps.sessions.models import JointSession, LangGraphSession
 from apps.sessions.joint_session import JointSessionState
 from apps.audit.logger import AuditLogger
 
@@ -209,3 +209,81 @@ class JointSessionStatusView(views.APIView):
             "partner_confirmed": partner_confirmed,
             "both_confirmed": joint_session.state == JointSessionState.ACTIVE.value
         })
+
+
+# ── Session history (REL-95) ─────────────────────────────────────────────────
+
+# The client speaks 'relay'; the model stores 'async_relay'.
+_TYPE_TO_MODEL = {"individual": "individual", "joint": "joint", "relay": "async_relay"}
+_TYPE_FROM_MODEL = {v: k for k, v in _TYPE_TO_MODEL.items()}
+
+SESSION_PAGE_SIZE_MAX = 50
+
+
+def _session_item(session):
+    return {
+        "id": str(session.id),
+        "type": _TYPE_FROM_MODEL.get(session.session_type, session.session_type),
+        "created_at": session.created_at.isoformat(),
+        "turn_count": session.turn_count,
+        "summary_preview": session.summary_preview,
+    }
+
+
+class SessionHistoryListView(views.APIView):
+    """GET /api/v1/sessions — the caller's own past sessions, newest first."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        page = max(int(request.query_params.get("page", 1)), 1)
+        page_size = min(
+            int(request.query_params.get("page_size", 20)), SESSION_PAGE_SIZE_MAX
+        )
+        offset = (page - 1) * page_size
+
+        qs = LangGraphSession.objects.filter(user=request.user).order_by("-created_at")
+
+        type_filter = request.query_params.get("type")
+        if type_filter and type_filter != "all":
+            model_type = _TYPE_TO_MODEL.get(type_filter, type_filter)
+            qs = qs.filter(session_type=model_type)
+
+        total = qs.count()
+        window = qs[offset : offset + page_size]
+        has_more = offset + page_size < total
+
+        return response.Response(
+            {
+                "results": [_session_item(s) for s in window],
+                "count": total,
+                # The client treats a non-null `next` as "there is more".
+                "next": page + 1 if has_more else None,
+            }
+        )
+
+
+class SessionSummaryView(views.APIView):
+    """GET /api/v1/sessions/<id>/summary — one session, scoped to its owner."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, session_id):
+        session = get_object_or_404(
+            LangGraphSession, id=session_id, user=request.user
+        )
+        duration = max(
+            int((session.updated_at - session.created_at).total_seconds() // 60), 0
+        )
+        return response.Response(
+            {
+                "id": str(session.id),
+                "type": _TYPE_FROM_MODEL.get(session.session_type, session.session_type),
+                "created_at": session.created_at.isoformat(),
+                "turn_count": session.turn_count,
+                "duration_minutes": duration,
+                "summary": session.summary_preview,
+                # No separate summary/framework pipeline yet (deferred).
+                "frameworks": [],
+            }
+        )

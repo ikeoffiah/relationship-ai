@@ -180,3 +180,67 @@ async def test_done_is_emitted_even_if_the_graph_fails(monkeypatch):
 
     assert frames, "the finally block must still emit a terminating frame"
     assert json.loads(frames[-1][6:].strip()) == {"type": "done"}
+
+
+# ---------------------------------------------------------------------------
+# session persistence
+# ---------------------------------------------------------------------------
+
+class _FakeConn:
+    def __init__(self):
+        self.executed = []
+
+    async def execute(self, query, *args):
+        self.executed.append((query, args))
+        return "OK"
+
+
+def _fake_pool(conn):
+    from unittest.mock import AsyncMock, MagicMock
+
+    pool = MagicMock()
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=conn)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    pool.acquire = MagicMock(return_value=ctx)
+    return pool
+
+
+@pytest.mark.asyncio
+async def test_persist_turn_upserts_with_incrementing_count():
+    conn = _FakeConn()
+    await chat.persist_turn(_fake_pool(conn), "sess-1", "user-1", "the reply")
+
+    assert len(conn.executed) == 1
+    query, args = conn.executed[0]
+    assert "INSERT INTO langgraph_sessions" in query
+    # ON CONFLICT increments rather than resetting, so re-sends accumulate.
+    assert "turn_count = langgraph_sessions.turn_count + 1" in query
+    assert args[0] == "sess-1"
+    assert args[1] == "user-1"
+    assert args[2] == "the reply"
+
+
+@pytest.mark.asyncio
+async def test_persist_turn_truncates_the_preview():
+    conn = _FakeConn()
+    long = "x" * 500
+    await chat.persist_turn(_fake_pool(conn), "s", "u", long)
+
+    assert len(conn.executed[0][1][2]) == chat.SUMMARY_PREVIEW_MAX
+
+
+@pytest.mark.asyncio
+async def test_persist_turn_is_a_noop_without_a_pool():
+    # No DB configured must not raise.
+    await chat.persist_turn(None, "s", "u", "hi")
+
+
+@pytest.mark.asyncio
+async def test_persist_turn_swallows_db_errors():
+    class Boom:
+        def acquire(self):
+            raise RuntimeError("db down")
+
+    # A failing DB must never surface to the chat stream.
+    await chat.persist_turn(Boom(), "s", "u", "hi")

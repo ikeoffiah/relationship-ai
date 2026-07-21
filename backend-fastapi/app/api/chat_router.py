@@ -9,8 +9,9 @@ mobile/lib/features/chat/services/session_service.dart.
 
 import json
 import os
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
+import asyncpg
 from fastapi import APIRouter, Body, Depends, Path
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -30,6 +31,65 @@ router = APIRouter()
 # returns a complete string rather than a real token stream, so the response is
 # chunked here to keep the client's incremental rendering meaningful.
 TOKEN_CHUNK_SIZE = 24
+
+# Longest excerpt stored for the history list's preview.
+SUMMARY_PREVIEW_MAX = 200
+
+
+async def get_optional_pool() -> AsyncIterator[Optional[asyncpg.Pool]]:
+    """
+    A DB pool for best-effort session persistence, or None if unavailable.
+
+    Persisting the session must never break the user's live chat, so a missing
+    or unreachable database yields None and the turn simply isn't recorded.
+    """
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        yield None
+        return
+    try:
+        pool = await asyncpg.create_pool(db_url)
+    except Exception:
+        yield None
+        return
+    try:
+        yield pool
+    finally:
+        await pool.close()
+
+
+async def persist_turn(
+    pool: Optional[asyncpg.Pool],
+    session_id: str,
+    user_id: str,
+    assistant_output: str,
+) -> None:
+    """
+    Upsert the session row so it appears in history, incrementing the turn
+    count and refreshing the preview. Best-effort: any failure (no pool, a
+    non-UUID session id, a missing table) is swallowed.
+    """
+    if pool is None:
+        return
+    preview = assistant_output.strip()[:SUMMARY_PREVIEW_MAX]
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO langgraph_sessions
+                    (id, user_id, session_type, state_payload,
+                     turn_count, summary_preview, created_at, updated_at)
+                VALUES ($1, $2, 'individual', '{}', 1, $3, NOW(), NOW())
+                ON CONFLICT (id) DO UPDATE SET
+                    turn_count = langgraph_sessions.turn_count + 1,
+                    summary_preview = EXCLUDED.summary_preview,
+                    updated_at = NOW()
+                """,
+                session_id, user_id, preview,
+            )
+    except Exception:
+        # History is a convenience; never let it interrupt counseling.
+        return
 
 
 class ChatMessageRequest(BaseModel):
@@ -83,7 +143,10 @@ def _initial_state(session_id: str, user_id: str, content: str) -> SessionState:
 
 
 async def stream_counseling_turn(
-    session_id: str, user_id: str, content: str
+    session_id: str,
+    user_id: str,
+    content: str,
+    pool: Optional[asyncpg.Pool] = None,
 ) -> AsyncIterator[str]:
     """
     Run one counseling turn, emitting SSE frames as the graph progresses.
@@ -127,6 +190,9 @@ async def stream_counseling_turn(
             yield _sse(
                 {"type": "token", "content": final_output[i : i + TOKEN_CHUNK_SIZE]}
             )
+        # Record the turn once it has been fully produced, so the session
+        # shows up in history with an up-to-date preview.
+        await persist_turn(pool, session_id, user_id, final_output)
     finally:
         yield _sse({"type": "done"})
 
@@ -136,9 +202,10 @@ async def send_message(
     session_id: str = Path(...),
     request: ChatMessageRequest = Body(...),
     user_id: str = Depends(get_current_user_id),
+    pool: Optional[asyncpg.Pool] = Depends(get_optional_pool),
 ):
     return StreamingResponse(
-        stream_counseling_turn(session_id, user_id, request.content),
+        stream_counseling_turn(session_id, user_id, request.content, pool=pool),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

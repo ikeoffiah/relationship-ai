@@ -47,12 +47,23 @@ class LangGraphSession(models.Model):
     )
     
     state_payload = models.JSONField(default=dict) # Encrypted JSONB in production
-    
+
+    # Denormalised fields for the session-history list, kept current by the
+    # FastAPI chat endpoint as turns happen, so the list view never has to
+    # decrypt or parse state_payload. summary_preview holds a short plaintext
+    # excerpt of the latest assistant turn (encrypt at the DB layer in prod,
+    # as with the rest of this table).
+    turn_count = models.PositiveIntegerField(default=0)
+    summary_preview = models.TextField(blank=True, default="")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "langgraph_sessions"
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="idx_lgsession_user_created"),
+        ]
 
     def __str__(self):
         return f"LangGraph Session {self.id} ({self.session_type})"

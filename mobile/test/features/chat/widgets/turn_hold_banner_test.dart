@@ -50,7 +50,7 @@ void main() {
             chatProvider('test-session-id').overrideWithValue(chatState),
           ],
           child: const MaterialApp(
-            home: ChatScreen(userId: userId),
+            home: ChatScreen(userId: userId, jointSessionId: 'test-session-id'),
           ),
         ),
       ),

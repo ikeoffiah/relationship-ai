@@ -21,7 +21,7 @@ class SessionHistoryApiService extends BaseApiService {
     }
 
     final response = await dio.get(
-      '/api/v1/sessions',
+      '/api/v1/sessions/',
       queryParameters: queryParams,
     );
 

@@ -4,9 +4,13 @@ from apps.sessions.views import (
     JointSessionConfirmView,
     JointSessionExitView,
     JointSessionStatusView,
+    SessionHistoryListView,
+    SessionSummaryView,
 )
 
 urlpatterns = [
+    path("", SessionHistoryListView.as_view(), name="session_history_list"),
+    path("<uuid:session_id>/summary", SessionSummaryView.as_view(), name="session_summary"),
     path("joint/initiate", JointSessionInitiateView.as_view(), name="joint_session_initiate"),
     path("joint/<uuid:session_id>/confirm", JointSessionConfirmView.as_view(), name="joint_session_confirm"),
     path("joint/<uuid:session_id>/exit", JointSessionExitView.as_view(), name="joint_session_exit"),

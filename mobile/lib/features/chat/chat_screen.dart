@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import 'package:mobile/features/consent/consent_summary_sheet.dart';
 import 'package:mobile/features/chat/widgets/in_session_consent_banner.dart';
 import 'package:mobile/features/consent/widgets/consent_badge.dart';
@@ -36,6 +37,11 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   bool _sessionStarted = false;
+
+  // A joint session carries its server-issued id; an individual session gets a
+  // fresh client-generated id so its turns persist under one history entry.
+  late final String _sessionId =
+      widget.jointSessionId ?? const Uuid().v4();
 
   @override
   void initState() {
@@ -99,7 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: _sessionStarted 
               ? _ChatBody(
                   key: const Key('chat_body'),
-                  sessionId: 'test-session-id', 
+                  sessionId: _sessionId,
                   sessionState: SessionState(
                     isIndividual: !widget.isJointSession,
                     isJoint: widget.isJointSession,
