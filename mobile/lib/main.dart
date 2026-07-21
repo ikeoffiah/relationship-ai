@@ -31,6 +31,9 @@ import 'package:mobile/features/onboarding/onboarding_flow_screen.dart';
 import 'package:mobile/features/onboarding/screens/onboarding_complete_screen.dart';
 import 'package:mobile/features/notifications/notification_center_screen.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
+import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
+import 'package:mobile/features/settings/email_change_screen.dart';
+import 'package:mobile/features/relay/relay_inbox_screen.dart';
 import 'package:mobile/core/api_services/notification_api_service.dart';
 
 Future<void> main() async {
@@ -61,6 +64,7 @@ Future<void> main() async {
           provider.ChangeNotifierProvider(
             create: (_) => NotificationViewModel(apiService: NotificationApiService()),
           ),
+          provider.ChangeNotifierProvider(create: (_) => SettingsViewModel()),
         ],
         child: const riverpod.ProviderScope(child: MyApp()),
       ),
@@ -142,6 +146,8 @@ class _MyAppState extends State<MyApp> {
         '/safety': (context) => const SafetyResourcesScreen(),
         '/history': (context) => const SessionHistoryScreen(),
         '/notifications': (context) => const NotificationCenterScreen(),
+        '/settings/email': (context) => const EmailChangeScreen(),
+        '/relay/inbox': (context) => const RelayInboxScreen(),
         '/onboarding': (context) => const OnboardingFlowScreen(),
         '/onboarding/complete': (context) => const OnboardingCompleteScreen(),
         '/chat': (context) {

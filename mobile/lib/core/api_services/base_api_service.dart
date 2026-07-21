@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mobile/core/api_services/token_refresh_service.dart';
 import 'package:mobile/core/security/certificate_config.dart';
 import 'package:mobile/core/security/pinned_http_client.dart';
 import 'package:mobile/core/services/storage_service.dart';
@@ -56,8 +57,45 @@ abstract class BaseApiService {
           }
           return handler.next(options);
         },
+        onError: (error, handler) async {
+          // On a 401, try one token refresh and replay the request. The
+          // 15-minute access token expires mid-session otherwise, and every
+          // request would fail until the user logged out and back in.
+          if (!_shouldAttemptRefresh(error)) {
+            return handler.next(error);
+          }
+
+          final refreshed = await TokenRefreshService.refresh();
+          if (!refreshed) {
+            // Refresh itself failed — the session is genuinely over.
+            return handler.next(error);
+          }
+
+          try {
+            final response = await _retry(error.requestOptions);
+            return handler.resolve(response);
+          } on DioException catch (e) {
+            return handler.next(e);
+          }
+        },
       ),
     );
+  }
+
+  /// Refresh only on a genuine 401, and never for the refresh call itself
+  /// (which would loop), nor when the request was already a retry.
+  bool _shouldAttemptRefresh(DioException error) {
+    if (error.response?.statusCode != 401) return false;
+    final path = error.requestOptions.path;
+    if (path.contains('/auth/refresh')) return false;
+    if (error.requestOptions.extra['__retried__'] == true) return false;
+    return true;
+  }
+
+  Future<Response<dynamic>> _retry(RequestOptions options) {
+    // The onRequest interceptor re-reads the (now refreshed) token.
+    options.extra['__retried__'] = true;
+    return dio.fetch(options);
   }
 
   /// Translates a [DioException] into a user-friendly [Exception].

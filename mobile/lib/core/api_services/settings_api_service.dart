@@ -40,9 +40,11 @@ class SettingsApiService extends BaseApiService {
     required String password,
   }) async {
     try {
+      // Backend route is /api/v1/users/change-email/ and its serializer takes
+      // `email` only (accounts/profile/serializers.py:ChangeEmailSerializer).
       await dio.post(
-        '/api/v1/auth/change-email',
-        data: {'new_email': newEmail, 'password': password},
+        '/api/v1/users/change-email/',
+        data: {'email': newEmail},
       );
     } catch (e) {
       throw handleError(e);

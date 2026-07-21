@@ -160,6 +160,9 @@ class AuthViewModel extends ChangeNotifier {
       if (_token != null) {
         await StorageService.saveToken(_token!);
       }
+      if (response.refreshToken != null) {
+        await StorageService.saveRefreshToken(response.refreshToken!);
+      }
       if (_user != null) {
         await StorageService.saveUserId(_user!.id);
       }
@@ -186,6 +189,9 @@ class AuthViewModel extends ChangeNotifier {
 
       if (_token != null) {
         await StorageService.saveToken(_token!);
+      }
+      if (response.refreshToken != null) {
+        await StorageService.saveRefreshToken(response.refreshToken!);
       }
       if (_user != null) {
         await StorageService.saveUserId(_user!.id);
@@ -253,6 +259,9 @@ class AuthViewModel extends ChangeNotifier {
 
           if (_token != null) {
             await StorageService.saveToken(_token!);
+          }
+          if (response.refreshToken != null) {
+            await StorageService.saveRefreshToken(response.refreshToken!);
           }
           if (_user != null) {
             await StorageService.saveUserId(_user!.id);
