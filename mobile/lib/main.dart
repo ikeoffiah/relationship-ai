@@ -34,6 +34,7 @@ import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.
 import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/features/settings/email_change_screen.dart';
 import 'package:mobile/features/relay/relay_inbox_screen.dart';
+import 'package:mobile/features/relay/relay_viewmodel.dart';
 import 'package:mobile/core/api_services/notification_api_service.dart';
 
 Future<void> main() async {
@@ -65,6 +66,7 @@ Future<void> main() async {
             create: (_) => NotificationViewModel(apiService: NotificationApiService()),
           ),
           provider.ChangeNotifierProvider(create: (_) => SettingsViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => RelayViewModel()),
         ],
         child: const riverpod.ProviderScope(child: MyApp()),
       ),

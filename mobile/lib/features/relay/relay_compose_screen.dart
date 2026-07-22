@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:mobile/features/relay/relay_models.dart';
+import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/relay/relay_viewmodel.dart';
 
+/// Compose an async relay to your partner. The message is NVC-translated
+/// server-side on send; the recipient chooses which version to read.
 class RelayComposeScreen extends StatefulWidget {
   const RelayComposeScreen({super.key});
 
@@ -13,52 +15,53 @@ class RelayComposeScreen extends StatefulWidget {
 
 class _RelayComposeScreenState extends State<RelayComposeScreen> {
   final TextEditingController _controller = TextEditingController();
-  String? _previewHtml;
-  bool _isLoading = false;
+  bool _consent = false;
+  bool _isSending = false;
 
-  Future<void> _preview() async {
-    final vm = context.read<RelayViewModel>();
-    final message = RelayMessage(content: _controller.text);
-    if (!mounted) return;
-    setState(() => _isLoading = true);
-    try {
-      final preview = await vm.preview(message);
-      if (!mounted) return;
-      setState(() => _previewHtml = preview.previewHtml);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preview failed')));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _send() async {
-    final vm = context.read<RelayViewModel>();
-    final message = RelayMessage(content: _controller.text);
+    final content = _controller.text.trim();
+    if (content.isEmpty || !_consent) return;
+
+    setState(() => _isSending = true);
+    final status = await context.read<RelayViewModel>().send(
+          content,
+          consent: _consent,
+        );
     if (!mounted) return;
-    setState(() => _isLoading = true);
-    try {
-      await vm.send(message);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Relay sent')));
-        _controller.clear();
-        setState(() => _previewHtml = null);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Send failed')));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    setState(() => _isSending = false);
+
+    if (status != null) {
+      final msg = status == 'processing'
+          ? 'Relay sent — it\'s being reviewed for tone before delivery.'
+          : 'Relay sent to your partner.';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(msg)));
+      Navigator.pop(context);
+    } else {
+      final err = context.read<RelayViewModel>().error ?? 'Send failed';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(err)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final canSend = _controller.text.trim().isNotEmpty && _consent && !_isSending;
     return Scaffold(
-      appBar: AppBar(title: const Text('Compose Relay')),
+      backgroundColor: AppColors.creamWhite,
+      appBar: AppBar(
+        title: const Text('Compose Relay',
+            style: TextStyle(color: AppColors.softCharcoal)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.softCharcoal),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -66,28 +69,46 @@ class _RelayComposeScreenState extends State<RelayComposeScreen> {
           children: [
             TextField(
               controller: _controller,
-              maxLines: 5,
+              maxLines: 6,
+              onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                labelText: 'Message',
+                labelText: 'Your message',
+                hintText: 'Say what\'s on your mind — we\'ll help phrase it.',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _isLoading ? null : _preview, child: const Text('Preview')),
-            if (_previewHtml != null) ...[
-              const SizedBox(height: 12),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    color: Colors.grey.shade200,
-                    child: Text(_previewHtml!),
-                  ),
-                ),
+            CheckboxListTile(
+              value: _consent,
+              onChanged: (v) => setState(() => _consent = v ?? false),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              activeColor: AppColors.warmCoral,
+              title: const Text(
+                'I consent to my partner receiving an AI-assisted version of '
+                'this message.',
+                style: TextStyle(fontSize: 13),
               ),
-            ],
-            const SizedBox(height: 12),
-            ElevatedButton(onPressed: _isLoading ? null : _send, child: const Text('Send')),
+            ),
+            const Spacer(),
+            ElevatedButton(
+              onPressed: canSend ? _send : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warmCoral,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isSending
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Send relay',
+                      style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
       ),

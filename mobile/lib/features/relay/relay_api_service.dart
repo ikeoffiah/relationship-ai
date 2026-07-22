@@ -1,74 +1,66 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'relay_models.dart';
+import 'package:mobile/core/api_services/base_api_service.dart';
+import 'package:mobile/core/security/certificate_config.dart';
+import 'package:mobile/features/relay/relay_models.dart';
 
-class RelayApiService {
-  final String baseUrl;
-  final String authToken;
+/// Talks to the FastAPI relay endpoints. Extends [BaseApiService] for the
+/// Bearer token and certificate pinning, and targets the FastAPI host (relay
+/// lives there, alongside chat), replacing the earlier raw-http service that
+/// carried a manually-passed token and hit paths the backend never had.
+class RelayApiService extends BaseApiService {
+  RelayApiService({super.injectedDio})
+      : super(baseUrl: 'https://${CertConfig.fastapiHost}');
 
-  RelayApiService({required this.baseUrl, required this.authToken});
-
-  Future<RelayPreviewResponse> previewRelay(String sessionId, RelayMessage message) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/sessions/$sessionId/relay/preview'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $authToken',
-      },
-      body: jsonEncode(message.toJson()),
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return RelayPreviewResponse.fromJson(data);
+  /// Send a relay to the partner resolved from the sender's active
+  /// relationship. Returns the new relay's status ('ready' | 'processing').
+  ///
+  /// [sessionId] is a path segment only — the backend routes by relationship —
+  /// so async relays pass a sentinel.
+  Future<String> send({
+    required String content,
+    required bool consent,
+    String sessionId = 'async',
+  }) async {
+    try {
+      final res = await dio.post(
+        '/api/v1/sessions/$sessionId/relay',
+        data: {'content': content, 'consent_to_relay': consent},
+      );
+      return res.data['status'] as String;
+    } catch (e) {
+      throw handleError(e);
     }
-    throw Exception('Failed to preview relay');
   }
 
-  Future<String> sendRelay(String sessionId, RelayMessage message) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/sessions/$sessionId/relay'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $authToken',
-      },
-      body: jsonEncode(message.toJson()),
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['relay_id'] as String;
+  /// The relays waiting for [userId] to review.
+  Future<List<RelayDetail>> fetchPending(String userId) async {
+    try {
+      final res = await dio.get('/api/v1/users/$userId/relay/pending');
+      final list = (res.data as List).cast<Map<String, dynamic>>();
+      return list.map(RelayDetail.fromJson).toList();
+    } catch (e) {
+      throw handleError(e);
     }
-    throw Exception('Failed to send relay');
   }
 
-  Future<List<dynamic>> fetchInbox(String userId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/users/$userId/relay/inbox'),
-      headers: {'Authorization': 'Bearer $authToken'},
-    );
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
+  /// Recipient takes delivery, choosing the AI-translated or original version.
+  Future<RelayDetail> deliver(String relayId, String version) async {
+    try {
+      final res = await dio.post(
+        '/api/v1/relay/$relayId/deliver',
+        data: {'recipient_chose_version': version},
+      );
+      return RelayDetail.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      throw handleError(e);
     }
-    throw Exception('Failed to fetch inbox');
   }
 
-  Future<List<dynamic>> fetchSent(String userId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/users/$userId/relay/sent'),
-      headers: {'Authorization': 'Bearer $authToken'},
-    );
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
-    }
-    throw Exception('Failed to fetch sent messages');
-  }
-
-  Future<void> markAsRead(String sessionId, String relayId) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/sessions/$sessionId/relay/$relayId/read'),
-      headers: {'Authorization': 'Bearer $authToken'},
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Failed to mark as read');
+  /// Sender withdraws a relay before it is delivered.
+  Future<void> withdraw(String relayId) async {
+    try {
+      await dio.delete('/api/v1/relay/$relayId');
+    } catch (e) {
+      throw handleError(e);
     }
   }
 }
