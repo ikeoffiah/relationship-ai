@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/features/sessions/joint_session_entry_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:mobile/core/theme/app_colors.dart';
@@ -241,9 +242,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ElevatedButton(
               onPressed: isEnrolled
                   ? () {
-                      Navigator.of(
-                        context,
-                      ).pushNamed('/chat', arguments: {'isJoint': true});
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => JointSessionEntryScreen(
+                            isInitiator: true,
+                            partnerName: partnerName,
+                          ),
+                        ),
+                      );
                     }
                   : null,
               style: ElevatedButton.styleFrom(

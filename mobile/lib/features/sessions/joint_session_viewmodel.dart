@@ -12,7 +12,10 @@ enum JointSessionStatus {
 }
 
 class JointSessionViewModel extends ChangeNotifier {
-  final JointSessionApiService _apiService = JointSessionApiService();
+  final JointSessionApiService _apiService;
+
+  JointSessionViewModel({JointSessionApiService? apiService})
+      : _apiService = apiService ?? JointSessionApiService();
   
   JointSessionStatus _status = JointSessionStatus.none;
   String? _sessionId;

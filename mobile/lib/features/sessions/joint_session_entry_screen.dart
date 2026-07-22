@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:mobile/features/sessions/joint_session_viewmodel.dart';
 import 'package:mobile/shared/widgets/animated_button.dart';
 import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/features/chat/chat_screen.dart';
+import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 
 class JointSessionEntryScreen extends StatelessWidget {
   final bool isInitiator;
@@ -165,7 +167,20 @@ class _JointSessionEntryContentState extends State<_JointSessionEntryContent> {
         AnimatedButton(
           label: 'Begin',
           onTap: () {
-            // Navigate to joint chat screen
+            final userId = context.read<AuthViewModel>().user?.id ?? 'guest';
+            final sessionId = viewModel.sessionId;
+            if (sessionId == null) return;
+            // Both partners confirmed: enter the counselling chat under the
+            // joint session's id so its turns persist together.
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  userId: userId,
+                  isJointSession: true,
+                  jointSessionId: sessionId,
+                ),
+              ),
+            );
           },
           useGoldGradient: true,
         ),
