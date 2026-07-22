@@ -15,6 +15,7 @@ Neither is accepted any more — identity comes only from a signed token.
 """
 
 import os
+import secrets
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -83,3 +84,27 @@ async def get_current_user(request: Request) -> User:
         return User(id=UUID(subject))
     except (ValueError, AttributeError, TypeError):
         raise _unauthorized("Token subject is not a valid user id")
+
+
+async def require_internal_token(request: Request) -> None:
+    """
+    Guard for service-to-service endpoints (e.g. Celery → FastAPI) that are not
+    called by an end user and so carry no JWT.
+
+    The caller must present X-Internal-Token matching INTERNAL_API_TOKEN. Fails
+    closed: if the secret is unset the endpoint is unreachable rather than open,
+    so a misconfigured deployment can't be exploited.
+    """
+    expected = os.environ.get("INTERNAL_API_TOKEN")
+    if not expected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Internal endpoint is not configured",
+        )
+    provided = request.headers.get("X-Internal-Token", "")
+    # Constant-time compare to avoid leaking the secret via timing.
+    if not secrets.compare_digest(provided, expected):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid internal token",
+        )

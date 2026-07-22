@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from ..dependencies import get_current_user
+from app.auth import require_internal_token
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +191,10 @@ async def count_memories(current_user=Depends(get_current_user)):
         "Runs MemoryExtractor, ConflictPatternTracker, and TriggerInventoryBuilder."
     ),
 )
-async def extract_memories(payload: ExtractionRequest):
+async def extract_memories(
+    payload: ExtractionRequest,
+    _: None = Depends(require_internal_token),
+):
     """
     Async post-session memory extraction pipeline.
 
