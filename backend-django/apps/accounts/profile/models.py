@@ -17,11 +17,18 @@ class UserProfile(models.Model):
         return f"Profile for {self.user.email}"
 
 class NotificationPreference(models.Model):
-    """User's notification preferences (email, push, weekly summary)."""
+    """
+    Per-event notification preferences.
+
+    These mirror the events the mobile app actually surfaces (its settings UI
+    is built around exactly these four toggles). The previous generic
+    email/push/weekly fields were placeholders that nothing read.
+    """
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notification_pref')
-    email_notifications = models.BooleanField(default=True)
-    push_notifications = models.BooleanField(default=True)
-    weekly_summary = models.BooleanField(default=False)
+    session_reminders = models.BooleanField(default=True)
+    partner_joined_session = models.BooleanField(default=True)
+    relay_message_received = models.BooleanField(default=True)
+    insight_detected = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'notification_preferences'

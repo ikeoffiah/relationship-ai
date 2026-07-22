@@ -111,7 +111,10 @@ class SettingsViewModel extends ChangeNotifier {
     _setLoading(true);
     try {
       final data = await _apiService.getProfile(userId);
-      _displayName = data['display_name'] ?? data['name'] ?? '';
+      // Backend returns full_name (accounts/profile serializer); keep the older
+      // keys as fallbacks.
+      _displayName =
+          data['full_name'] ?? data['display_name'] ?? data['name'] ?? '';
       _email = data['email'] ?? '';
       _setLoading(false);
     } catch (e) {

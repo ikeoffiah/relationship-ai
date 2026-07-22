@@ -3,15 +3,23 @@ from django.conf import settings
 from .models import UserProfile, NotificationPreference
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    # email lives on the User, not the profile, but the client reads it from
+    # this response; expose it read-only.
+    email = serializers.EmailField(source="user.email", read_only=True)
+
     class Meta:
         model = UserProfile
-        fields = ["full_name", "phone_number", "date_of_birth"]
-        read_only_fields = []
+        fields = ["full_name", "email", "phone_number", "date_of_birth"]
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPreference
-        fields = ["email_notifications", "push_notifications", "weekly_summary"]
+        fields = [
+            "session_reminders",
+            "partner_joined_session",
+            "relay_message_received",
+            "insight_detected",
+        ]
 
 class ChangeEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()

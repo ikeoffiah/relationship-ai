@@ -9,7 +9,7 @@ class SettingsApiService extends BaseApiService {
   /// Fetch the authenticated user's profile.
   Future<Map<String, dynamic>> getProfile(String userId) async {
     try {
-      final response = await dio.get('/api/v1/users/$userId/profile');
+      final response = await dio.get('/api/v1/users/profile/');
       return response.data;
     } catch (e) {
       throw handleError(e);
@@ -23,8 +23,8 @@ class SettingsApiService extends BaseApiService {
   }) async {
     try {
       final response = await dio.put(
-        '/api/v1/users/$userId/profile',
-        data: {'display_name': displayName},
+        '/api/v1/users/profile/',
+        data: {'full_name': displayName},
       );
       return response.data;
     } catch (e) {
@@ -59,7 +59,7 @@ class SettingsApiService extends BaseApiService {
   ) async {
     try {
       final response = await dio.get(
-        '/api/v1/users/$userId/notification-preferences',
+        '/api/v1/users/notification-preferences/',
       );
       return response.data;
     } catch (e) {
@@ -74,7 +74,7 @@ class SettingsApiService extends BaseApiService {
   }) async {
     try {
       await dio.put(
-        '/api/v1/users/$userId/notification-preferences',
+        '/api/v1/users/notification-preferences/',
         data: preferences,
       );
     } catch (e) {
@@ -91,7 +91,7 @@ class SettingsApiService extends BaseApiService {
   }) async {
     try {
       await dio.delete(
-        '/api/v1/users/$userId',
+        '/api/v1/users/account/',
         data: {'password': password},
       );
     } catch (e) {
