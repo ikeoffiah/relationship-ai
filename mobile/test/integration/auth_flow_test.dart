@@ -14,6 +14,7 @@ import 'package:mobile/features/history/viewmodels/session_history_viewmodel.dar
 import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
+import 'package:mobile/features/onboarding/onboarding_viewmodel.dart';
 import 'package:mobile/features/consent/models/consent_model.dart';
 
 class MockAuthViewModel extends Mock implements AuthViewModel {}
@@ -30,6 +31,8 @@ class MockSessionHistoryViewModel extends Mock
 
 class MockSettingsViewModel extends Mock implements SettingsViewModel {}
 
+class MockOnboardingViewModel extends Mock implements OnboardingViewModel {}
+
 /// Auth flow testx
 void main() {
   late MockAuthViewModel mockAuthViewModel;
@@ -38,6 +41,7 @@ void main() {
   late MockNotificationViewModel mockNotificationViewModel;
   late MockSessionHistoryViewModel mockSessionHistoryViewModel;
   late MockSettingsViewModel mockSettingsViewModel;
+  late MockOnboardingViewModel mockOnboardingViewModel;
 
   setUp(() {
     mockAuthViewModel = MockAuthViewModel();
@@ -46,6 +50,9 @@ void main() {
     mockNotificationViewModel = MockNotificationViewModel();
     mockSessionHistoryViewModel = MockSessionHistoryViewModel();
     mockSettingsViewModel = MockSettingsViewModel();
+    mockOnboardingViewModel = MockOnboardingViewModel();
+    when(() => mockOnboardingViewModel.loadProfile()).thenAnswer((_) async => true);
+    when(() => mockOnboardingViewModel.onboardingCompleted).thenReturn(true);
 
     when(() => mockNotificationViewModel.unreadCount).thenReturn(0);
     when(
@@ -136,6 +143,9 @@ void main() {
         ),
         ChangeNotifierProvider<SettingsViewModel>.value(
           value: mockSettingsViewModel,
+        ),
+        ChangeNotifierProvider<OnboardingViewModel>.value(
+          value: mockOnboardingViewModel,
         ),
       ],
       child: const ProviderScope(child: MaterialApp(home: LoginScreen())),

@@ -8,7 +8,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/shared/widgets/animated_button.dart';
 import 'package:mobile/shared/widgets/social_sign_in_button.dart';
 import 'package:mobile/features/auth/views/email_verification_screen.dart';
-import 'package:mobile/features/home/views/main_navigation_screen.dart';
+import 'package:mobile/features/auth/views/auth_landing_screen.dart';
 
 /// Signup Screen with email/password and Google Sign-In
 /// Beautiful, emotionally-designed account creation experience
@@ -131,7 +131,7 @@ class _SignupScreenState extends State<SignupScreen>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const MainNavigationScreen(),
+          builder: (_) => const AuthLandingScreen(),
         ),
       );
     }

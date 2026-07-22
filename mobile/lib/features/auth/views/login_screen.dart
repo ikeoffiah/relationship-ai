@@ -8,7 +8,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/shared/widgets/animated_button.dart';
 import 'package:mobile/shared/widgets/social_sign_in_button.dart';
 import 'package:mobile/features/auth/views/signup_screen.dart';
-import 'package:mobile/features/home/views/main_navigation_screen.dart';
+import 'package:mobile/features/auth/views/auth_landing_screen.dart';
 import 'package:mobile/features/auth/views/forgot_password_screen.dart';
 
 /// Login Screen with email/password and Google Sign-In
@@ -76,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        MaterialPageRoute(builder: (_) => const AuthLandingScreen()),
       );
     }
   }
@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        MaterialPageRoute(builder: (_) => const AuthLandingScreen()),
       );
     }
   }
@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (success && mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        MaterialPageRoute(builder: (_) => const AuthLandingScreen()),
       );
     }
   }

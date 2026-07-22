@@ -104,7 +104,11 @@ class OnboardingViewModel extends ChangeNotifier {
   }
 
   /// Loads the user's existing profile (for resuming onboarding).
-  Future<void> loadProfile() async {
+  /// Loads the personalization profile. Returns true if the fetch succeeded
+  /// (including a new user whose profile simply has onboarding_completed
+  /// false), false if it failed — the caller can then decide whether to trust
+  /// [onboardingCompleted] or fail open.
+  Future<bool> loadProfile() async {
     try {
       final data = await _api.fetchProfile();
       _onboardingCompleted = data['onboarding_completed'] ?? false;
@@ -125,8 +129,12 @@ class OnboardingViewModel extends ChangeNotifier {
       _familyCommunityOrientation = data['family_community_orientation'] ?? 'individual';
 
       notifyListeners();
+      return true;
     } catch (_) {
-      // Profile doesn't exist yet — that's fine for new users.
+      // The fetch itself failed (network/500). A new user is NOT this case —
+      // the backend get_or_creates a profile, so they return 200 with
+      // onboarding_completed false.
+      return false;
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/onboarding/onboarding_viewmodel.dart';
+import 'package:mobile/features/home/views/main_navigation_screen.dart';
 
 /// Completion screen shown after onboarding submission.
 /// Displays computed attachment style and communication style results.
@@ -143,8 +144,12 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen>
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/consent',
+                    // Onboarding done: enter the app shell, not a standalone
+                    // screen the user would be stranded on.
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const MainNavigationScreen(),
+                      ),
                       (route) => false,
                     );
                   },
