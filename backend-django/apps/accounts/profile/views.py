@@ -63,6 +63,16 @@ class AccountDeletionView(generics.DestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         user = self.get_object()
+        # Account deletion is destructive, so re-authenticate: the client
+        # collects the password for exactly this. A social-only account with no
+        # usable password cannot be deleted this way and must use a dedicated
+        # flow rather than being deletable with any/empty password.
+        password = request.data.get("password", "")
+        if not user.has_usable_password() or not user.check_password(password):
+            return Response(
+                {"detail": "Password confirmation is incorrect."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         user.is_active = False
         user.save(update_fields=["is_active"])
         return Response({"detail": "Account deactivated."}, status=status.HTTP_204_NO_CONTENT)

@@ -126,9 +126,38 @@ def test_notification_preferences_require_authentication():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.django_db
-def test_delete_account_deactivates_the_user(user):
-    res = api(user).delete("/api/v1/users/account/")
+def test_delete_account_deactivates_the_user_with_correct_password(user):
+    user.set_password("pw")
+    user.save()
+
+    res = api(user).delete("/api/v1/users/account/", {"password": "pw"}, format="json")
 
     assert res.status_code in (200, 204)
     user.refresh_from_db()
     assert user.is_active is False
+
+
+@pytest.mark.django_db
+def test_delete_account_rejects_a_wrong_password(user):
+    user.set_password("pw")
+    user.save()
+
+    res = api(user).delete(
+        "/api/v1/users/account/", {"password": "wrong"}, format="json"
+    )
+
+    assert res.status_code == 403
+    user.refresh_from_db()
+    assert user.is_active is True
+
+
+@pytest.mark.django_db
+def test_delete_account_rejects_an_empty_password(user):
+    user.set_password("pw")
+    user.save()
+
+    res = api(user).delete("/api/v1/users/account/")
+
+    assert res.status_code == 403
+    user.refresh_from_db()
+    assert user.is_active is True

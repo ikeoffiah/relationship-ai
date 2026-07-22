@@ -8,24 +8,59 @@ class MemoryListView(views.APIView):
 
     def get(self, request, user_id):
         """
-        GET /api/v1/users/{user_id}/memory
-        Get list of memories for a user.
+        GET /api/v1/users/{user_id}/memory[?session_id=<id>]
+
+        Lists the user's memories. With session_id, returns only memories
+        extracted from that session (extraction stamps source_session_id into
+        metadata). category and session_id are surfaced at the top level so
+        the session-history client can read them without digging into metadata.
         """
         if request.user.id != user_id:
             return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
-        
+
         memories = Memory.objects.filter(user_id=user_id).order_by('-created_at')
+
+        session_id = request.query_params.get("session_id")
+        if session_id:
+            memories = memories.filter(metadata__source_session_id=session_id)
+
         results = []
         for mem in memories:
+            meta = mem.metadata or {}
             results.append({
                 "id": str(mem.id),
                 "content": mem.decrypted_content,
-                "metadata": mem.metadata,
+                "category": meta.get("category"),
+                "session_id": meta.get("source_session_id"),
+                "metadata": meta,
                 "reinforcement_count": mem.reinforcement_count,
                 "created_at": mem.created_at.isoformat(),
             })
-            
+
         return Response({"results": results}, status=status.HTTP_200_OK)
+
+    def delete(self, request, user_id):
+        """
+        DELETE /api/v1/users/{user_id}/memory?session_id=<id>
+
+        Bulk-deletes every memory extracted from one session. session_id is
+        required — a blanket delete of all of a user's memories is not exposed
+        here.
+        """
+        if request.user.id != user_id:
+            return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+        session_id = request.query_params.get("session_id")
+        if not session_id:
+            return Response(
+                {"error": "session_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        deleted, _ = Memory.objects.filter(
+            user_id=user_id, metadata__source_session_id=session_id
+        ).delete()
+        return Response({"deleted": deleted}, status=status.HTTP_200_OK)
 
 class MemoryDetailView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]

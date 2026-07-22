@@ -50,7 +50,7 @@ class SessionHistoryApiService extends BaseApiService {
     String sessionId,
   ) async {
     final response = await dio.get(
-      '/api/v1/users/$userId/memories',
+      '/api/v1/users/$userId/memory',
       queryParameters: {'session_id': sessionId},
     );
     final raw = response.data['results'] ?? response.data['data'] ?? [];
@@ -66,7 +66,7 @@ class SessionHistoryApiService extends BaseApiService {
     Map<String, dynamic> data,
   ) async {
     final response = await dio.put(
-      '/api/v1/users/$userId/memories/$memoryId',
+      '/api/v1/users/$userId/memory/$memoryId',
       data: data,
     );
     return SessionMemory.fromJson(response.data as Map<String, dynamic>);
@@ -74,13 +74,13 @@ class SessionHistoryApiService extends BaseApiService {
 
   /// Deletes a specific memory.
   Future<void> deleteMemory(String userId, String memoryId) async {
-    await dio.delete('/api/v1/users/$userId/memories/$memoryId');
+    await dio.delete('/api/v1/users/$userId/memory/$memoryId');
   }
 
   /// Bulk-deletes all memories extracted from a specific session.
   Future<void> deleteSessionMemories(String userId, String sessionId) async {
     await dio.delete(
-      '/api/v1/users/$userId/memories',
+      '/api/v1/users/$userId/memory',
       queryParameters: {'session_id': sessionId},
     );
   }
