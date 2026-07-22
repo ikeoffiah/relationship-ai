@@ -123,6 +123,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () =>
                     Navigator.pushNamed(context, '/relationship/invite'),
               ),
+              _buildSettingsTile(
+                icon: Icons.auto_stories_outlined,
+                title: 'Our story',
+                subtitle: 'Shared goals and repair moments',
+                onTap: () => Navigator.pushNamed(context, '/our-story'),
+              ),
               const SizedBox(height: 24),
 
               // ── Notifications ───────────────────────────────────────────

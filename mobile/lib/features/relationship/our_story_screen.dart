@@ -18,8 +18,15 @@ class _OurStoryScreenState extends State<OurStoryScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RelationshipViewModel>().fetchSharedContext();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final vm = context.read<RelationshipViewModel>();
+      // Shared context is keyed on the current relationship, which is only
+      // loaded by the Home tab. Load it here too so this screen works when
+      // reached directly from Settings.
+      if (vm.currentRelationship == null) {
+        await vm.fetchRelationshipStatus();
+      }
+      await vm.fetchSharedContext();
     });
   }
 
@@ -90,9 +97,28 @@ class _OurStoryScreenState extends State<OurStoryScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.softCharcoal),
       ),
-      body: sharedContext == null
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+      body: _buildBody(context, vm, sharedContext),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    RelationshipViewModel vm,
+    Map<String, dynamic>? sharedContext,
+  ) {
+    // A shared story only exists once both partners are connected. Without an
+    // active relationship, guide the user to connect rather than spinning
+    // forever (fetchSharedContext no-ops when there is no relationship).
+    if (vm.status != RelationshipStatus.loading &&
+        vm.status != RelationshipStatus.active) {
+      return _buildNoRelationship(context);
+    }
+
+    if (sharedContext == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return RefreshIndicator(
               onRefresh: vm.fetchSharedContext,
               child: ListView(
                 padding: const EdgeInsets.all(16.0),
@@ -130,7 +156,52 @@ class _OurStoryScreenState extends State<OurStoryScreen> {
                   ),
                 ],
               ),
+            );
+  }
+
+  Widget _buildNoRelationship(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.auto_stories_outlined,
+                size: 56, color: AppColors.warmCoral),
+            const SizedBox(height: 16),
+            const Text(
+              'Your shared story starts together',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.softCharcoal,
+              ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Connect with your partner to build shared goals and a record '
+              'of your repair moments.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.softCharcoal.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/relationship/invite'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warmCoral,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Connect with partner',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
