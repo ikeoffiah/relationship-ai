@@ -9,7 +9,7 @@ asyncpg
 openai
 anthropic
 numpy
-ruff
+ruff==0.15.22
 mypy
 pytest
 sentry-sdk[fastapi]

@@ -2,4 +2,4 @@
 pytest-django
 pytest-cov
 pytest-mock
-ruff
+ruff==0.15.22
