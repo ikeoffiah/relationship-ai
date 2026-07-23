@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/features/sessions/joint_session_entry_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
@@ -223,11 +224,24 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   void _handleNavigation(BuildContext context, NotificationItem item) {
     switch (item.type) {
       case NotificationType.sessionReminder:
+        Navigator.pushNamed(context, '/chat');
+        break;
       case NotificationType.partnerJoined:
-        Navigator.pushNamed(context, '/chat', arguments: {'isJoint': item.type == NotificationType.partnerJoined});
+        // The partner opened a joint session; enter the lobby as the recipient
+        // (non-initiator) so they see the invite and can confirm.
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => JointSessionEntryScreen(
+              isInitiator: false,
+              partnerName: item.data['partner_name'] ?? 'Your partner',
+            ),
+          ),
+        );
         break;
       case NotificationType.relayReceived:
-        Navigator.pushNamed(context, '/history');
+        // A relay is waiting — that lives in the relay inbox, not history.
+        Navigator.pushNamed(context, '/relay/inbox');
         break;
       case NotificationType.insightDetected:
         Navigator.pushNamed(context, '/consent');
