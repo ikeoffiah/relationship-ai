@@ -64,11 +64,12 @@ def _display_name(user) -> str:
     return (user.full_name or "").strip() or user.email.split("@")[0]
 
 
-def _needs_relationship():
-    return Response(
-        {"message": "This feature needs an active partner connection.", "code": "no_active_relationship"},
-        status=status.HTTP_409_CONFLICT,
-    )
+def _goals_queryset(user, relationship):
+    """The goals visible to the caller: their couple's goals when linked, else
+    their own solo (relationship-less) goals."""
+    if relationship is not None:
+        return SharedGoal.objects.filter(relationship=relationship)
+    return SharedGoal.objects.filter(created_by=user, relationship__isnull=True)
 
 
 # ── Daily question ──────────────────────────────────────────────────────
@@ -87,16 +88,15 @@ def daily_question(request):
     day = today_key()
     partner = _partner_of(relationship, request.user)
 
-    mine = None
+    # The caller's own answer is keyed by user, so it is visible solo too.
+    mine = DailyQuestionResponse.objects.filter(
+        user=request.user, date_key=day
+    ).first()
     theirs = None
-    if relationship is not None:
-        mine = DailyQuestionResponse.objects.filter(
-            relationship=relationship, user=request.user, date_key=day
+    if partner is not None:
+        theirs = DailyQuestionResponse.objects.filter(
+            relationship=relationship, user=partner, date_key=day
         ).first()
-        if partner is not None:
-            theirs = DailyQuestionResponse.objects.filter(
-                relationship=relationship, user=partner, date_key=day
-            ).first()
 
     i_answered = mine is not None
     partner_answered = theirs is not None
@@ -124,9 +124,7 @@ def daily_question(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def answer_daily_question(request):
-    relationship = _active_relationship(request.user)
-    if relationship is None:
-        return _needs_relationship()
+    relationship = _active_relationship(request.user)  # may be None (solo)
 
     serializer = AnswerQuestionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -137,7 +135,7 @@ def answer_daily_question(request):
 
     day = today_key()
     if DailyQuestionResponse.objects.filter(
-        relationship=relationship, user=request.user, date_key=day
+        user=request.user, date_key=day
     ).exists():
         return Response(
             {"message": "You already answered today's question."},
@@ -186,16 +184,14 @@ def answer_daily_question(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def submit_check_in(request):
-    relationship = _active_relationship(request.user)
-    if relationship is None:
-        return _needs_relationship()
+    relationship = _active_relationship(request.user)  # may be None (solo)
 
     serializer = CheckInSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     day = today_key()
     if RelationshipCheckIn.objects.filter(
-        relationship=relationship, user=request.user, date_key=day
+        user=request.user, date_key=day
     ).exists():
         return Response(
             {"message": "You already checked in today.", "code": "already_checked_in"},
@@ -232,14 +228,10 @@ def submit_check_in(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def check_in_history(request):
-    """The caller's own check-in series (for their trend chart)."""
-    relationship = _active_relationship(request.user)
-    if relationship is None:
-        return _needs_relationship()
-
+    """The caller's own check-in series (for their trend chart). Works solo."""
     days = min(int(request.query_params.get("days", 30)), 180)
     qs = RelationshipCheckIn.objects.filter(
-        relationship=relationship, user=request.user
+        user=request.user
     ).order_by("-created_at")[:days]
 
     return Response(
@@ -263,12 +255,10 @@ def check_in_history(request):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def goals(request):
-    relationship = _active_relationship(request.user)
-    if relationship is None:
-        return _needs_relationship()
+    relationship = _active_relationship(request.user)  # may be None (solo)
 
     if request.method == "GET":
-        qs = SharedGoal.objects.filter(relationship=relationship).exclude(status="archived")
+        qs = _goals_queryset(request.user, relationship).exclude(status="archived")
         return Response({"goals": SharedGoalSerializer(qs, many=True).data})
 
     serializer = CreateGoalSerializer(data=request.data)
@@ -284,13 +274,11 @@ def goals(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def log_goal_progress(request, goal_id):
-    relationship = _active_relationship(request.user)
-    if relationship is None:
-        return _needs_relationship()
+    relationship = _active_relationship(request.user)  # may be None (solo)
 
-    # Scope the lookup to the caller's relationship — a goal id from another
-    # couple simply 404s.
-    goal = get_object_or_404(SharedGoal, id=goal_id, relationship=relationship)
+    # Scope the lookup to the caller's own goals (their couple's when linked,
+    # else their solo goals) — a goal id from anyone else simply 404s.
+    goal = get_object_or_404(_goals_queryset(request.user, relationship), id=goal_id)
 
     serializer = LogProgressSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -342,10 +330,8 @@ def log_goal_progress(request, goal_id):
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_goal(request, goal_id):
-    relationship = _active_relationship(request.user)
-    if relationship is None:
-        return _needs_relationship()
-    goal = get_object_or_404(SharedGoal, id=goal_id, relationship=relationship)
+    relationship = _active_relationship(request.user)  # may be None (solo)
+    goal = get_object_or_404(_goals_queryset(request.user, relationship), id=goal_id)
 
     new_status = request.data.get("status")
     if new_status not in {"active", "completed", "archived"}:
@@ -400,8 +386,7 @@ def complete_micro_action(request):
     log.save(update_fields=["completed", "completed_at"])
 
     awarded = services.award_points(request.user, relationship, "micro_action", ref_id=log.id, day_key=day)
-    if relationship is not None:
-        services.touch_streak(relationship, day_key=day)
+    services.touch_streak(request.user, day_key=day)
 
     return Response({"completed": True, "points_awarded": awarded}, status=status.HTTP_200_OK)
 
@@ -412,9 +397,7 @@ def complete_micro_action(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def gratitude(request):
-    relationship = _active_relationship(request.user)
-    if relationship is None:
-        return _needs_relationship()
+    relationship = _active_relationship(request.user)  # may be None (solo)
 
     serializer = GratitudeSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -449,18 +432,17 @@ def gratitude(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def summary(request):
-    relationship = _active_relationship(request.user)
+    relationship = _active_relationship(request.user)  # may be None (solo)
     day = today_key()
-    streak = getattr(relationship, "engagement_streak", None) if relationship else None
+    streak = getattr(request.user, "engagement_streak", None)
 
     done = {"daily_question": False, "check_in": False, "micro_action": False}
-    if relationship is not None:
-        done["daily_question"] = DailyQuestionResponse.objects.filter(
-            relationship=relationship, user=request.user, date_key=day
-        ).exists()
-        done["check_in"] = RelationshipCheckIn.objects.filter(
-            relationship=relationship, user=request.user, date_key=day
-        ).exists()
+    done["daily_question"] = DailyQuestionResponse.objects.filter(
+        user=request.user, date_key=day
+    ).exists()
+    done["check_in"] = RelationshipCheckIn.objects.filter(
+        user=request.user, date_key=day
+    ).exists()
     log = MicroActionLog.objects.filter(user=request.user, date_key=day).first()
     done["micro_action"] = bool(log and log.completed)
 
