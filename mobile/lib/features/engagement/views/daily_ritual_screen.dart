@@ -34,6 +34,11 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
         backgroundColor: AppColors.creamWhite,
         elevation: 0,
         actions: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pushNamed('/engagement/games'),
+            icon: const Icon(Icons.videogame_asset_outlined, color: AppColors.warmCoral),
+            tooltip: 'Games',
+          ),
           TextButton.icon(
             onPressed: () => Navigator.of(context).pushNamed('/engagement/goals'),
             icon: const Icon(Icons.flag_outlined, color: AppColors.calmTeal),
