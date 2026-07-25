@@ -63,8 +63,10 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     final success = await vm.submitOnboarding();
     if (!mounted) return;
     if (success) {
+      // Land on the personal portrait first (the "this app gets me" reveal),
+      // which then flows into the completion / invite screen.
       Navigator.of(context).pushNamedAndRemoveUntil(
-        '/onboarding/complete',
+        '/onboarding/portrait',
         (route) => false,
       );
     } else {
