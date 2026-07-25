@@ -4,6 +4,7 @@ import 'package:mobile/features/sessions/joint_session_viewmodel.dart';
 import 'package:mobile/shared/widgets/animated_button.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/chat/chat_screen.dart';
+import 'package:mobile/features/sessions/joint_video_call_screen.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 
 class JointSessionEntryScreen extends StatelessWidget {
@@ -183,6 +184,19 @@ class _JointSessionEntryContentState extends State<_JointSessionEntryContent> {
             );
           },
           useGoldGradient: true,
+        ),
+        const SizedBox(height: 16),
+        AnimatedButton(
+          label: '📹  Video call',
+          onTap: () {
+            final sessionId = viewModel.sessionId;
+            if (sessionId == null) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => JointVideoCallScreen(sessionId: sessionId),
+              ),
+            );
+          },
         ),
       ],
     );

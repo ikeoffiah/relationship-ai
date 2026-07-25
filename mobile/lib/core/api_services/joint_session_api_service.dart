@@ -21,4 +21,12 @@ class JointSessionApiService extends BaseApiService {
     final response = await dio.get('/api/v1/sessions/joint/$sessionId/status');
     return response.data;
   }
+
+  /// LiveKit room credentials for this joint session's video call.
+  /// Returns {url, room, token}. Throws (503) if video isn't configured.
+  Future<Map<String, dynamic>> fetchVideoToken(String sessionId) async {
+    final response =
+        await dio.post('/api/v1/sessions/joint/$sessionId/video-token');
+    return response.data as Map<String, dynamic>;
+  }
 }

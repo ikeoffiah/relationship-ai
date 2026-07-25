@@ -1,5 +1,6 @@
 from datetime import timedelta
 from dataclasses import dataclass
+from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.db import models
@@ -189,6 +190,47 @@ class JointSessionExitView(views.APIView):
         )
         
         return response.Response({"status": "exited"}, status=status.HTTP_200_OK)
+
+class JointSessionVideoTokenView(views.APIView):
+    """Issue a LiveKit join token for a joint session's video room.
+
+    Scoped by ``get_participant_session`` so only the two partners can obtain a
+    token, and both derive the same room. Returns 503 until LiveKit is
+    configured, so the app degrades cleanly rather than 500-ing.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsAdult]
+
+    def post(self, request, session_id):
+        from apps.sessions.livekit_tokens import (
+            livekit_configured,
+            mint_token,
+            room_name,
+        )
+
+        joint_session = get_participant_session(session_id, request.user)
+
+        if joint_session.is_expired:
+            return response.Response(
+                {"message": "This joint session has expired."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if not livekit_configured():
+            return response.Response(
+                {"message": "Video calling is not configured.", "code": "video_unconfigured"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        user = request.user
+        room = room_name(joint_session.id)
+        name = (getattr(user, "full_name", "") or "").strip() or user.email.split("@")[0]
+        token = mint_token(room=room, identity=str(user.id), name=name)
+
+        return response.Response(
+            {"url": settings.LIVEKIT_URL, "room": room, "token": token},
+            status=status.HTTP_200_OK,
+        )
+
 
 class JointSessionStatusView(views.APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdult]
