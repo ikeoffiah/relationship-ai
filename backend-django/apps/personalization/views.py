@@ -2,8 +2,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from apps.personalization.models import UserProfile
+from apps.personalization.portrait import build_portrait
 from apps.personalization.serializers import UserProfileSerializer
 from apps.personalization.tasks import compute_prompt_modifiers
+
+
+class PortraitView(APIView):
+    """The first-open 'how you love' reveal, derived from onboarding answers."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        return Response(build_portrait(profile))
 
 
 class ProfileView(APIView):

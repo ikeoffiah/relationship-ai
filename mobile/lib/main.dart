@@ -29,6 +29,7 @@ import 'package:mobile/features/history/session_history_screen.dart';
 import 'package:mobile/features/onboarding/onboarding_viewmodel.dart';
 import 'package:mobile/features/onboarding/onboarding_flow_screen.dart';
 import 'package:mobile/features/onboarding/screens/onboarding_complete_screen.dart';
+import 'package:mobile/features/onboarding/screens/relationship_portrait_screen.dart';
 import 'package:mobile/features/notifications/notification_center_screen.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
 import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
@@ -157,6 +158,7 @@ class _MyAppState extends State<MyApp> {
         '/engagement/daily': (context) => const DailyRitualScreen(),
         '/engagement/goals': (context) => const SharedGoalsScreen(),
         '/onboarding': (context) => const OnboardingFlowScreen(),
+        '/onboarding/portrait': (context) => const RelationshipPortraitScreen(),
         '/onboarding/complete': (context) => const OnboardingCompleteScreen(),
         '/chat': (context) {
           final authVM = provider.Provider.of<AuthViewModel>(

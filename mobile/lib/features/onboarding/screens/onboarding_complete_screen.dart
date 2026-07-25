@@ -139,36 +139,72 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen>
 
               const Spacer(flex: 3),
 
-              // ── Continue button ──────────────────────────────────
-              SizedBox(
+              // ── Invite partner (primary, but skippable — solo works) ──
+              // Peak intent is right here, just after the user felt seen; the
+              // invite is an upgrade, not a gate.
+              Container(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Onboarding done: enter the app shell, not a standalone
-                    // screen the user would be stranded on.
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const MainNavigationScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.warmCoral,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24)),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text(
-                    'Get Started',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.calmTeal.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    const Text('💞', style: TextStyle(fontSize: 28)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'See how you two fit',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Invite your partner to compare answers, set shared goals, '
+                      'and play your first “how well do you know each other” game.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.softCharcoal),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/relationship/invite'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.calmTeal,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
+                        child: const Text(
+                          'Invite my partner',
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const MainNavigationScreen(),
+                    ),
+                    (route) => false,
+                  );
+                },
+                child: Text(
+                  'Explore on my own for now',
+                  style: TextStyle(
+                    color: AppColors.softCharcoal.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
             ],
           ),
         ),
