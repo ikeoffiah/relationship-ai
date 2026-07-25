@@ -129,31 +129,75 @@ class KnowYourPartnerTests(APITestCase):
         self.assertEqual(r.status_code, status.HTTP_409_CONFLICT)
 
 
+def _opt_in(client):
+    return client.post("/api/v1/engagement/games/spicy-consent", {"enabled": True})
+
+
 class SpicyGatingTests(APITestCase):
-    def test_spicy_pack_hidden_from_non_age_verified(self):
+    def test_spicy_hidden_from_non_age_verified(self):
         a, b, rel = make_couple(age_verified=False)
         make_pack(category="spicy")
         make_pack(category="relationship")
         self.client.force_authenticate(a)
-        r = self.client.get("/api/v1/engagement/games")
-        cats = {g["category"] for g in r.data["games"]}
+        cats = {g["category"] for g in self.client.get("/api/v1/engagement/games").data["games"]}
         self.assertNotIn("spicy", cats)
         self.assertIn("relationship", cats)
 
-    def test_spicy_pack_visible_to_age_verified(self):
+    def test_spicy_hidden_until_both_opt_in(self):
         a, b, rel = make_couple(age_verified=True)
         make_pack(category="spicy")
+        # Both age-verified but nobody opted in → hidden.
         self.client.force_authenticate(a)
-        r = self.client.get("/api/v1/engagement/games")
-        cats = {g["category"] for g in r.data["games"]}
-        self.assertIn("spicy", cats)
+        self.assertNotIn("spicy", {g["category"] for g in self.client.get("/api/v1/engagement/games").data["games"]})
+        # Only A opts in → still hidden.
+        _opt_in(self.client)
+        self.assertNotIn("spicy", {g["category"] for g in self.client.get("/api/v1/engagement/games").data["games"]})
+        # B opts in too → now unlocked for both.
+        self.client.force_authenticate(b)
+        _opt_in(self.client)
+        self.assertIn("spicy", {g["category"] for g in self.client.get("/api/v1/engagement/games").data["games"]})
+        self.client.force_authenticate(a)
+        self.assertIn("spicy", {g["category"] for g in self.client.get("/api/v1/engagement/games").data["games"]})
 
-    def test_spicy_detail_404s_for_non_age_verified(self):
-        a, b, rel = make_couple(age_verified=False)
+    def test_spicy_detail_404_until_unlocked(self):
+        a, b, rel = make_couple(age_verified=True)
         pack = make_pack(category="spicy")
         self.client.force_authenticate(a)
+        _opt_in(self.client)  # only A opted in
         r = self.client.get(f"/api/v1/engagement/games/{pack.key}")
         self.assertEqual(r.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_non_age_verified_cannot_opt_in(self):
+        a, b, rel = make_couple(age_verified=False)
+        self.client.force_authenticate(a)
+        r = _opt_in(self.client)
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(r.data["code"], "age_verification_required")
+
+    def test_consent_status_reports_both_and_unlocked(self):
+        a, b, rel = make_couple(age_verified=True)
+        self.client.force_authenticate(a)
+        _opt_in(self.client)
+        self.client.force_authenticate(b)
+        _opt_in(self.client)
+        r = self.client.get("/api/v1/engagement/games/spicy-consent")
+        self.assertTrue(r.data["you"])
+        self.assertTrue(r.data["partner"])
+        self.assertTrue(r.data["both_age_verified"])
+        self.assertTrue(r.data["unlocked"])
+
+    def test_can_opt_back_out(self):
+        a, b, rel = make_couple(age_verified=True)
+        self.client.force_authenticate(a)
+        _opt_in(self.client)
+        r = self.client.post("/api/v1/engagement/games/spicy-consent", {"enabled": False})
+        self.assertFalse(r.data["you"])
+
+    def test_consent_requires_partner(self):
+        solo = User.objects.create_user(email="solo@e.com", password="pw", age_verified=True)
+        self.client.force_authenticate(solo)
+        r = _opt_in(self.client)
+        self.assertEqual(r.status_code, status.HTTP_409_CONFLICT)
 
 
 class ConversationDeckTests(APITestCase):

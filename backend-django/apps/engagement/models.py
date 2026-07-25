@@ -567,3 +567,31 @@ class GamePlay(models.Model):
                 fields=["user", "question"], name="uniq_game_play_per_user_question"
             )
         ]
+
+
+class GameConsent(models.Model):
+    """
+    Per-user opt-in to spicy game packs, scoped to a relationship.
+
+    Spicy packs are shown only when BOTH partners are age-verified AND both have
+    opted in — a symmetric, consensual gate rather than one partner enabling
+    adult content for the other.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship, on_delete=models.CASCADE, related_name="game_consents"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="game_consents"
+    )
+    spicy_opt_in = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "game_consents"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["relationship", "user"], name="uniq_game_consent_per_user"
+            )
+        ]

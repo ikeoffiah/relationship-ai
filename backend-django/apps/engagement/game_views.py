@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.engagement import games, services
-from apps.engagement.models import GamePack, GamePlay, GameQuestion
+from apps.engagement.models import GameConsent, GamePack, GamePlay, GameQuestion
 from apps.engagement.views import _active_relationship, _display_name, _partner_of
 
 
@@ -23,10 +23,28 @@ def _needs_relationship():
     )
 
 
-def _visible_packs(user):
-    """Active packs, excluding spicy ones unless the caller is age-verified."""
+def _spicy_unlocked(user, relationship) -> bool:
+    """Spicy packs unlock only when BOTH partners are age-verified AND both have
+    opted in — a symmetric, consensual gate."""
+    if relationship is None:
+        return False
+    partner = _partner_of(relationship, user)
+    if partner is None:
+        return False
+    if not (getattr(user, "age_verified", False) and getattr(partner, "age_verified", False)):
+        return False
+    opted_in = set(
+        GameConsent.objects.filter(
+            relationship=relationship, spicy_opt_in=True
+        ).values_list("user_id", flat=True)
+    )
+    return user.id in opted_in and partner.id in opted_in
+
+
+def _visible_packs(user, relationship):
+    """Active packs, excluding spicy ones unless the couple has unlocked them."""
     qs = GamePack.objects.filter(is_active=True)
-    if not getattr(user, "age_verified", False):
+    if not _spicy_unlocked(user, relationship):
         qs = qs.exclude(category="spicy")
     return qs
 
@@ -38,7 +56,7 @@ def game_list(request):
     relationship = _active_relationship(request.user)
     partner = _partner_of(relationship, request.user)
     packs = []
-    for pack in _visible_packs(request.user):
+    for pack in _visible_packs(request.user, relationship):
         prog = games.pack_progress(pack, relationship, request.user, partner)
         packs.append(
             {
@@ -176,6 +194,51 @@ def _get_visible_pack_or_404(request, key):
     pack = GamePack.objects.filter(key=key, is_active=True).first()
     if pack is None:
         return None
-    if pack.category == "spicy" and not getattr(request.user, "age_verified", False):
-        return None  # hidden from non-age-verified users
+    if pack.category == "spicy":
+        relationship = _active_relationship(request.user)
+        if not _spicy_unlocked(request.user, relationship):
+            return None  # hidden until the couple unlocks spicy
     return pack
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def spicy_consent(request):
+    """The couple's spicy opt-in state, and the caller's toggle.
+
+    GET  -> {you, partner, both_age_verified, unlocked}
+    POST {enabled: bool} -> records the caller's opt-in (requires age-verified).
+    """
+    relationship = _active_relationship(request.user)
+    if relationship is None:
+        return _needs_relationship()
+    partner = _partner_of(relationship, request.user)
+
+    if request.method == "POST":
+        if not getattr(request.user, "age_verified", False):
+            return Response(
+                {"message": "Verify your age to enable spicy games.", "code": "age_verification_required"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        raw = request.data.get("enabled", False)
+        enabled = raw if isinstance(raw, bool) else str(raw).strip().lower() in ("true", "1", "yes")
+        GameConsent.objects.update_or_create(
+            relationship=relationship,
+            user=request.user,
+            defaults={"spicy_opt_in": enabled},
+        )
+
+    opted = dict(
+        GameConsent.objects.filter(relationship=relationship).values_list("user_id", "spicy_opt_in")
+    )
+    both_verified = getattr(request.user, "age_verified", False) and (
+        partner is not None and getattr(partner, "age_verified", False)
+    )
+    return Response(
+        {
+            "you": bool(opted.get(request.user.id, False)),
+            "partner": bool(opted.get(getattr(partner, "id", None), False)),
+            "both_age_verified": both_verified,
+            "unlocked": _spicy_unlocked(request.user, relationship),
+        }
+    )
