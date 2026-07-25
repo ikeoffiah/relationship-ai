@@ -2,9 +2,13 @@
 
 from django.urls import path
 
-from apps.engagement import views
+from apps.engagement import game_views, views
 
 urlpatterns = [
+    # Couple games
+    path("games", game_views.game_list, name="engagement-games"),
+    path("games/<slug:key>", game_views.game_detail, name="engagement-game-detail"),
+    path("games/<slug:key>/answer", game_views.game_answer, name="engagement-game-answer"),
     # Daily question
     path("daily-question", views.daily_question, name="engagement-daily-question"),
     path(

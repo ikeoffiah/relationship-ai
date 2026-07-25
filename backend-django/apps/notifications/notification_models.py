@@ -20,6 +20,7 @@ class NotificationType(models.TextChoices):
     DAILY_QUESTION_READY = "daily_question_ready", "Daily Question Answers Ready"
     PARTNER_CHECKED_IN = "partner_checked_in", "Partner Checked In"
     GOAL_PROGRESS = "goal_progress", "Shared Goal Progress"
+    GAME_READY = "game_ready", "Couple Game Results Ready"
     SYSTEM = "system", "System"
 
 
