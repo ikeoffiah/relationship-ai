@@ -109,14 +109,14 @@ def points_balance(user) -> int:
 # ── Streaks (connection-framed) ─────────────────────────────────────────
 
 
-def touch_streak(relationship, day_key: Optional[str] = None) -> EngagementStreak:
+def touch_streak(user, day_key: Optional[str] = None) -> EngagementStreak:
     """
-    Register that some daily activity happened today and roll the couple's
-    streak forward. Idempotent within a day; resets (never goes negative) if a
-    day was missed.
+    Register that the user did some daily activity today and roll their streak
+    forward. Idempotent within a day; resets (never goes negative) if a day was
+    missed. Works solo — the streak is per-user, not per-couple.
     """
     day_key = day_key or today_key()
-    streak, _ = EngagementStreak.objects.get_or_create(relationship=relationship)
+    streak, _ = EngagementStreak.objects.get_or_create(user=user)
 
     if streak.last_activity_date == day_key:
         return streak  # already counted today
@@ -134,10 +134,14 @@ def touch_streak(relationship, day_key: Optional[str] = None) -> EngagementStrea
 
 
 def record_daily_activity(user, relationship, reason: str, ref_id=None, day_key: Optional[str] = None):
-    """Convenience: award points and advance the streak for one daily action."""
+    """Convenience: award points and advance the streak for one daily action.
+
+    ``relationship`` may be ``None`` (solo user); points are still awarded and
+    the per-user streak still advances.
+    """
     day_key = day_key or today_key()
     awarded = award_points(user, relationship, reason, ref_id=ref_id, day_key=day_key)
-    streak = touch_streak(relationship, day_key=day_key) if relationship else None
+    streak = touch_streak(user, day_key=day_key)
     return awarded, streak
 
 

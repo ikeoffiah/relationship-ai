@@ -36,6 +36,71 @@ def make_couple():
     return a, b, rel
 
 
+class SoloModeTests(APITestCase):
+    """A user with no partner gets full daily value — the invite is an upgrade,
+    not a gate."""
+
+    def setUp(self):
+        self.solo = User.objects.create_user(email="solo@example.com", password="pw", full_name="Sam")
+        DailyQuestion.objects.create(prompt_text="What went well today?")
+        self.client.force_authenticate(self.solo)
+
+    def test_solo_check_in_awards_points_and_streak(self):
+        r = self.client.post("/api/v1/engagement/check-in", {"connection_score": 4})
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(r.data["points_awarded"], services.POINTS["check_in"])
+        self.assertEqual(r.data["current_streak"], 1)
+
+    def test_solo_check_in_history_and_once_per_day(self):
+        self.client.post("/api/v1/engagement/check-in", {"connection_score": 3})
+        again = self.client.post("/api/v1/engagement/check-in", {"connection_score": 5})
+        self.assertEqual(again.status_code, status.HTTP_409_CONFLICT)
+        hist = self.client.get("/api/v1/engagement/check-in/history")
+        self.assertEqual(len(hist.data["check_ins"]), 1)
+
+    def test_solo_can_create_and_progress_a_goal(self):
+        created = self.client.post(
+            "/api/v1/engagement/goals",
+            {"title": "Read 12 books", "category": "learning", "target_value": 12, "unit": "books"},
+        )
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        goal_id = created.data["id"]
+        # The solo goal is listed for its owner…
+        listed = self.client.get("/api/v1/engagement/goals")
+        self.assertEqual(len(listed.data["goals"]), 1)
+        # …and progress logs succeed and award points.
+        prog = self.client.post(f"/api/v1/engagement/goals/{goal_id}/progress", {"value": 3})
+        self.assertEqual(prog.data["goal"]["current_value"], 3)
+        self.assertEqual(prog.data["points_awarded"], services.POINTS["goal_progress"])
+
+    def test_one_solo_goal_is_hidden_from_another_solo_user(self):
+        created = self.client.post(
+            "/api/v1/engagement/goals", {"title": "Private", "category": "custom"}
+        )
+        other = User.objects.create_user(email="other@example.com", password="pw")
+        self.client.force_authenticate(other)
+        listed = self.client.get("/api/v1/engagement/goals")
+        self.assertEqual(len(listed.data["goals"]), 0)
+        blocked = self.client.post(
+            f"/api/v1/engagement/goals/{created.data['id']}/progress", {"value": 1}
+        )
+        self.assertEqual(blocked.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_solo_gratitude_does_not_touch_shared_context(self):
+        r = self.client.post(
+            "/api/v1/engagement/gratitude", {"kind": "repair", "text": "made peace with myself"}
+        )
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(SharedRelationshipContext.objects.count(), 0)
+
+    def test_solo_summary_has_no_partner(self):
+        self.client.post("/api/v1/engagement/check-in", {"connection_score": 4})
+        r = self.client.get("/api/v1/engagement/summary")
+        self.assertFalse(r.data["has_partner"])
+        self.assertTrue(r.data["today"]["check_in"])
+        self.assertEqual(r.data["current_streak"], 1)
+
+
 class DailyQuestionTests(APITestCase):
     def setUp(self):
         self.a, self.b, self.rel = make_couple()
@@ -80,12 +145,20 @@ class DailyQuestionTests(APITestCase):
         r = self.client.post("/api/v1/engagement/daily-question/answer", {"response_text": "second"})
         self.assertEqual(r.status_code, status.HTTP_409_CONFLICT)
 
-    def test_answer_requires_relationship(self):
+    def test_solo_user_can_answer_as_reflection(self):
+        # A user with no partner can still answer (private reflection); nothing
+        # is revealed, and the answer is visible to them on the next GET.
         solo = User.objects.create_user(email="solo@example.com", password="pw")
         self.client.force_authenticate(solo)
-        r = self.client.post("/api/v1/engagement/daily-question/answer", {"response_text": "hi"})
-        self.assertEqual(r.status_code, status.HTTP_409_CONFLICT)
-        self.assertEqual(r.data["code"], "no_active_relationship")
+        r = self.client.post("/api/v1/engagement/daily-question/answer", {"response_text": "just me"})
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(r.data["revealed"])
+
+        r = self.client.get("/api/v1/engagement/daily-question")
+        self.assertFalse(r.data["has_partner"])
+        self.assertTrue(r.data["i_answered"])
+        self.assertFalse(r.data["revealed"])
+        self.assertEqual(r.data["my_answer"], "just me")
 
     def test_response_is_encrypted_at_rest(self):
         self.client.force_authenticate(self.a)
@@ -225,24 +298,31 @@ class StreakServiceTests(APITestCase):
 
     def test_consecutive_days_increment_then_reset(self):
         d0 = date(2026, 7, 1)
-        services.touch_streak(self.rel, day_key=d0.isoformat())
-        services.touch_streak(self.rel, day_key=(d0 + timedelta(days=1)).isoformat())
-        s = EngagementStreak.objects.get(relationship=self.rel)
+        services.touch_streak(self.a, day_key=d0.isoformat())
+        services.touch_streak(self.a, day_key=(d0 + timedelta(days=1)).isoformat())
+        s = EngagementStreak.objects.get(user=self.a)
         self.assertEqual(s.current_streak, 2)
         self.assertEqual(s.longest_streak, 2)
 
         # Skip a day → streak resets to 1 but longest is remembered.
-        services.touch_streak(self.rel, day_key=(d0 + timedelta(days=3)).isoformat())
+        services.touch_streak(self.a, day_key=(d0 + timedelta(days=3)).isoformat())
         s.refresh_from_db()
         self.assertEqual(s.current_streak, 1)
         self.assertEqual(s.longest_streak, 2)
 
     def test_same_day_is_idempotent(self):
         d = today_key()
-        services.touch_streak(self.rel, day_key=d)
-        services.touch_streak(self.rel, day_key=d)
-        s = EngagementStreak.objects.get(relationship=self.rel)
+        services.touch_streak(self.a, day_key=d)
+        services.touch_streak(self.a, day_key=d)
+        s = EngagementStreak.objects.get(user=self.a)
         self.assertEqual(s.current_streak, 1)
+
+    def test_each_partner_keeps_their_own_streak(self):
+        d = today_key()
+        services.touch_streak(self.a, day_key=d)
+        self.assertEqual(EngagementStreak.objects.get(user=self.a).current_streak, 1)
+        # B has done nothing → no streak row yet.
+        self.assertFalse(EngagementStreak.objects.filter(user=self.b).exists())
 
 
 class SummaryTests(APITestCase):

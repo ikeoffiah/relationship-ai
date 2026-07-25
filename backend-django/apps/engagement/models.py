@@ -68,16 +68,21 @@ class DailyQuestion(models.Model):
 
 class DailyQuestionResponse(models.Model):
     """
-    One partner's answer to a given day's question.
+    A user's answer to a given day's question.
 
-    ``response_text`` is stored encrypted per-user. The partner's answer is only
-    disclosed once the caller has answered the same ``date_key`` — enforced in
-    the view/service layer, not the model.
+    Works solo (``relationship`` is null until a partner joins) as a private
+    reflection. ``response_text`` is stored encrypted per-user. When there is a
+    partner, their answer is only disclosed once the caller has answered the
+    same ``date_key`` — enforced in the view/service layer, not the model.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     relationship = models.ForeignKey(
-        Relationship, on_delete=models.CASCADE, related_name="daily_responses"
+        Relationship,
+        on_delete=models.CASCADE,
+        related_name="daily_responses",
+        null=True,
+        blank=True,
     )
     question = models.ForeignKey(
         DailyQuestion, on_delete=models.PROTECT, related_name="responses"
@@ -95,8 +100,10 @@ class DailyQuestionResponse(models.Model):
         db_table = "daily_question_responses"
         ordering = ["-created_at"]
         constraints = [
+            # A user answers once per day whether solo or coupled (a user has at
+            # most one active relationship), so key uniqueness on the user.
             models.UniqueConstraint(
-                fields=["relationship", "user", "date_key"],
+                fields=["user", "date_key"],
                 name="uniq_daily_response_per_user_day",
             )
         ]
@@ -131,7 +138,11 @@ class RelationshipCheckIn(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     relationship = models.ForeignKey(
-        Relationship, on_delete=models.CASCADE, related_name="check_ins"
+        Relationship,
+        on_delete=models.CASCADE,
+        related_name="check_ins",
+        null=True,
+        blank=True,
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="check_ins"
@@ -147,7 +158,7 @@ class RelationshipCheckIn(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["relationship", "user", "date_key"],
+                fields=["user", "date_key"],
                 name="uniq_check_in_per_user_day",
             ),
             models.CheckConstraint(
@@ -198,7 +209,11 @@ class SharedGoal(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     relationship = models.ForeignKey(
-        Relationship, on_delete=models.CASCADE, related_name="shared_goals"
+        Relationship,
+        on_delete=models.CASCADE,
+        related_name="shared_goals",
+        null=True,
+        blank=True,
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="created_goals"
@@ -330,7 +345,11 @@ class GratitudeMoment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     relationship = models.ForeignKey(
-        Relationship, on_delete=models.CASCADE, related_name="gratitude_moments"
+        Relationship,
+        on_delete=models.CASCADE,
+        related_name="gratitude_moments",
+        null=True,
+        blank=True,
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -356,7 +375,7 @@ class GratitudeMoment(models.Model):
 
     def mirror_repair_to_shared_context(self, plaintext: str) -> None:
         """Append a repair marker to the couple's shared context (plaintext-free)."""
-        if self.kind != "repair":
+        if self.kind != "repair" or self.relationship_id is None:
             return
         ctx, _ = SharedRelationshipContext.objects.get_or_create(
             relationship=self.relationship
@@ -421,13 +440,14 @@ class PointsLedger(models.Model):
 
 class EngagementStreak(models.Model):
     """
-    A couple's consecutive-day activity streak. A day counts if either partner
-    did any daily activity, so the streak encourages showing up without punishing
-    the couple when one partner is busy.
+    A user's consecutive-day activity streak. A day counts if the user did any
+    daily activity. Per-user (not per-couple) so it works solo and each partner
+    keeps their own streak once linked — encouraging both to show up without one
+    partner's off-day resetting the other's.
     """
 
-    relationship = models.OneToOneField(
-        Relationship,
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         primary_key=True,
         related_name="engagement_streak",

@@ -77,7 +77,7 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'Invite your partner to unlock shared answers, goals and streaks.',
+                'You\'re all set solo. Invite your partner to compare answers and share your goals.',
                 style: TextStyle(color: AppColors.softCharcoal),
               ),
             ),
