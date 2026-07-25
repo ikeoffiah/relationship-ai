@@ -45,4 +45,22 @@ class GamesApiService extends BaseApiService {
       throw handleError(e);
     }
   }
+
+  Future<SpicyConsent> fetchSpicyConsent() async {
+    try {
+      final res = await dio.get('$_base/spicy-consent');
+      return SpicyConsent.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
+  Future<SpicyConsent> setSpicyConsent(bool enabled) async {
+    try {
+      final res = await dio.post('$_base/spicy-consent', data: {'enabled': enabled});
+      return SpicyConsent.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
 }

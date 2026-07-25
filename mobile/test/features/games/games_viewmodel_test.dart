@@ -88,4 +88,22 @@ void main() {
     expect(result, isNull);
     expect(vm.error, contains('needs a partner'));
   });
+
+  test('toggleSpicy sets consent and refreshes games', () async {
+    when(() => api.setSpicyConsent(true)).thenAnswer(
+      (_) async => const SpicyConsent(you: true, partner: true, bothAgeVerified: true, unlocked: true),
+    );
+    when(() => api.fetchGames()).thenAnswer((_) async => const []);
+    final ok = await vm.toggleSpicy(true);
+    expect(ok, isTrue);
+    expect(vm.spicyConsent?.unlocked, isTrue);
+    verify(() => api.fetchGames()).called(1);
+  });
+
+  test('toggleSpicy returns false and sets error on failure', () async {
+    when(() => api.setSpicyConsent(any())).thenThrow(Exception('verify your age'));
+    final ok = await vm.toggleSpicy(true);
+    expect(ok, isFalse);
+    expect(vm.error, contains('verify your age'));
+  });
 }

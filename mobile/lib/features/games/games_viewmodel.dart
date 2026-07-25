@@ -20,6 +20,33 @@ class GamesViewModel extends ChangeNotifier {
   GameDetail? _detail;
   GameDetail? get detail => _detail;
 
+  SpicyConsent? _spicyConsent;
+  SpicyConsent? get spicyConsent => _spicyConsent;
+
+  Future<void> loadSpicyConsent() async {
+    try {
+      _spicyConsent = await _api.fetchSpicyConsent();
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+    }
+    notifyListeners();
+  }
+
+  /// Toggle the caller's spicy opt-in, then refresh the games list (spicy packs
+  /// appear/disappear based on the couple's combined consent).
+  Future<bool> toggleSpicy(bool enabled) async {
+    try {
+      _spicyConsent = await _api.setSpicyConsent(enabled);
+      await loadGames();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> loadGames() async {
     _isLoading = true;
     _error = null;
