@@ -4,6 +4,7 @@ from apps.sessions.views import (
     JointSessionConfirmView,
     JointSessionExitView,
     JointSessionStatusView,
+    JointSessionVideoTokenView,
     SessionHistoryListView,
     SessionSummaryView,
 )
@@ -15,4 +16,5 @@ urlpatterns = [
     path("joint/<uuid:session_id>/confirm", JointSessionConfirmView.as_view(), name="joint_session_confirm"),
     path("joint/<uuid:session_id>/exit", JointSessionExitView.as_view(), name="joint_session_exit"),
     path("joint/<uuid:session_id>/status", JointSessionStatusView.as_view(), name="joint_session_status"),
+    path("joint/<uuid:session_id>/video-token", JointSessionVideoTokenView.as_view(), name="joint_session_video_token"),
 ]

@@ -236,6 +236,12 @@ ENCRYPTION_MASTER_SECRET = env("ENCRYPTION_MASTER_SECRET", default=None)
 OPENAI_API_KEY = env("OPENAI_API_KEY", default=None)
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
 
+# LiveKit (peer-to-peer video for joint sessions). Tokens are minted server-side;
+# the app is unconfigured (endpoint returns 503) until these are set.
+LIVEKIT_API_KEY = env("LIVEKIT_API_KEY", default=None)
+LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET", default=None)
+LIVEKIT_URL = env("LIVEKIT_URL", default=None)  # wss://<your-project>.livekit.cloud
+
 # Structured Logging
 LOGGING = {
     "version": 1,

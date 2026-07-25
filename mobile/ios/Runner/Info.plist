@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Bliss uses your camera for video calls with your partner during joint sessions.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Bliss uses your microphone for video calls with your partner during joint sessions.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
