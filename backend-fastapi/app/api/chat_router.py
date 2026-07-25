@@ -122,7 +122,36 @@ def crisis_resources() -> list[dict]:
     return parsed if isinstance(parsed, list) else []
 
 
-def _initial_state(session_id: str, user_id: str, content: str) -> SessionState:
+async def fetch_personalization(
+    pool: Optional[asyncpg.Pool], user_id: str
+) -> dict:
+    """The user's attachment/communication style, used to personalize the
+    counseling system prompt. Best-effort: any failure yields no modifiers."""
+    if pool is None:
+        return {}
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT attachment_style, communication_style_self_report
+                FROM personalization_profiles
+                WHERE user_id = $1
+                """,
+                user_id,
+            )
+    except Exception:
+        return {}
+    if not row:
+        return {}
+    return {
+        "attachment_style": row["attachment_style"] or "",
+        "communication_style": row["communication_style_self_report"] or "",
+    }
+
+
+def _initial_state(
+    session_id: str, user_id: str, content: str, modifiers: Optional[dict] = None
+) -> SessionState:
     return SessionState(
         session_id=session_id,
         user_id=user_id,
@@ -137,7 +166,7 @@ def _initial_state(session_id: str, user_id: str, content: str) -> SessionState:
         short_term_buffer=[{"role": "user", "content": content, "timestamp": ""}],
         retrieved_memories=[],
         signal_vector=None,
-        personalization_modifiers={},
+        personalization_modifiers=modifiers or {},
         is_streaming=True,
     )
 
@@ -155,7 +184,8 @@ async def stream_counseling_turn(
     treats it as the end-of-turn signal and will otherwise wait indefinitely.
     """
     graph = build_counseling_graph()
-    state = _initial_state(session_id, user_id, content)
+    modifiers = await fetch_personalization(pool, user_id)
+    state = _initial_state(session_id, user_id, content, modifiers)
 
     final_output = ""
     safety_emitted = False
