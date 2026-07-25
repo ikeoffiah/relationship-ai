@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from apps.engagement.models import (
+    GameConsent,
     DailyQuestion,
     EngagementStreak,
     GamePack,
@@ -49,3 +50,5 @@ admin.site.register(GoalProgressEntry)
 admin.site.register(GratitudeMoment)
 admin.site.register(PointsLedger)
 admin.site.register(EngagementStreak)
+
+admin.site.register(GameConsent)
