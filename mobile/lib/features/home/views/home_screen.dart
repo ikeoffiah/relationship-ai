@@ -127,6 +127,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Expanded(
                 child: ListView(
                   children: [
+                    _buildDailyRitualCard(),
+                    const SizedBox(height: 16),
                     _buildIndividualSessionCard(),
                     const SizedBox(height: 16),
                     _buildJointSessionCard(homeState, relVM),
@@ -140,6 +142,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const GetHelpNowButton(),
               const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Entry point to the daily-ritual hub (question, check-in, goals, streak).
+  /// Placed first so the everyday habit is the first thing on the home screen.
+  Widget _buildDailyRitualCard() {
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => Navigator.of(context).pushNamed('/engagement/daily'),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.wb_sunny_outlined, color: AppColors.goldMedium),
+                  SizedBox(width: 8),
+                  Text(
+                    '☀️ Today',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Spacer(),
+                  Icon(Icons.chevron_right, color: AppColors.softCharcoal),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your daily question, check-in and shared goals.',
+                style: TextStyle(color: AppColors.softCharcoal.withValues(alpha: 0.7)),
+              ),
             ],
           ),
         ),
