@@ -17,6 +17,9 @@ class NotificationType(models.TextChoices):
     INSIGHT_DETECTED = "insight_detected", "Insight Detected"
     SAFETY_FOLLOWUP = "safety_followup", "Safety Follow-up"
     THERAPIST_CONNECTED = "therapist_connected", "Therapist Connected"
+    DAILY_QUESTION_READY = "daily_question_ready", "Daily Question Answers Ready"
+    PARTNER_CHECKED_IN = "partner_checked_in", "Partner Checked In"
+    GOAL_PROGRESS = "goal_progress", "Shared Goal Progress"
     SYSTEM = "system", "System"
 
 

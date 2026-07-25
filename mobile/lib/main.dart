@@ -35,6 +35,9 @@ import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/features/settings/email_change_screen.dart';
 import 'package:mobile/features/relay/relay_inbox_screen.dart';
 import 'package:mobile/features/relay/relay_viewmodel.dart';
+import 'package:mobile/features/engagement/engagement_viewmodel.dart';
+import 'package:mobile/features/engagement/views/daily_ritual_screen.dart';
+import 'package:mobile/features/engagement/views/shared_goals_screen.dart';
 import 'package:mobile/core/api_services/notification_api_service.dart';
 
 Future<void> main() async {
@@ -67,6 +70,7 @@ Future<void> main() async {
           ),
           provider.ChangeNotifierProvider(create: (_) => SettingsViewModel()),
           provider.ChangeNotifierProvider(create: (_) => RelayViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => EngagementViewModel()),
         ],
         child: const riverpod.ProviderScope(child: MyApp()),
       ),
@@ -150,6 +154,8 @@ class _MyAppState extends State<MyApp> {
         '/notifications': (context) => const NotificationCenterScreen(),
         '/settings/email': (context) => const EmailChangeScreen(),
         '/relay/inbox': (context) => const RelayInboxScreen(),
+        '/engagement/daily': (context) => const DailyRitualScreen(),
+        '/engagement/goals': (context) => const SharedGoalsScreen(),
         '/onboarding': (context) => const OnboardingFlowScreen(),
         '/onboarding/complete': (context) => const OnboardingCompleteScreen(),
         '/chat': (context) {

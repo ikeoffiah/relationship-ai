@@ -113,6 +113,7 @@ INSTALLED_APPS = [
     "apps.safety",
     "apps.config",
     "apps.notifications",
+    "apps.engagement",
     "django_prometheus",
 ]
 
