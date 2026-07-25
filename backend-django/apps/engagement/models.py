@@ -409,6 +409,7 @@ class PointsLedger(models.Model):
         ("gratitude", "Shared gratitude"),
         ("repair", "Logged a repair"),
         ("both_answered_bonus", "Both partners answered"),
+        ("game_completed", "Completed a couple game"),
         ("streak_bonus", "Streak milestone"),
     ]
 
@@ -462,3 +463,107 @@ class EngagementStreak(models.Model):
 
     def __str__(self) -> str:
         return f"Streak {self.current_streak} (best {self.longest_streak})"
+
+
+# ── Couple games (Know Your Partner and friends) ────────────────────────
+
+
+class GamePack(models.Model):
+    """
+    A playable pack of questions. All games share this one engine — the
+    ``game_type`` decides the mechanic (guess your partner, rapid preferences,
+    etc.) and ``category`` themes the content (relationship, spiritual,
+    financial, spicy…). Adding a game is mostly adding a pack + questions.
+    """
+
+    GAME_TYPES = [
+        ("know_your_partner", "Know Your Partner"),  # answer + guess partner, scored
+        ("this_or_that", "This or That"),            # rapid preferences, compared
+        ("would_you_rather", "Would You Rather"),    # answer + predict partner
+        ("two_truths", "Two Truths & a Lie"),        # spot the lie
+        ("conversation_deck", "Conversation Deck"),  # open prompts, no scoring
+    ]
+    CATEGORY_CHOICES = [
+        ("relationship", "Relationship"),
+        ("fun", "Fun & Quirky"),
+        ("spiritual", "Faith & Values"),
+        ("financial", "Money & Future"),
+        ("spicy", "Spicy"),  # age-gated + per-couple opt-in, enforced in the API
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key = models.SlugField(max_length=60, unique=True)
+    title = models.CharField(max_length=120)
+    description = models.CharField(max_length=280, blank=True, default="")
+    game_type = models.CharField(max_length=30, choices=GAME_TYPES, default="know_your_partner")
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="relationship")
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "game_packs"
+        ordering = ["order", "created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.game_type})"
+
+    @property
+    def is_scored(self) -> bool:
+        """Guessing games score; the conversation deck is just prompts."""
+        return self.game_type != "conversation_deck"
+
+    @property
+    def is_restricted(self) -> bool:
+        """Spicy packs require age verification and a per-couple opt-in."""
+        return self.category == "spicy"
+
+
+class GameQuestion(models.Model):
+    """One multiple-choice prompt in a pack. ``options`` is a list of strings;
+    a guessing game scores a match between a partner's guess and the other's
+    self-answer, so options must be discrete (not free text)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    pack = models.ForeignKey(GamePack, on_delete=models.CASCADE, related_name="questions")
+    prompt = models.TextField()
+    options = models.JSONField(default=list)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "game_questions"
+        ordering = ["order"]
+
+    def __str__(self) -> str:
+        return self.prompt[:50]
+
+
+class GamePlay(models.Model):
+    """
+    One user's answer to one game question: what is true about them
+    (``self_answer``) and — in a guessing game — what they think their partner
+    picked (``guess_answer``). Answers are indices into
+    ``GameQuestion.options``.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship, on_delete=models.CASCADE, related_name="game_plays"
+    )
+    pack = models.ForeignKey(GamePack, on_delete=models.CASCADE, related_name="plays")
+    question = models.ForeignKey(GameQuestion, on_delete=models.CASCADE, related_name="plays")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="game_plays"
+    )
+    self_answer = models.PositiveSmallIntegerField(null=True, blank=True)
+    guess_answer = models.PositiveSmallIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "game_plays"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "question"], name="uniq_game_play_per_user_question"
+            )
+        ]

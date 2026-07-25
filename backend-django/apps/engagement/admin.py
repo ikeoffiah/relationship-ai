@@ -3,12 +3,27 @@ from django.contrib import admin
 from apps.engagement.models import (
     DailyQuestion,
     EngagementStreak,
+    GamePack,
+    GameQuestion,
     GoalProgressEntry,
     GratitudeMoment,
     MicroActionTemplate,
     PointsLedger,
     SharedGoal,
 )
+
+
+class GameQuestionInline(admin.TabularInline):
+    model = GameQuestion
+    extra = 1
+
+
+@admin.register(GamePack)
+class GamePackAdmin(admin.ModelAdmin):
+    list_display = ("title", "key", "game_type", "category", "is_active", "order")
+    list_filter = ("game_type", "category", "is_active")
+    prepopulated_fields = {"key": ("title",)}
+    inlines = [GameQuestionInline]
 
 
 @admin.register(DailyQuestion)

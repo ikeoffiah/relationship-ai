@@ -31,6 +31,7 @@ POINTS = {
     "gratitude": 5,
     "repair": 15,
     "both_answered_bonus": 10,
+    "game_completed": 15,
 }
 
 
