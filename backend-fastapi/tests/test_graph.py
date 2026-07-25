@@ -57,7 +57,10 @@ async def test_node_5_personalization_injection(mock_session_state):
 async def test_node_6_system_prompt_assembly(mock_session_state):
     result = await node_6_system_prompt_assembly(mock_session_state)
     assert "system_prompt" in result
-    assert "User Message: Hello" in result["system_prompt"]
+    # The system prompt carries the therapeutic identity; the user's message is
+    # passed separately as a conversation message, not embedded in the prompt.
+    assert "counselor" in result["system_prompt"].lower()
+    assert "User Message:" not in result["system_prompt"]
 
 @pytest.mark.asyncio
 async def test_node_7_llm_call(mock_session_state):
