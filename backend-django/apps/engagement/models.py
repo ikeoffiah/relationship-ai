@@ -791,6 +791,9 @@ class BlissItem(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
     # 'bliss' (parsed from a chat tag) or 'manual' (created from a form).
     source = models.CharField(max_length=10, default="bliss")
+    # Set once the due-time reminder has been delivered, so the sweep never
+    # fires the same reminder twice.
+    reminded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
