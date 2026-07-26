@@ -15,6 +15,10 @@ class AnswerQuestionSerializer(serializers.Serializer):
     response_text = serializers.CharField(max_length=2000, trim_whitespace=True)
 
 
+class FaithReflectSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=4000, trim_whitespace=True)
+
+
 class CheckInSerializer(serializers.Serializer):
     connection_score = serializers.IntegerField(min_value=1, max_value=5)
     mood = serializers.ChoiceField(
