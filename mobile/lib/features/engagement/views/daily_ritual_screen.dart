@@ -44,6 +44,11 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
             icon: const Icon(Icons.self_improvement_outlined, color: AppColors.calmTeal),
             tooltip: 'Faith',
           ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pushNamed('/engagement/commitments'),
+            icon: const Icon(Icons.favorite_border, color: AppColors.warmCoral),
+            tooltip: 'Commitments',
+          ),
           TextButton.icon(
             onPressed: () => Navigator.of(context).pushNamed('/engagement/goals'),
             icon: const Icon(Icons.flag_outlined, color: AppColors.calmTeal),
