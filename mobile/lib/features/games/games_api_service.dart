@@ -28,18 +28,21 @@ class GamesApiService extends BaseApiService {
   }
 
   /// Submit one answer; returns the raw payload {progress, just_completed, reveal?}.
+  /// [guessAnswer] is null for agreement games (This or That), where you only
+  /// pick for yourself.
   Future<Map<String, dynamic>> submitAnswer({
     required String key,
     required String questionId,
     required int selfAnswer,
-    required int guessAnswer,
+    int? guessAnswer,
   }) async {
     try {
-      final res = await dio.post('$_base/$key/answer', data: {
+      final data = <String, dynamic>{
         'question_id': questionId,
         'self_answer': selfAnswer,
-        'guess_answer': guessAnswer,
-      });
+      };
+      if (guessAnswer != null) data['guess_answer'] = guessAnswer;
+      final res = await dio.post('$_base/$key/answer', data: data);
       return res.data as Map<String, dynamic>;
     } catch (e) {
       throw handleError(e);

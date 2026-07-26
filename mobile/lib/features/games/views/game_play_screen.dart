@@ -103,23 +103,31 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       );
 
   Widget _playForm(BuildContext context, GameDetail detail) {
+    final isAgreement = detail.gameType == 'this_or_that';
     // Seed any previously-saved answers once.
     for (final q in detail.questions) {
       if (q.myAnswer != null) _self.putIfAbsent(q.id, () => q.myAnswer!);
       if (q.myGuess != null) _guess.putIfAbsent(q.id, () => q.myGuess!);
     }
-    final allAnswered = detail.questions
-        .every((q) => _self.containsKey(q.id) && _guess.containsKey(q.id));
+    // Agreement games (This or That) need only your own pick, no guess.
+    final allAnswered = detail.questions.every((q) =>
+        _self.containsKey(q.id) && (isAgreement || _guess.containsKey(q.id)));
     final partner = detail.partnerName ?? 'them';
 
     return Column(
       children: [
+        if (isAgreement)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Text('Pick your side — then see how in sync you are 💫',
+                style: TextStyle(color: AppColors.softCharcoal)),
+          ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               for (var i = 0; i < detail.questions.length; i++)
-                _questionCard(detail.questions[i], i + 1, partner),
+                _questionCard(detail.questions[i], i + 1, partner, isAgreement),
               const SizedBox(height: 8),
             ],
           ),
@@ -150,7 +158,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
     );
   }
 
-  Widget _questionCard(GameQuestionView q, int number, String partner) {
+  Widget _questionCard(GameQuestionView q, int number, String partner, bool isAgreement) {
     return Card(
       elevation: 0,
       color: Colors.white,
@@ -167,9 +175,11 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             Text('$number. ${q.prompt}',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            _row('Your answer', q, _self, AppColors.warmCoral),
-            const SizedBox(height: 10),
-            _row('Guess $partner', q, _guess, AppColors.calmTeal),
+            _row(isAgreement ? 'Your pick' : 'Your answer', q, _self, AppColors.warmCoral),
+            if (!isAgreement) ...[
+              const SizedBox(height: 10),
+              _row('Guess $partner', q, _guess, AppColors.calmTeal),
+            ],
           ],
         ),
       ),
@@ -202,9 +212,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
 
   Future<void> _submit(BuildContext context, GameDetail detail) async {
     setState(() => _submitting = true);
-    final answers = <String, ({int self, int guess})>{
+    final isAgreement = detail.gameType == 'this_or_that';
+    final answers = <String, ({int self, int? guess})>{
       for (final q in detail.questions)
-        q.id: (self: _self[q.id]!, guess: _guess[q.id]!),
+        q.id: (self: _self[q.id]!, guess: isAgreement ? null : _guess[q.id]!),
     };
     final vm = context.read<GamesViewModel>();
     await vm.submitAnswers(widget.gameKey, answers);
@@ -221,6 +232,7 @@ class _RevealView extends StatelessWidget {
   Widget build(BuildContext context) {
     final reveal = detail.reveal!;
     final partner = detail.partnerName ?? 'Partner';
+    if (reveal.isAgreement) return _agreementView(reveal, partner);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -326,6 +338,91 @@ class _RevealView extends StatelessWidget {
           ),
         ),
       );
+
+  // ── Agreement reveal (This or That) ────────────────────────────────────
+
+  Widget _agreementView(GameReveal reveal, String partner) {
+    final pct = reveal.outOf == 0 ? 0 : (reveal.agreeCount * 100 / reveal.outOf).round();
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: AppColors.goldGradient,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              const Text('How in sync are you? 💫',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 12),
+              Text('$pct%',
+                  style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold)),
+              Text('${reveal.agreeCount} of ${reveal.outOf} matched',
+                  style: const TextStyle(color: Colors.white, fontSize: 13)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          reveal.agreeCount == reveal.outOf
+              ? 'Total sync — you two are on the same page 💛'
+              : 'Where you differ is worth a chat 👇',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        for (final item in reveal.questions) _agreementCard(item, partner),
+      ],
+    );
+  }
+
+  Widget _agreementCard(RevealItem item, String partner) {
+    final matched = item.matched;
+    final accent = matched ? AppColors.calmTeal : AppColors.warmCoral;
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(item.prompt,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                Icon(matched ? Icons.favorite : Icons.compare_arrows,
+                    color: accent, size: 20),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _line('You picked', item.label(item.myAnswer), AppColors.warmCoral),
+            _line('$partner picked', item.label(item.partnerAnswer), AppColors.calmTeal),
+            if (!matched) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warmCoral.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text('Different takes 💬',
+                    style: TextStyle(fontSize: 12, color: AppColors.warmCoral)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Conversation Deck: swipe through open prompts to discuss together. No
