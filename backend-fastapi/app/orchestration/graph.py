@@ -108,8 +108,38 @@ _ATTACHMENT_GUIDANCE = {
 }
 
 
+def _shared_context_lines(shared_context: dict) -> list:
+    """Render the couple's plaintext shared context into prompt lines. Pure, so
+    it's unit-testable without a DB. Empty/missing pieces are skipped."""
+    sc = shared_context or {}
+    lines = []
+
+    goals = [g for g in (sc.get("shared_goals") or []) if g.get("title")]
+    if goals:
+        rendered = "; ".join(
+            g["title"] + (f" ({g['progress']})" if g.get("progress") else "")
+            for g in goals[:5]
+        )
+        lines.append(f"They are working toward these together: {rendered}.")
+
+    conflicts = [c for c in (sc.get("recurring_conflicts") or []) if c][:5]
+    if conflicts:
+        lines.append(
+            "Recurring themes they've named before: "
+            + ", ".join(conflicts)
+            + " — notice if this turn touches one."
+        )
+
+    values = [v for v in (sc.get("agreed_values") or []) if v][:5]
+    if values:
+        lines.append("Values and agreements they share: " + ", ".join(values) + ".")
+
+    return lines
+
+
 def build_system_prompt(
-    strategy: dict, modifiers: dict, safety_state: dict, disclosures: list, memories: list = None
+    strategy: dict, modifiers: dict, safety_state: dict, disclosures: list,
+    memories: list = None, shared_context: dict = None,
 ) -> str:
     strategy = strategy or {}
     modifiers = modifiers or {}
@@ -121,6 +151,13 @@ def build_system_prompt(
             "What you remember about them from past sessions (use gently and only "
             "when relevant — reference it naturally, never recite it back):\n"
             + "\n".join(memory_lines[:5])
+        )
+
+    shared_lines = _shared_context_lines(shared_context)
+    if shared_lines:
+        parts.append(
+            "Shared context for this couple (reference naturally when relevant, "
+            "never recite):\n" + "\n".join(f"- {line}" for line in shared_lines)
         )
 
     primary = strategy.get("primary")
@@ -235,6 +272,7 @@ async def node_6_system_prompt_assembly(state: SessionState):
         state.safety_state,
         state.active_disclosures,
         state.retrieved_memories,
+        state.shared_context,
     )
     return {"system_prompt": prompt}
 

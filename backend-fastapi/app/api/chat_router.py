@@ -149,6 +149,84 @@ async def fetch_personalization(
     }
 
 
+def _clean_list(raw) -> list:
+    """Keep only plain, non-empty string items; drop anything that looks
+    encrypted (a future ``ENC:`` prefix) so we never surface ciphertext.
+    Accepts a Python list or a JSONB string (asyncpg returns JSONB as text)."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return []
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        s = item if isinstance(item, str) else None
+        if s and s.strip() and not s.startswith("ENC:"):
+            out.append(s.strip())
+    return out
+
+
+async def fetch_shared_context(pool: Optional[asyncpg.Pool], user_id: str) -> dict:
+    """The couple's PLAINTEXT, shared-by-design context — what they're working on
+    together and themes/values they've named — so the counselor can hold the
+    relationship in mind, not just the individual. Never reads one partner's
+    private words (e.g. repair-note text) or any encrypted field. Best-effort:
+    any failure yields an empty dict and counseling proceeds unchanged.
+    """
+    if pool is None:
+        return {}
+    try:
+        async with pool.acquire() as conn:
+            rel = await conn.fetchrow(
+                """
+                SELECT id FROM relationships
+                WHERE status = 'active' AND (partner_a_id = $1 OR partner_b_id = $1)
+                LIMIT 1
+                """,
+                user_id,
+            )
+            if not rel:
+                return {}
+            rel_id = rel["id"]
+
+            goal_rows = await conn.fetch(
+                """
+                SELECT title, category, target_value, current_value, unit
+                FROM shared_goals
+                WHERE relationship_id = $1 AND status = 'active'
+                ORDER BY created_at DESC
+                LIMIT 5
+                """,
+                rel_id,
+            )
+            ctx_row = await conn.fetchrow(
+                """
+                SELECT named_recurring_conflicts, agreed_goals_and_values
+                FROM shared_relationship_context
+                WHERE relationship_id = $1
+                """,
+                rel_id,
+            )
+    except Exception:
+        return {}
+
+    goals = []
+    for g in goal_rows:
+        progress = ""
+        if g["target_value"]:
+            pct = round((g["current_value"] or 0) / g["target_value"] * 100)
+            progress = f"{pct}%"
+        goals.append({"title": g["title"], "category": g["category"], "progress": progress})
+
+    result = {"shared_goals": goals}
+    if ctx_row:
+        result["recurring_conflicts"] = _clean_list(ctx_row["named_recurring_conflicts"])
+        result["agreed_values"] = _clean_list(ctx_row["agreed_goals_and_values"])
+    return result
+
+
 async def fetch_memories(user_id: str, content: str) -> list:
     """Relevant memories from past sessions, so the counselor can remember.
 
@@ -189,6 +267,7 @@ def _initial_state(
     content: str,
     modifiers: Optional[dict] = None,
     memories: Optional[list] = None,
+    shared_context: Optional[dict] = None,
 ) -> SessionState:
     return SessionState(
         session_id=session_id,
@@ -206,6 +285,7 @@ def _initial_state(
         signal_vector=None,
         personalization_modifiers=modifiers or {},
         is_streaming=True,
+        shared_context=shared_context or {},
     )
 
 
@@ -224,7 +304,8 @@ async def stream_counseling_turn(
     graph = build_counseling_graph()
     modifiers = await fetch_personalization(pool, user_id)
     memories = await fetch_memories(user_id, content)
-    state = _initial_state(session_id, user_id, content, modifiers, memories)
+    shared_context = await fetch_shared_context(pool, user_id)
+    state = _initial_state(session_id, user_id, content, modifiers, memories, shared_context)
 
     final_output = ""
     safety_emitted = False
