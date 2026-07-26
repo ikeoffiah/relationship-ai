@@ -80,7 +80,7 @@ class GamesViewModel extends ChangeNotifier {
   /// detail (with reveal when both partners are now done), or null on error.
   Future<GameDetail?> submitAnswers(
     String key,
-    Map<String, ({int self, int guess})> answers,
+    Map<String, ({int self, int? guess})> answers,
   ) async {
     _error = null;
     try {

@@ -106,4 +106,49 @@ void main() {
     expect(ok, isFalse);
     expect(vm.error, contains('verify your age'));
   });
+
+  group('This or That (agreement mode)', () {
+    test('GameReveal parses agreement mode + matched flags', () {
+      final reveal = GameReveal.fromJson({
+        'mode': 'agreement',
+        'agree_count': 2,
+        'out_of': 3,
+        'questions': [
+          {'question_id': 'q1', 'prompt': 'Beach or mountains?', 'options': ['Beach', 'Mountains'],
+           'my_answer': 0, 'partner_answer': 0, 'matched': true},
+          {'question_id': 'q2', 'prompt': 'Sweet or savoury?', 'options': ['Sweet', 'Savoury'],
+           'my_answer': 0, 'partner_answer': 1, 'matched': false},
+        ],
+      });
+      expect(reveal.isAgreement, isTrue);
+      expect(reveal.agreeCount, 2);
+      expect(reveal.questions.first.matched, isTrue);
+      expect(reveal.questions[1].matched, isFalse);
+    });
+
+    test('default mode is guess (backward compatible)', () {
+      final reveal = GameReveal.fromJson({'my_score': 1, 'partner_score': 2, 'out_of': 3});
+      expect(reveal.isAgreement, isFalse);
+      expect(reveal.mode, 'guess');
+    });
+
+    test('submitAnswers passes a null guess through for agreement games', () async {
+      when(() => api.submitAnswer(
+            key: any(named: 'key'),
+            questionId: any(named: 'questionId'),
+            selfAnswer: any(named: 'selfAnswer'),
+            guessAnswer: any(named: 'guessAnswer'),
+          )).thenAnswer((_) async => {'progress': {}, 'just_completed': false});
+      when(() => api.fetchGame('tot-us')).thenAnswer(
+        (_) async => const GameDetail(key: 'tot-us', title: 'This or That', gameType: 'this_or_that'),
+      );
+      await vm.submitAnswers('tot-us', {'q1': (self: 0, guess: null)});
+      verify(() => api.submitAnswer(
+            key: 'tot-us',
+            questionId: 'q1',
+            selfAnswer: 0,
+            guessAnswer: null,
+          )).called(1);
+    });
+  });
 }

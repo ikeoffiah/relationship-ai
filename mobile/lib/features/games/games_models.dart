@@ -100,6 +100,7 @@ class RevealItem {
   final bool iGuessedThem;
   final bool theyGuessedMe;
   final bool surprise;
+  final bool matched; // agreement games: both partners picked the same option
 
   const RevealItem({
     required this.questionId,
@@ -112,6 +113,7 @@ class RevealItem {
     this.iGuessedThem = false,
     this.theyGuessedMe = false,
     this.surprise = false,
+    this.matched = false,
   });
 
   factory RevealItem.fromJson(Map<String, dynamic> j) => RevealItem(
@@ -125,31 +127,41 @@ class RevealItem {
         iGuessedThem: j['i_guessed_them'] as bool? ?? false,
         theyGuessedMe: j['they_guessed_me'] as bool? ?? false,
         surprise: j['surprise'] as bool? ?? false,
+        matched: j['matched'] as bool? ?? false,
       );
 
   String label(int? idx) => (idx != null && idx >= 0 && idx < options.length) ? options[idx] : '—';
 }
 
 class GameReveal {
+  /// 'guess' (Know Your Partner / Would You Rather) or 'agreement' (This or That).
+  final String mode;
   final List<RevealItem> questions;
   final int myScore;
   final int partnerScore;
+  final int agreeCount;
   final int outOf;
 
   const GameReveal({
+    this.mode = 'guess',
     this.questions = const [],
     this.myScore = 0,
     this.partnerScore = 0,
+    this.agreeCount = 0,
     this.outOf = 0,
   });
 
+  bool get isAgreement => mode == 'agreement';
+
   factory GameReveal.fromJson(Map<String, dynamic> j) => GameReveal(
+        mode: j['mode'] as String? ?? 'guess',
         questions: (j['questions'] as List?)
                 ?.map((e) => RevealItem.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const [],
         myScore: j['my_score'] as int? ?? 0,
         partnerScore: j['partner_score'] as int? ?? 0,
+        agreeCount: j['agree_count'] as int? ?? 0,
         outOf: j['out_of'] as int? ?? 0,
       );
 }
