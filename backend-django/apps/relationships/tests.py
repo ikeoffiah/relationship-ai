@@ -91,9 +91,16 @@ class RelationshipPairingTests(APITestCase):
         response = self.client.post(f'/api/v1/relationships/accept/{token}')
 
         rel_id = response.data['relationship_id']
-        event = AuditEvent.objects.filter(event_type='relationship_created').first()
+        # Match in Python on the id string: the audit logger writes on a
+        # background thread via its own connection, so events from other tests
+        # can persist outside this test's transaction — scope to THIS
+        # relationship, and compare as strings to stay backend-agnostic.
+        event = next(
+            (e for e in AuditEvent.objects.filter(event_type='relationship_created')
+             if str(e.relationship_id) == rel_id),
+            None,
+        )
         self.assertIsNotNone(event, "expected a relationship_created audit event")
-        self.assertEqual(str(event.relationship_id), rel_id)
         self.assertEqual(str(event.user_id), str(self.user_b.id))
 
     def test_single_active_relationship_constraint(self):
