@@ -744,3 +744,61 @@ class FaithReflection(models.Model):
     @property
     def decrypted_text(self) -> str:
         return decrypt_field_value(self.user, self.text)
+
+
+# ── Bliss: the taggable in-chat assistant ───────────────────────────────
+#
+# Partners tag "@bliss" in chat to set something up — a reminder ("@bliss remind
+# us to book the anniversary dinner on Friday") or a shared calendar event. The
+# free text is turned into a structured draft by a deterministic parser
+# (services.parse_bliss_command) that the client confirms before saving.
+#
+# Unlike the private, per-user encrypted content elsewhere in this app, a Bliss
+# item is SHARED by design — both partners see and act on it — so its title is
+# stored in plaintext, exactly like a SharedGoal title. It carries no free-form
+# journalling, only a short actionable title.
+
+
+class BlissItem(models.Model):
+    """A reminder or calendar event created via the @bliss assistant."""
+
+    KIND_CHOICES = [
+        ("reminder", "Reminder"),
+        ("event", "Calendar event"),
+    ]
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("done", "Done"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship,
+        on_delete=models.CASCADE,
+        related_name="bliss_items",
+        null=True,
+        blank=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bliss_items"
+    )
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="reminder")
+    title = models.CharField(max_length=200)
+    # When the thing happens / the reminder should fire. May be null when the
+    # parser couldn't find a time (an undated to-do).
+    due_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    # 'bliss' (parsed from a chat tag) or 'manual' (created from a form).
+    source = models.CharField(max_length=10, default="bliss")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "bliss_items"
+        ordering = ["due_at", "created_at"]
+        indexes = [
+            models.Index(fields=["relationship", "status", "due_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.kind}] {self.title}"

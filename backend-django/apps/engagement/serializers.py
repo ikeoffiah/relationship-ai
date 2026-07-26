@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from apps.engagement.models import (
+    BlissItem,
     GoalProgressEntry,
     SharedGoal,
 )
@@ -17,6 +18,20 @@ class AnswerQuestionSerializer(serializers.Serializer):
 
 class FaithReflectSerializer(serializers.Serializer):
     text = serializers.CharField(max_length=4000, trim_whitespace=True)
+
+
+class BlissItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BlissItem
+        fields = ["id", "kind", "title", "due_at", "status", "source", "created_at"]
+        read_only_fields = fields
+
+
+class CreateBlissItemSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=["reminder", "event"], default="reminder")
+    title = serializers.CharField(max_length=200, trim_whitespace=True)
+    due_at = serializers.DateTimeField(required=False, allow_null=True)
+    source = serializers.ChoiceField(choices=["bliss", "manual"], default="bliss")
 
 
 class CheckInSerializer(serializers.Serializer):

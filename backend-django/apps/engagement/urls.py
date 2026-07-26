@@ -2,9 +2,14 @@
 
 from django.urls import path
 
-from apps.engagement import faith_views, game_views, views
+from apps.engagement import bliss_views, faith_views, game_views, views
 
 urlpatterns = [
+    # Bliss assistant (taggable @bliss reminders / events)
+    path("bliss/interpret", bliss_views.interpret, name="engagement-bliss-interpret"),
+    path("bliss/items", bliss_views.items, name="engagement-bliss-items"),
+    path("bliss/items/<uuid:item_id>/done", bliss_views.complete_item, name="engagement-bliss-done"),
+    path("bliss/items/<uuid:item_id>/cancel", bliss_views.cancel_item, name="engagement-bliss-cancel"),
     # Faith / spirituality (opt-in)
     path("faith/today", faith_views.faith_today, name="engagement-faith-today"),
     path(
