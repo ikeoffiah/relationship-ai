@@ -73,9 +73,46 @@ def build_reveal(pack, user, partner):
             }
         )
     return {
+        "mode": "guess",
         "questions": items,
         "my_score": my_score,
         "partner_score": partner_score,
+        "out_of": len(questions),
+    }
+
+
+def build_agreement_reveal(pack, user, partner):
+    """Reveal for 'This or That': both partners pick for themselves, and we show
+    where they match. No guessing — the score is how aligned they are.
+    """
+    questions = list(pack.questions.all())
+    mine = {p.question_id: p for p in GamePlay.objects.filter(pack=pack, user=user)}
+    theirs = {p.question_id: p for p in GamePlay.objects.filter(pack=pack, user=partner)}
+
+    items = []
+    agree_count = 0
+    for q in questions:
+        m = mine.get(q.id)
+        t = theirs.get(q.id)
+        matched = (
+            m is not None and t is not None and m.self_answer == t.self_answer
+        )
+        if matched:
+            agree_count += 1
+        items.append(
+            {
+                "question_id": str(q.id),
+                "prompt": q.prompt,
+                "options": q.options,
+                "my_answer": m.self_answer if m else None,
+                "partner_answer": t.self_answer if t else None,
+                "matched": matched,
+            }
+        )
+    return {
+        "mode": "agreement",
+        "questions": items,
+        "agree_count": agree_count,
         "out_of": len(questions),
     }
 

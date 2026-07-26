@@ -114,8 +114,16 @@ def game_detail(request, key):
         "questions": questions,
     }
     if prog["revealed"] and pack.is_scored:
-        body["reveal"] = games.build_reveal(pack, request.user, partner)
+        body["reveal"] = _reveal_for(pack, request.user, partner)
     return Response(body)
+
+
+def _reveal_for(pack, user, partner):
+    """The right reveal for the pack's mechanic: agreement for This-or-That,
+    otherwise the guess-your-partner reveal."""
+    if pack.is_agreement_game:
+        return games.build_agreement_reveal(pack, user, partner)
+    return games.build_reveal(pack, user, partner)
 
 
 @api_view(["POST"])
@@ -173,7 +181,7 @@ def game_answer(request, key):
                     data={"deep_link": "/engagement/games", "game_key": pack.key},
                 )
             if pack.is_scored:
-                reveal = games.build_reveal(pack, request.user, partner)
+                reveal = _reveal_for(pack, request.user, partner)
         elif partner is not None:
             # Nudge the partner to play so the reveal can happen.
             services.notify(
