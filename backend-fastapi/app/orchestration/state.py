@@ -51,4 +51,8 @@ class SessionState:
     regeneration_count: int = 0
     active_disclosures: List[str] = field(default_factory=list)
     abuse_claim_by_user: bool = False
+    # Plaintext, couple-level context (shared goals, named recurring conflicts,
+    # agreed values) — never one partner's private words. See
+    # chat_router.fetch_shared_context.
+    shared_context: Dict[str, Any] = field(default_factory=dict)
 
