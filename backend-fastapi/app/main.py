@@ -11,6 +11,7 @@ from app.api.memory_router import router as memory_router
 from app.api.relay_router import router as relay_router
 from app.api.feedback_router import router as feedback_router
 from app.api.chat_router import router as chat_router
+from app.api.tone_router import router as tone_router
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -73,6 +74,7 @@ app.include_router(memory_router, prefix="/api/v1/memory")
 app.include_router(relay_router)
 app.include_router(feedback_router)
 app.include_router(chat_router)
+app.include_router(tone_router)
 
 
 # Instrument Prometheus
