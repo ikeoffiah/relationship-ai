@@ -53,3 +53,59 @@ async def test_safety_prescreener_pipeline():
     # L2/L3 check resolves the score
     score_ambiguous = await SafetyPreScreener.screen("he is crazy and I want to end my life", {})
     assert score_ambiguous >= 0.9
+
+
+@pytest.mark.asyncio
+async def test_layer2_keyword_fallback_without_embeddings(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    from app.safety.layer2_semantic import screen_layer2
+    hit = await screen_layer2("I want to end my life")
+    assert hit.score >= 0.9 and hit.category == SignalCategory.SUICIDAL_IDEATION
+    safe = await screen_layer2("I love cooking dinner together")
+    assert safe.category == SignalCategory.SAFE
+
+
+@pytest.mark.asyncio
+async def test_layer3_keyword_fallback_without_llm(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    from app.safety.layer3_contextual import screen_layer3
+    hit = await screen_layer3("I keep thinking about suicide", [])
+    assert hit.score >= 0.9 and hit.category == SignalCategory.SUICIDAL_IDEATION
+    safe = await screen_layer3("we had a nice walk", [])
+    assert safe.category == SignalCategory.SAFE
+
+
+@pytest.mark.asyncio
+async def test_layer3_uses_llm_when_configured(monkeypatch):
+    """With a key set, Layer 3 calls the LLM; we stub it to verify parsing."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    import app.safety.layer3_contextual as l3
+
+    class _Msg:
+        content = '{"category": "coercive_control", "score": 0.82, "reason": "isolation"}'
+
+    class _Choice:
+        message = _Msg()
+
+    class _Resp:
+        choices = [_Choice()]
+
+    class _Completions:
+        async def create(self, **kw):
+            return _Resp()
+
+    class _Chat:
+        completions = _Completions()
+
+    class _FakeClient:
+        def __init__(self, **kw):
+            self.chat = _Chat()
+
+    monkeypatch.setattr(l3, "AsyncOpenAI", _FakeClient, raising=False)
+    # Patch the lazy import target too.
+    import openai
+    monkeypatch.setattr(openai, "AsyncOpenAI", _FakeClient, raising=False)
+
+    res = await l3.screen_layer3("they won't let me see anyone", [])
+    assert res.category == SignalCategory.COERCIVE_CONTROL
+    assert res.score >= 0.8
