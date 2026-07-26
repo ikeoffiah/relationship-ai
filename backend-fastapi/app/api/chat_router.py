@@ -149,8 +149,46 @@ async def fetch_personalization(
     }
 
 
+async def fetch_memories(user_id: str, content: str) -> list:
+    """Relevant memories from past sessions, so the counselor can remember.
+
+    Uses the existing vector retriever over the (plaintext) memory metadata —
+    never the encrypted memory content. Best-effort: no embeddings key, no DB,
+    or any error yields no memories, so counseling still runs.
+    """
+    if not os.environ.get("DATABASE_URL") or not os.environ.get("OPENAI_API_KEY"):
+        return []
+    try:
+        from app.memory.retriever import AccessPolicy as MemAccessPolicy
+        from app.memory.retriever import SessionMemoryRetriever
+
+        retriever = SessionMemoryRetriever(db_url=os.environ["DATABASE_URL"])
+        records = await retriever.retrieve_for_session(
+            user_id=user_id,
+            relationship_id="",
+            opening_message=content,
+            access_policy=MemAccessPolicy(can_read_private=True, can_read_shared_context=False),
+            top_k_private=5,
+        )
+    except Exception:
+        return []
+
+    memories = []
+    for r in records:
+        md = getattr(r, "metadata", None) or {}
+        # Inject the plain-English reason/preview — never decrypt content here.
+        note = md.get("why_stored") or md.get("content_preview")
+        if note:
+            memories.append({"memory_type": md.get("memory_type", ""), "note": note})
+    return memories
+
+
 def _initial_state(
-    session_id: str, user_id: str, content: str, modifiers: Optional[dict] = None
+    session_id: str,
+    user_id: str,
+    content: str,
+    modifiers: Optional[dict] = None,
+    memories: Optional[list] = None,
 ) -> SessionState:
     return SessionState(
         session_id=session_id,
@@ -164,7 +202,7 @@ def _initial_state(
         safety_state=SafetyState(level="safe", score=0.0),
         turn_number=1,
         short_term_buffer=[{"role": "user", "content": content, "timestamp": ""}],
-        retrieved_memories=[],
+        retrieved_memories=memories or [],
         signal_vector=None,
         personalization_modifiers=modifiers or {},
         is_streaming=True,
@@ -185,7 +223,8 @@ async def stream_counseling_turn(
     """
     graph = build_counseling_graph()
     modifiers = await fetch_personalization(pool, user_id)
-    state = _initial_state(session_id, user_id, content, modifiers)
+    memories = await fetch_memories(user_id, content)
+    state = _initial_state(session_id, user_id, content, modifiers, memories)
 
     final_output = ""
     safety_emitted = False

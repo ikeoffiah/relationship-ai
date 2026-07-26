@@ -96,3 +96,58 @@ def _restore_env():
             os.environ.pop(k, None)
         else:
             os.environ[k] = v
+
+
+def test_system_prompt_includes_memories():
+    from app.orchestration.graph import build_system_prompt
+
+    prompt = build_system_prompt(
+        strategy={},
+        modifiers={},
+        safety_state={"level": "safe"},
+        disclosures=[],
+        memories=[{"memory_type": "trigger", "note": "feels dismissed when interrupted"}],
+    )
+    assert "past sessions" in prompt.lower()
+    assert "feels dismissed when interrupted" in prompt
+
+
+def test_system_prompt_no_memory_section_when_empty():
+    from app.orchestration.graph import build_system_prompt
+
+    prompt = build_system_prompt(
+        strategy={}, modifiers={}, safety_state={"level": "safe"}, disclosures=[], memories=[]
+    )
+    assert "past sessions" not in prompt.lower()
+
+
+@pytest.mark.asyncio
+async def test_fetch_memories_graceful_without_config(monkeypatch):
+    from app.api.chat_router import fetch_memories
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    assert await fetch_memories("user-1", "I feel overwhelmed") == []
+
+
+@pytest.mark.asyncio
+async def test_node_3_passes_memories_through():
+    from app.orchestration.graph import node_3_memory_retrieval
+    from app.orchestration.state import (
+        AccessPolicy,
+        SafetyState,
+        SessionState,
+        StrategyMix,
+    )
+
+    state = SessionState(
+        session_id="s", user_id="u", relationship_id=None, session_type="individual",
+        access_policy=AccessPolicy(can_read_private=True, can_read_shared=False, can_cross_partner=False),
+        current_strategy=StrategyMix(primary="", secondary="", focus=""),
+        safety_state=SafetyState(level="safe", score=0.0), turn_number=1,
+        short_term_buffer=[{"role": "user", "content": "hi", "timestamp": ""}],
+        retrieved_memories=[{"memory_type": "trigger", "note": "prefers space when upset"}],
+        signal_vector=None, personalization_modifiers={}, is_streaming=False,
+    )
+    result = await node_3_memory_retrieval(state)
+    assert result["retrieved_memories"][0]["note"] == "prefers space when upset"
