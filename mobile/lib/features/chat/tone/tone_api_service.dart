@@ -1,6 +1,7 @@
 import '../../../core/api_services/base_api_service.dart';
 import '../../../core/security/certificate_config.dart';
 import 'tone_models.dart';
+import 'vibe_models.dart';
 
 /// API client for the in-chat tone coach. Targets the FastAPI host (like
 /// [SessionService]) and inherits JWT injection + pinning from [BaseApiService].
@@ -39,6 +40,16 @@ class ToneApiService extends BaseApiService {
       final res = await dio.post('$_base/suggest', data: {'messages': messages});
       final list = (res.data['suggestions'] as List?) ?? const [];
       return list.map((e) => e.toString()).toList();
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
+  /// A playful one-word read of today's conversation.
+  Future<DailyVibe> vibe(List<Map<String, String>> messages) async {
+    try {
+      final res = await dio.post('$_base/vibe', data: {'messages': messages});
+      return DailyVibe.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {
       throw handleError(e);
     }

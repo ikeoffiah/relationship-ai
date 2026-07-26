@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'tone_api_service.dart';
 import 'tone_models.dart';
+import 'vibe_models.dart';
 
 /// Screen-scoped state for the in-chat tone coach: the current auto-suggestions
 /// and in-flight flags. The coach sheet and mood popover call through here too
@@ -60,6 +61,17 @@ class ToneViewModel extends ChangeNotifier {
   Future<CoachResult?> coach(String draft, {String? partnerMood}) async {
     try {
       return await _api.coach(draft, partnerMood: partnerMood);
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// A playful read of the day's conversation. Returns null on failure.
+  Future<DailyVibe?> readVibe(List<Map<String, String>> messages) async {
+    try {
+      return await _api.vibe(messages);
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
