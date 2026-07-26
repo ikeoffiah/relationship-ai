@@ -9,6 +9,8 @@ from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from rest_framework import status, views, permissions
 from rest_framework.response import Response
+from apps.audit.constants import AuditEventType
+from apps.audit.logger import AuditLogger
 from .models import Relationship, RelationshipInvite
 
 
@@ -119,8 +121,13 @@ class RelationshipAcceptView(views.APIView):
                 status='active'
             )
 
-            # Log audit event
-            # TODO: Integrate with audit store
+            # Log audit event — who joined which relationship (no PII in metadata).
+            AuditLogger.get_instance().log(
+                AuditEventType.RELATIONSHIP_CREATED,
+                user_id=str(user.id),
+                relationship_id=str(relationship.id),
+                metadata={"inviter_id": str(invite.inviter_id)},
+            )
 
         return Response({
             "relationship_id": str(relationship.id),

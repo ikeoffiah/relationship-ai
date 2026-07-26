@@ -1,8 +1,10 @@
 import re
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.test import override_settings
 from rest_framework.test import APITestCase
 from rest_framework import status
+from apps.audit.models import AuditEvent
 from apps.relationships.models import Relationship, RelationshipInvite
 
 User = get_user_model()
@@ -77,6 +79,29 @@ class RelationshipPairingTests(APITestCase):
         self.assertEqual(rel.status, 'active')
         self.assertEqual(rel.partner_a_id, self.user_a.id)
         self.assertEqual(rel.partner_b_id, self.user_b.id)
+
+    @override_settings(AUDIT_LOG_SYNCHRONOUS=True)
+    def test_accept_invite_writes_audit_event(self):
+        """Accepting an invite records a relationship_created audit event."""
+        self.client.post('/api/v1/relationships/invite', {
+            'invitee_email': 'partner_b@example.com'
+        })
+        token = extract_invite_token(mail.outbox[0])
+        self.client.force_authenticate(user=self.user_b)
+        response = self.client.post(f'/api/v1/relationships/accept/{token}')
+
+        rel_id = response.data['relationship_id']
+        # Match in Python on the id string: the audit logger writes on a
+        # background thread via its own connection, so events from other tests
+        # can persist outside this test's transaction — scope to THIS
+        # relationship, and compare as strings to stay backend-agnostic.
+        event = next(
+            (e for e in AuditEvent.objects.filter(event_type='relationship_created')
+             if str(e.relationship_id) == rel_id),
+            None,
+        )
+        self.assertIsNotNone(event, "expected a relationship_created audit event")
+        self.assertEqual(str(event.user_id), str(self.user_b.id))
 
     def test_single_active_relationship_constraint(self):
         """Test that a user cannot be in two active relationships."""

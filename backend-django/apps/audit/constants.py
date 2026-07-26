@@ -17,6 +17,9 @@ class AuditEventType:
     # Cross-partner access
     CROSS_PARTNER_ACCESS = "cross_partner_access"
 
+    # Relationship lifecycle
+    RELATIONSHIP_CREATED = "relationship_created"
+
     # Memory
     MEMORY_CREATED = "memory_created"
     MEMORY_DELETED = "memory_deleted"

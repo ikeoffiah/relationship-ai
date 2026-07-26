@@ -6,8 +6,21 @@ import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/shared/widgets/get_help_now_button.dart';
 
 /// Security settings screen — biometric / PIN unlock and app lock timeout.
-class SecuritySettingsScreen extends StatelessWidget {
+class SecuritySettingsScreen extends StatefulWidget {
   const SecuritySettingsScreen({super.key});
+
+  @override
+  State<SecuritySettingsScreen> createState() => _SecuritySettingsScreenState();
+}
+
+class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<SettingsViewModel>().loadBiometricPref(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +38,14 @@ class SecuritySettingsScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             children: [
-              // Biometric toggle – placeholder (actual implementation via BiometricAuthService elsewhere)
+              // Biometric / device-credential unlock. Enabling requires a
+              // successful biometric prompt (handled in the view model), so a
+              // user can't enable a lock they can't pass.
               SwitchListTile(
                 title: const Text('Biometric / PIN unlock'),
-                value: vm.notificationPrefs.sessionReminders, // placeholder value
-                onChanged: (v) {
-                  // TODO: integrate real biometric toggle
-                },
+                subtitle: const Text('Require Face ID / fingerprint to open the app'),
+                value: vm.biometricEnabled,
+                onChanged: (v) => vm.setBiometricEnabled(v),
                 activeThumbColor: AppColors.warmCoral,
               ),
               const SizedBox(height: 16),
