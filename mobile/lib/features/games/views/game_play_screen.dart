@@ -41,13 +41,15 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
       ),
       body: vm.isLoading || detail == null
           ? const Center(child: CircularProgressIndicator())
-          : detail.reveal != null
-              ? _RevealView(detail: detail)
-              : detail.progress.iComplete
-                  ? _waiting(detail)
-                  : !detail.hasPartner
-                      ? _noPartner(context)
-                      : _playForm(context, detail),
+          : !detail.isScored
+              ? _ConversationDeckView(detail: detail)
+              : detail.reveal != null
+                  ? _RevealView(detail: detail)
+                  : detail.progress.iComplete
+                      ? _waiting(detail)
+                      : !detail.hasPartner
+                          ? _noPartner(context)
+                          : _playForm(context, detail),
     );
   }
 
@@ -324,4 +326,90 @@ class _RevealView extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Conversation Deck: swipe through open prompts to discuss together. No
+/// scoring, no guessing — just a shared cue to talk.
+class _ConversationDeckView extends StatefulWidget {
+  final GameDetail detail;
+  const _ConversationDeckView({required this.detail});
+
+  @override
+  State<_ConversationDeckView> createState() => _ConversationDeckViewState();
+}
+
+class _ConversationDeckViewState extends State<_ConversationDeckView> {
+  final _controller = PageController();
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final questions = widget.detail.questions;
+    if (questions.isEmpty) {
+      return const Center(child: Text('No prompts yet.'));
+    }
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Text('Take turns answering — no scores, just talk 💬',
+              style: TextStyle(color: AppColors.softCharcoal)),
+        ),
+        Expanded(
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: questions.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (_, i) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  gradient: AppColors.goldGradient,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(
+                  questions[i].prompt,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 22, height: 1.35, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${_index + 1} / ${questions.length}',
+                  style: const TextStyle(color: AppColors.softCharcoal)),
+              ElevatedButton(
+                onPressed: _index < questions.length - 1
+                    ? () => _controller.nextPage(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                        )
+                    : () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.warmCoral,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(_index < questions.length - 1 ? 'Next' : 'Done',
+                    style: const TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

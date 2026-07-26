@@ -39,6 +39,13 @@ class _GamesListScreenState extends State<GamesListScreen> {
         title: const Text('Games', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.creamWhite,
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Spicy games',
+            icon: const Text('🌶️', style: TextStyle(fontSize: 18)),
+            onPressed: () => _openSpicySheet(context),
+          ),
+        ],
       ),
       body: vm.isLoading && vm.games.isEmpty
           ? const Center(child: CircularProgressIndicator())
@@ -61,6 +68,78 @@ class _GamesListScreenState extends State<GamesListScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  void _openSpicySheet(BuildContext context) {
+    final vm = context.read<GamesViewModel>();
+    vm.loadSpicyConsent();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.creamWhite,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetCtx) => Consumer<GamesViewModel>(
+        builder: (_, m, _) {
+          final c = m.spicyConsent;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(children: [
+                  Text('🌶️ ', style: TextStyle(fontSize: 20)),
+                  Text('Spicy games',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ]),
+                const SizedBox(height: 8),
+                const Text(
+                  'Spicy packs unlock only when both of you are age-verified and '
+                  'both turn them on. Either of you can turn them off anytime.',
+                  style: TextStyle(color: AppColors.softCharcoal),
+                ),
+                const SizedBox(height: 16),
+                if (c == null)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
+                else if (!c.bothAgeVerified)
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.goldMedium.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Both partners need to verify their age first (Settings → Verify age).',
+                      style: TextStyle(color: AppColors.softCharcoal),
+                    ),
+                  )
+                else ...[
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeThumbColor: AppColors.warmCoral,
+                    title: const Text('Turn on spicy games for me'),
+                    value: c.you,
+                    onChanged: (v) => m.toggleSpicy(v),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    c.unlocked
+                        ? 'Unlocked 🎉 — spicy packs are now in your list.'
+                        : c.partner
+                            ? 'Your partner is in. Turn it on to unlock.'
+                            : 'Waiting for your partner to turn it on too.',
+                    style: TextStyle(
+                        color: c.unlocked ? AppColors.warmCoral : AppColors.softCharcoal,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

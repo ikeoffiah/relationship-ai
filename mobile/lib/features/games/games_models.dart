@@ -197,3 +197,24 @@ class GameDetail {
             : null,
       );
 }
+
+class SpicyConsent {
+  final bool you;
+  final bool partner;
+  final bool bothAgeVerified;
+  final bool unlocked;
+
+  const SpicyConsent({
+    this.you = false,
+    this.partner = false,
+    this.bothAgeVerified = false,
+    this.unlocked = false,
+  });
+
+  factory SpicyConsent.fromJson(Map<String, dynamic> j) => SpicyConsent(
+        you: j['you'] as bool? ?? false,
+        partner: j['partner'] as bool? ?? false,
+        bothAgeVerified: j['both_age_verified'] as bool? ?? false,
+        unlocked: j['unlocked'] as bool? ?? false,
+      );
+}
