@@ -10,6 +10,7 @@ communicate more kindly in the moment:
 * ``POST /api/v1/tone/coach``   — judge the user's own draft and offer kinder
   rewrites; declines (with a support pointer) if the draft carries harm signals.
 * ``POST /api/v1/tone/suggest`` — auto-suggest attuned things to say next.
+* ``POST /api/v1/tone/vibe``    — a playful one-word read of today's conversation.
 """
 
 from typing import List, Literal, Optional
@@ -67,6 +68,17 @@ class SuggestResponse(BaseModel):
     suggestions: List[str]
 
 
+class VibeRequest(BaseModel):
+    messages: List[SuggestMessage] = Field(default_factory=list, max_length=200)
+
+
+class VibeResponse(BaseModel):
+    label: str
+    emoji: str
+    blurb: str
+    disclaimer: str
+
+
 @router.post("/analyze", response_model=MoodResponse)
 async def analyze(
     request: AnalyzeRequest,
@@ -96,3 +108,15 @@ async def suggest(
         [{"role": m.role, "content": m.content} for m in request.messages]
     )
     return SuggestResponse(suggestions=suggestions)
+
+
+@router.post("/vibe", response_model=VibeResponse)
+async def vibe(
+    request: VibeRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    """A playful one-word read of today's conversation (Intimate, Playful,
+    Reconnecting, Quiet…). Just for fun; never a judgement."""
+    return await tone_coach.daily_vibe(
+        [{"role": m.role, "content": m.content} for m in request.messages]
+    )

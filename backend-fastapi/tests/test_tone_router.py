@@ -24,6 +24,7 @@ def test_all_routes_require_auth():
         ("/api/v1/tone/analyze", {"text": "hi"}),
         ("/api/v1/tone/coach", {"draft": "hi"}),
         ("/api/v1/tone/suggest", {"messages": []}),
+        ("/api/v1/tone/vibe", {"messages": []}),
     ]:
         assert client.post(path, json=body).status_code == 401
 
@@ -143,3 +144,36 @@ def test_suggest_rejects_bad_role():
         headers=auth_headers(USER),
     )
     assert res.status_code == 422
+
+
+# ── vibe (daily conversation label) ──────────────────────────────────────
+
+VIBE_LABELS = {
+    "Intimate", "Romantic", "Sexy", "Playful", "Silly", "Deep", "Cozy",
+    "Supportive", "Reconnecting", "Adventurous", "Logistical", "Tense",
+    "Distant", "Quiet", "Everyday",
+}
+
+
+def test_vibe_returns_a_curated_label():
+    res = client.post(
+        "/api/v1/tone/vibe",
+        json={"messages": [
+            {"role": "partner", "content": "haha you're so funny 😂"},
+            {"role": "me", "content": "lol stop it"},
+            {"role": "partner", "content": "never, this is too fun"},
+            {"role": "me", "content": "hahaha okay okay"},
+        ]},
+        headers=auth_headers(USER),
+    )
+    assert res.status_code == 200
+    body = res.json()
+    # Always one of the curated labels, never free-form.
+    assert body["label"] in VIBE_LABELS
+    assert body["emoji"] and body["disclaimer"]
+
+
+def test_vibe_empty_conversation_is_quiet():
+    res = client.post("/api/v1/tone/vibe", json={"messages": []}, headers=auth_headers(USER))
+    assert res.status_code == 200
+    assert res.json()["label"] == "Quiet"
