@@ -2,9 +2,20 @@
 
 from django.urls import path
 
-from apps.engagement import bliss_views, faith_views, game_views, views
+from apps.engagement import (
+    bliss_views,
+    faith_views,
+    game_views,
+    two_truths_views,
+    views,
+)
 
 urlpatterns = [
+    # Two Truths & a Lie
+    path("two-truths", two_truths_views.state, name="engagement-two-truths"),
+    path("two-truths/author", two_truths_views.author, name="engagement-two-truths-author"),
+    path("two-truths/guess", two_truths_views.guess, name="engagement-two-truths-guess"),
+    path("two-truths/reset", two_truths_views.reset, name="engagement-two-truths-reset"),
     # Bliss assistant (taggable @bliss reminders / events)
     path("bliss/interpret", bliss_views.interpret, name="engagement-bliss-interpret"),
     path("bliss/items", bliss_views.items, name="engagement-bliss-items"),

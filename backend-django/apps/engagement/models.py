@@ -811,3 +811,52 @@ class BlissItem(models.Model):
 
     def __str__(self) -> str:
         return f"[{self.kind}] {self.title}"
+
+
+# ── Two Truths & a Lie ──────────────────────────────────────────────────
+#
+# Each partner writes three statements about themselves — two true, one a lie —
+# and the other tries to spot the lie. Unlike the fixed-catalog games, the
+# content is authored by the players, so it lives in its own model rather than
+# GameQuestion. One current play per partner; the lie is only revealed once both
+# have authored AND both have guessed (the same commit-before-reveal rule as the
+# daily question), so nobody can peek. Statements are shared with the partner by
+# design, so — like a SharedGoal — they're stored plaintext, not per-user
+# encrypted.
+
+
+class TwoTruthsPlay(models.Model):
+    """One partner's current round: their three statements, which is the lie,
+    and their guess of the *partner's* lie."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship, on_delete=models.CASCADE, related_name="two_truths_plays"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="two_truths_plays"
+    )
+    # Exactly three short statements authored by ``user``.
+    statements = models.JSONField(default=list)
+    # Index (0-2) of the statement that is the lie.
+    lie_index = models.PositiveSmallIntegerField()
+    # This user's guess (0-2) of which of the *partner's* statements is the lie;
+    # null until they guess.
+    guess_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "two_truths_plays"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["relationship", "user"], name="uniq_two_truths_per_user"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(lie_index__gte=0, lie_index__lte=2),
+                name="two_truths_lie_index_0_2",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"TwoTruths({self.user_id})"
