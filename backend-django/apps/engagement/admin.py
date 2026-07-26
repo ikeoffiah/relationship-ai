@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from apps.engagement.models import (
+    BlissItem,
     GameConsent,
     DailyQuestion,
     DailyReading,
@@ -67,3 +68,10 @@ class DailyReadingAdmin(admin.ModelAdmin):
 class FaithPracticeAdmin(admin.ModelAdmin):
     list_display = ("label", "key", "tradition", "is_active", "order")
     list_filter = ("tradition", "is_active")
+
+
+@admin.register(BlissItem)
+class BlissItemAdmin(admin.ModelAdmin):
+    list_display = ("title", "kind", "status", "due_at", "source", "created_at")
+    list_filter = ("kind", "status", "source")
+    search_fields = ("title",)

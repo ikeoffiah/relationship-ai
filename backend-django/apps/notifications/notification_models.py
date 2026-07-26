@@ -21,6 +21,8 @@ class NotificationType(models.TextChoices):
     PARTNER_CHECKED_IN = "partner_checked_in", "Partner Checked In"
     GOAL_PROGRESS = "goal_progress", "Shared Goal Progress"
     GAME_READY = "game_ready", "Couple Game Results Ready"
+    BLISS_REMINDER = "bliss_reminder", "Bliss Reminder"
+    BLISS_CREATED = "bliss_created", "Bliss Item Created"
     SYSTEM = "system", "System"
 
 
