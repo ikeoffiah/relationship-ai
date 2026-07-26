@@ -61,6 +61,15 @@ class _GamesListScreenState extends State<GamesListScreen> {
                         style: TextStyle(color: AppColors.softCharcoal),
                       ),
                       const SizedBox(height: 16),
+                      // Two Truths & a Lie isn't a fixed-catalog pack — it's its
+                      // own authored-content flow, so it gets a dedicated entry.
+                      _SpecialGameCard(
+                        emoji: '🕵️',
+                        title: 'Two Truths & a Lie',
+                        subtitle: 'Write two truths and a lie — can they spot it?',
+                        onTap: () => Navigator.of(context).pushNamed('/engagement/two-truths'),
+                      ),
+                      const SizedBox(height: 12),
                       for (final g in vm.games) ...[
                         _GameCard(game: g, emoji: _categoryEmoji[g.category] ?? '🎮'),
                         const SizedBox(height: 12),
@@ -209,6 +218,61 @@ class _GameCard extends StatelessWidget {
                     Text(s.label,
                         style: TextStyle(
                             color: s.color, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.softCharcoal),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A dedicated entry for a game that isn't a fixed-catalog [GamePack]
+/// (e.g. Two Truths & a Lie), navigating by route rather than pack key.
+class _SpecialGameCard extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SpecialGameCard({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 28)),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(subtitle,
+                        style: TextStyle(
+                            color: AppColors.softCharcoal.withValues(alpha: 0.7), fontSize: 13)),
                   ],
                 ),
               ),
