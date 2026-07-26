@@ -1,13 +1,15 @@
-.PHONY: dev test migrate lint seed clean help
+.PHONY: dev test validate safety-eval migrate lint seed clean help
 
 help:
 	@echo "Usage:"
-	@echo "  make dev      - Start all services with docker-compose"
-	@echo "  make test     - Run all tests (Flutter + Django + FastAPI)"
-	@echo "  make migrate  - Run Django migrations"
-	@echo "  make lint     - Run linters (dart analyze + ruff + mypy)"
-	@echo "  make seed     - Load dev fixtures"
-	@echo "  make clean    - Remove build artifacts and containers"
+	@echo "  make dev         - Start all services with docker-compose"
+	@echo "  make test        - Run all tests (Flutter + Django + FastAPI)"
+	@echo "  make validate    - Full validation: lint + safety eval + all tests"
+	@echo "  make safety-eval - Print the safety-classifier evaluation report"
+	@echo "  make migrate     - Run Django migrations"
+	@echo "  make lint        - Run linters (dart analyze + ruff + mypy)"
+	@echo "  make seed        - Load dev fixtures"
+	@echo "  make clean       - Remove build artifacts and containers"
 
 dev:
 	docker-compose up --build
@@ -26,6 +28,19 @@ test:
 		cd backend-fastapi && ./venv/bin/python -m pytest; \
 	else \
 		cd backend-fastapi && python3 -m pytest; \
+	fi
+
+# One-command validation: linters, the safety-classifier evaluation report, and
+# every test suite. See VALIDATION.md for the runbook (incl. the live end-to-end
+# checks that need real keys/infra).
+validate: lint safety-eval test
+
+safety-eval:
+	@echo "Running safety classifier evaluation..."
+	@if [ -d "backend-fastapi/venv" ]; then \
+		cd backend-fastapi && ./venv/bin/python -m tests.validation.test_safety_eval; \
+	else \
+		cd backend-fastapi && python3 -m tests.validation.test_safety_eval; \
 	fi
 
 migrate:
