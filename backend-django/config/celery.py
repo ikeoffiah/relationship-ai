@@ -21,6 +21,10 @@ app.conf.beat_schedule = {
         "task": "audit.tasks.verify_audit_chain",
         "schedule": crontab(day_of_month=1, hour=2),  # monthly at 2am
     },
+    "deliver-due-bliss-reminders": {
+        "task": "engagement.tasks.deliver_due_reminders",
+        "schedule": crontab(minute="*/5"),  # every 5 minutes
+    },
 }
 
 
