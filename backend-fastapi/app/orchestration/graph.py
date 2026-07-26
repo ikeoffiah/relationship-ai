@@ -108,10 +108,20 @@ _ATTACHMENT_GUIDANCE = {
 }
 
 
-def build_system_prompt(strategy: dict, modifiers: dict, safety_state: dict, disclosures: list) -> str:
+def build_system_prompt(
+    strategy: dict, modifiers: dict, safety_state: dict, disclosures: list, memories: list = None
+) -> str:
     strategy = strategy or {}
     modifiers = modifiers or {}
     parts = [_CORE_IDENTITY]
+
+    memory_lines = [f"- {m.get('note')}" for m in (memories or []) if m.get("note")]
+    if memory_lines:
+        parts.append(
+            "What you remember about them from past sessions (use gently and only "
+            "when relevant — reference it naturally, never recite it back):\n"
+            + "\n".join(memory_lines[:5])
+        )
 
     primary = strategy.get("primary")
     if primary:
@@ -202,9 +212,9 @@ async def node_2_consent_gate(state: SessionState):
 
 
 async def node_3_memory_retrieval(state: SessionState):
-    latest_msg = state.short_term_buffer[-1]["content"] if state.short_term_buffer else ""
-    memories = await VectorRetrieval.retrieve(state.access_policy, latest_msg)
-    return {"retrieved_memories": memories}
+    # Memories are retrieved by the caller (chat_router) and placed on the state;
+    # pass them through unchanged.
+    return {"retrieved_memories": state.retrieved_memories or []}
 
 
 async def node_4_strategy_selection(state: SessionState):
@@ -224,6 +234,7 @@ async def node_6_system_prompt_assembly(state: SessionState):
         state.personalization_modifiers,
         state.safety_state,
         state.active_disclosures,
+        state.retrieved_memories,
     )
     return {"system_prompt": prompt}
 
