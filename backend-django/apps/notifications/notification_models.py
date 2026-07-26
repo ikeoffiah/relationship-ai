@@ -25,6 +25,9 @@ class NotificationType(models.TextChoices):
     BLISS_CREATED = "bliss_created", "Bliss Item Created"
     COMMITMENT_REMINDER = "commitment_reminder", "Commitment Reminder"
     COMMITMENT_CREATED = "commitment_created", "Commitment Created"
+    FOCUS_PROPOSED = "focus_proposed", "Focus Session Proposed"
+    FOCUS_STARTED = "focus_started", "Focus Session Started"
+    FOCUS_ENDED = "focus_ended", "Focus Session Ended"
     SYSTEM = "system", "System"
 
 
