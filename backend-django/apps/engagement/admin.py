@@ -14,6 +14,7 @@ from apps.engagement.models import (
     MicroActionTemplate,
     PointsLedger,
     SharedGoal,
+    TwoTruthsPlay,
 )
 
 
@@ -75,3 +76,8 @@ class BlissItemAdmin(admin.ModelAdmin):
     list_display = ("title", "kind", "status", "due_at", "source", "created_at")
     list_filter = ("kind", "status", "source")
     search_fields = ("title",)
+
+
+@admin.register(TwoTruthsPlay)
+class TwoTruthsPlayAdmin(admin.ModelAdmin):
+    list_display = ("user", "relationship", "lie_index", "guess_index", "updated_at")
