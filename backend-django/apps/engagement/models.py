@@ -514,6 +514,12 @@ class GamePack(models.Model):
         return self.game_type != "conversation_deck"
 
     @property
+    def is_agreement_game(self) -> bool:
+        """'This or That' compares both partners' own picks (agreement) rather
+        than each guessing the other, so it uses a different reveal."""
+        return self.game_type == "this_or_that"
+
+    @property
     def is_restricted(self) -> bool:
         """Spicy packs require age verification and a per-couple opt-in."""
         return self.category == "spicy"
