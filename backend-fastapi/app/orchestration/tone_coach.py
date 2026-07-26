@@ -233,3 +233,97 @@ async def suggest_replies(messages: List[Dict[str, str]]) -> List[str]:
     if not isinstance(suggestions, list):
         return []
     return [str(s).strip()[:300] for s in suggestions if str(s).strip()][:3]
+
+
+# ── Daily conversation "vibe" ────────────────────────────────────────────
+#
+# A playful, one-word read of the day's conversation ("Playful", "Intimate",
+# "Reconnecting", "Quiet"…). The vocabulary is CURATED and constrained on
+# purpose: the model may only pick from this list, so the label is always
+# on-brand and — importantly — a hard day maps to a gentle, honest label
+# (Tense / Distant / Supportive / Reconnecting) rather than something flippant.
+
+# (label, emoji, blurb) — order matters only for the deterministic fallback,
+# which scans for the first matching signal below.
+VIBES = [
+    ("Intimate", "🔥", "Close and emotionally open."),
+    ("Romantic", "💕", "Affectionate and full of love."),
+    ("Sexy", "😏", "Flirty and a little charged."),
+    ("Playful", "😄", "Teasing, light, and fun."),
+    ("Silly", "🤪", "Goofy and lighthearted."),
+    ("Deep", "🌊", "Reflective and meaningful."),
+    ("Cozy", "☕", "Warm and easy."),
+    ("Supportive", "🤝", "One of you leaning on the other."),
+    ("Reconnecting", "🌱", "Finding your way back to each other."),
+    ("Adventurous", "🧭", "Dreaming and planning together."),
+    ("Logistical", "🗓️", "Mostly plans and to-dos today."),
+    ("Tense", "⛅", "A little friction in the air."),
+    ("Distant", "🌫️", "A bit far apart today."),
+    ("Quiet", "🌙", "Only a few words today."),
+    ("Everyday", "🌼", "Ordinary and steady."),
+]
+_VIBE_BY_LABEL = {label.lower(): (label, emoji, blurb) for label, emoji, blurb in VIBES}
+_VIBE_DISCLAIMER = "A playful read of today — just for fun."
+
+_VIBE_SYSTEM = (
+    "You give a single playful label describing the overall vibe of a couple's "
+    "conversation today. Choose EXACTLY ONE label from this list and no other: "
+    + ", ".join(label for label, _, _ in VIBES) + ". "
+    "Pick the most fitting one. If the day was hard, pick an honest, gentle label "
+    "(Tense, Distant, Supportive, or Reconnecting) rather than a flippant one. "
+    'Respond ONLY with strict JSON: {"label": "<one label from the list>", '
+    '"blurb": "<one short, warm sentence, at most 15 words>"}.'
+)
+
+
+def _heuristic_vibe(text: str, count: int) -> tuple:
+    """Deterministic fallback label from simple signals — used when the model is
+    unavailable, so the feature still works (and CI can assert it)."""
+    t = f" {text.lower()} "
+    if count < 4:
+        return _VIBE_BY_LABEL["quiet"]
+
+    def has(*words: str) -> bool:
+        return any(w in t for w in words)
+
+    if has("sorry", "forgive", "make up", "made up", "my fault"):
+        return _VIBE_BY_LABEL["reconnecting"]
+    if has("angry", "annoyed", "upset", "frustrated", "argue", "fight", "whatever."):
+        return _VIBE_BY_LABEL["tense"]
+    if has("sexy", "want you", "in bed", "turn me on", "😏", "😈", "tonight 😉"):
+        return _VIBE_BY_LABEL["sexy"]
+    if has("love you", "miss you", "❤️", "😘", "my love", "babe", "gorgeous"):
+        return _VIBE_BY_LABEL["romantic"]
+    if has("haha", "lol", "lmao", "😂", "🤣", "😄", "so funny"):
+        return _VIBE_BY_LABEL["playful"]
+    if has("remind", "schedule", "appointment", "groceries", "bill", "pick up", "pay ", "book "):
+        return _VIBE_BY_LABEL["logistical"]
+    if has("scared", "worried", "hard time", "struggling", "here for you", "you okay"):
+        return _VIBE_BY_LABEL["supportive"]
+    return _VIBE_BY_LABEL["everyday"]
+
+
+async def daily_vibe(messages: List[Dict[str, str]]) -> dict:
+    """A playful one-word read of the day's conversation. Always returns
+    {"label", "emoji", "blurb", "disclaimer"}."""
+    cleaned = [m for m in (messages or []) if (m.get("content") or "").strip()]
+    joined = " ".join(m["content"].strip() for m in cleaned)
+
+    if not cleaned:
+        label, emoji, blurb = _VIBE_BY_LABEL["quiet"]
+        return {"label": label, "emoji": emoji, "blurb": blurb, "disclaimer": _VIBE_DISCLAIMER}
+
+    transcript = "\n".join(
+        f"{'Me' if m.get('role') == 'me' else 'Partner'}: {m['content'].strip()}"
+        for m in cleaned[-40:]
+    )
+    raw = await generate_reply(_VIBE_SYSTEM, [{"role": "user", "content": transcript}])
+    parsed = _extract_json(raw) or {}
+    chosen = _VIBE_BY_LABEL.get(str(parsed.get("label", "")).strip().lower())
+    if chosen:
+        label, emoji, default_blurb = chosen
+        blurb = str(parsed.get("blurb") or default_blurb)[:120]
+    else:
+        # Model unavailable or off-vocab → deterministic fallback.
+        label, emoji, blurb = _heuristic_vibe(joined, len(cleaned))
+    return {"label": label, "emoji": emoji, "blurb": blurb, "disclaimer": _VIBE_DISCLAIMER}
