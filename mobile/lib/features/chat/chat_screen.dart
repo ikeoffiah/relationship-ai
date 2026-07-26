@@ -17,6 +17,7 @@ import 'package:mobile/features/chat/widgets/message_input.dart';
 import 'package:mobile/features/chat/widgets/safety_protocol_modal.dart';
 import 'package:mobile/features/chat/widgets/suggestion_strip.dart';
 import 'package:mobile/features/chat/widgets/tone_coach_sheet.dart';
+import 'package:mobile/features/chat/widgets/daily_vibe_sheet.dart';
 import 'package:mobile/features/chat/tone/tone_viewmodel.dart';
 
 /// The main chat session screen.
@@ -167,6 +168,9 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
     }
   }
 
+  Future<void> _openVibe(List<ChatMessage> messages) =>
+      DailyVibeSheet.open(context, _tone, _recentForTone(messages));
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -243,6 +247,20 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
         ChatHeader(session: widget.sessionState),
         _AIDisclosureBanner(),
         if (isTurnHold) _TurnHoldBanner(countdown: chatState.turnHoldCountdown),
+        // Once there's a real conversation, offer a playful read of its vibe.
+        if (chatState.messages.length >= 4)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8, top: 4),
+              child: TextButton.icon(
+                icon: const Icon(Icons.auto_awesome, size: 16, color: AppColors.warmCoral),
+                label: const Text("Today's vibe",
+                    style: TextStyle(fontSize: 12, color: AppColors.warmCoral)),
+                onPressed: () => _openVibe(chatState.messages),
+              ),
+            ),
+          ),
         Expanded(
           child: MessageList(
             messages: chatState.messages,
