@@ -41,6 +41,8 @@ import 'package:mobile/features/engagement/views/daily_ritual_screen.dart';
 import 'package:mobile/features/engagement/views/shared_goals_screen.dart';
 import 'package:mobile/features/games/games_viewmodel.dart';
 import 'package:mobile/features/games/views/games_list_screen.dart';
+import 'package:mobile/features/faith/faith_viewmodel.dart';
+import 'package:mobile/features/faith/views/faith_screen.dart';
 import 'package:mobile/core/api_services/notification_api_service.dart';
 
 Future<void> main() async {
@@ -75,6 +77,7 @@ Future<void> main() async {
           provider.ChangeNotifierProvider(create: (_) => RelayViewModel()),
           provider.ChangeNotifierProvider(create: (_) => EngagementViewModel()),
           provider.ChangeNotifierProvider(create: (_) => GamesViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => FaithViewModel()),
         ],
         child: const riverpod.ProviderScope(child: MyApp()),
       ),
@@ -161,6 +164,7 @@ class _MyAppState extends State<MyApp> {
         '/engagement/daily': (context) => const DailyRitualScreen(),
         '/engagement/goals': (context) => const SharedGoalsScreen(),
         '/engagement/games': (context) => const GamesListScreen(),
+        '/engagement/faith': (context) => const FaithScreen(),
         '/onboarding': (context) => const OnboardingFlowScreen(),
         '/onboarding/portrait': (context) => const RelationshipPortraitScreen(),
         '/onboarding/complete': (context) => const OnboardingCompleteScreen(),
