@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/utils/external_links.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/features/settings/profile_edit_screen.dart';
@@ -199,23 +200,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingsTile(
                 icon: Icons.description_outlined,
                 title: 'Terms of Service',
-                onTap: () {
-                  // TODO: open in-app browser
-                },
+                onTap: () => openUrl(context, AppLinks.terms),
               ),
               _buildSettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy Policy',
-                onTap: () {
-                  // TODO: open in-app browser
-                },
+                onTap: () => openUrl(context, AppLinks.privacy),
               ),
               _buildSettingsTile(
                 icon: Icons.feedback_outlined,
                 title: 'Send feedback',
-                onTap: () {
-                  // TODO: open feedback form
-                },
+                onTap: () => openExternal(context, AppLinks.feedbackMailto()),
               ),
               const SizedBox(height: 24),
 

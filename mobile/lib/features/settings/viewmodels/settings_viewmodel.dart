@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/api_services/settings_api_service.dart';
+import 'package:mobile/core/services/biometric_service.dart';
 import 'package:mobile/core/services/storage_service.dart';
 
 /// Notification preference flags, matching the backend schema.
@@ -51,9 +52,11 @@ class NotificationPreferences {
 /// preferences, and account-level actions.
 class SettingsViewModel extends ChangeNotifier {
   final SettingsApiService _apiService;
+  final BiometricService _biometric;
 
-  SettingsViewModel({SettingsApiService? apiService})
-      : _apiService = apiService ?? SettingsApiService();
+  SettingsViewModel({SettingsApiService? apiService, BiometricService? biometric})
+      : _apiService = apiService ?? SettingsApiService(),
+        _biometric = biometric ?? BiometricService();
 
   // ── State ─────────────────────────────────────────────────────────────
 
@@ -69,6 +72,9 @@ class SettingsViewModel extends ChangeNotifier {
   // App-lock timeout stored locally (not sent to server).
   int _appLockTimeoutMinutes = 5;
 
+  // Biometric / device-credential unlock, persisted locally.
+  bool _biometricEnabled = false;
+
   // ── Getters ───────────────────────────────────────────────────────────
 
   bool get isLoading => _isLoading;
@@ -78,6 +84,7 @@ class SettingsViewModel extends ChangeNotifier {
   String get email => _email;
   NotificationPreferences get notificationPrefs => _notificationPrefs;
   int get appLockTimeoutMinutes => _appLockTimeoutMinutes;
+  bool get biometricEnabled => _biometricEnabled;
 
   // ── Private helpers ───────────────────────────────────────────────────
 
@@ -231,6 +238,43 @@ class SettingsViewModel extends ChangeNotifier {
   void setAppLockTimeout(int minutes) {
     _appLockTimeoutMinutes = minutes;
     notifyListeners();
+  }
+
+  // ── Biometric unlock (local only) ─────────────────────────────────────
+
+  /// Load the persisted biometric preference. Best-effort — a storage failure
+  /// just leaves it disabled.
+  Future<void> loadBiometricPref() async {
+    try {
+      _biometricEnabled = await StorageService.isBiometricEnabled();
+    } catch (_) {
+      _biometricEnabled = false;
+    }
+    notifyListeners();
+  }
+
+  /// Turn biometric unlock on or off. Enabling requires the device to support
+  /// it AND a successful biometric prompt, so a user can't enable a lock they
+  /// can't themselves pass. Returns the resulting enabled state.
+  Future<bool> setBiometricEnabled(bool enable) async {
+    if (enable) {
+      if (!await _biometric.canCheckBiometrics()) {
+        _setError('Biometric unlock isn\'t available on this device.');
+        return _biometricEnabled;
+      }
+      final ok = await _biometric.authenticate(
+        localizedReason: 'Confirm it\'s you to enable biometric unlock',
+      );
+      if (!ok) return _biometricEnabled; // failed/cancelled — leave unchanged
+    }
+    _biometricEnabled = enable;
+    try {
+      await StorageService.setBiometricEnabled(enable);
+    } catch (_) {
+      // Persistence is best-effort; the in-memory state still reflects intent.
+    }
+    notifyListeners();
+    return _biometricEnabled;
   }
 
   // ── Account Deletion ──────────────────────────────────────────────────

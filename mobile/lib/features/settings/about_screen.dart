@@ -1,6 +1,7 @@
 // File: about_screen.dart
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/utils/external_links.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mobile/shared/widgets/get_help_now_button.dart';
 
@@ -48,9 +49,10 @@ class _AboutScreenState extends State<AboutScreen> {
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 24),
-            _buildLinkTile(context, 'Terms of Service', () {/* TODO: open in‑app browser */}),
-            _buildLinkTile(context, 'Privacy Policy', () {/* TODO: open in‑app browser */}),
-            _buildLinkTile(context, 'Crisis Resources', () {/* TODO: navigate to safety resources */}),
+            _buildLinkTile(context, 'Terms of Service', () => openUrl(context, AppLinks.terms)),
+            _buildLinkTile(context, 'Privacy Policy', () => openUrl(context, AppLinks.privacy)),
+            _buildLinkTile(context, 'Crisis Resources',
+                () => Navigator.of(context).pushNamed('/safety')),
             const SizedBox(height: 24),
             const Text('Acknowledgements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),

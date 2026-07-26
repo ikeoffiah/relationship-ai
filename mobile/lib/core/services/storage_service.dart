@@ -55,6 +55,18 @@ class StorageService {
     await _storage.delete(key: _userIdKey);
   }
 
+  static const _biometricKey = 'biometric_enabled';
+
+  /// Persist whether biometric unlock is enabled.
+  static Future<void> setBiometricEnabled(bool enabled) async {
+    await _storage.write(key: _biometricKey, value: enabled ? '1' : '0');
+  }
+
+  /// Whether biometric unlock is enabled (defaults to false).
+  static Future<bool> isBiometricEnabled() async {
+    return (await _storage.read(key: _biometricKey)) == '1';
+  }
+
   /// Clear all data
   static Future<void> clearAll() async {
     await _storage.deleteAll();
