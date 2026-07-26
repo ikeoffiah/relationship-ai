@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from apps.engagement.models import (
     DailyQuestion,
+    DailyReading,
     EngagementStreak,
     MicroActionTemplate,
     PointsLedger,
@@ -32,7 +33,57 @@ POINTS = {
     "repair": 15,
     "both_answered_bonus": 10,
     "game_completed": 15,
+    "faith_practice": 5,
+    "faith_reflection": 10,
 }
+
+
+# ── Faith / spirituality ────────────────────────────────────────────────
+
+# Maps free-text religious_values (e.g. "Catholic", "practising Muslim") to a
+# reading tradition. First keyword hit wins; anything unmatched — including a
+# purely "spiritual but not religious" answer — falls back to universal content.
+_TRADITION_KEYWORDS = [
+    ("christian", ("christ", "catholic", "protestant", "baptist", "methodist",
+                   "orthodox", "gospel", "bible", "lutheran", "pentecostal",
+                   "presbyterian", "evangelical")),
+    ("islamic", ("muslim", "islam", "quran", "qur'an", "sunni", "shia")),
+    ("jewish", ("jewish", "judaism", "torah", "hebrew")),
+    ("buddhist", ("buddhist", "buddhism", "dharma", "zen")),
+    ("hindu", ("hindu", "hinduism", "vedic")),
+]
+
+
+def resolve_tradition(user) -> str:
+    """The reading tradition for a user, inferred from their profile's
+    free-text ``religious_values``. Defaults to 'universal'."""
+    profile = getattr(user, "personalization_profile", None)
+    raw = (getattr(profile, "religious_values", "") or "").strip().lower()
+    if not raw:
+        return "universal"
+    for tradition, keywords in _TRADITION_KEYWORDS:
+        if any(k in raw for k in keywords):
+            return tradition
+    return "universal"
+
+
+def todays_reading(user, day: Optional[date] = None) -> Optional[DailyReading]:
+    """
+    Today's reading for the user, from their tradition's active set, chosen by
+    date ordinal so both partners in the same tradition share it. Falls back to
+    the universal set when the tradition has no seeded content yet.
+    """
+    tradition = resolve_tradition(user)
+    readings = list(
+        DailyReading.objects.filter(is_active=True, tradition=tradition).order_by("order", "created_at")
+    )
+    if not readings and tradition != "universal":
+        readings = list(
+            DailyReading.objects.filter(is_active=True, tradition="universal").order_by("order", "created_at")
+        )
+    if not readings:
+        return None
+    return readings[_day_ordinal(day) % len(readings)]
 
 
 # ── Deterministic daily content ─────────────────────────────────────────

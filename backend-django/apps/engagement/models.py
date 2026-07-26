@@ -595,3 +595,152 @@ class GameConsent(models.Model):
                 fields=["relationship", "user"], name="uniq_game_consent_per_user"
             )
         ]
+
+
+# ── Faith & spirituality (opt-in) ───────────────────────────────────────
+#
+# A gentle daily practice for couples who want a shared spiritual rhythm. It is
+# strictly opt-in — surfaced only when a user has expressed religious/spiritual
+# values in their personalization profile — and mirrors the safety rule the
+# counseling side already follows: never use faith framing to pressure someone
+# to stay in an unsafe relationship (see apps/personalization/tasks.py).
+#
+# Content is tradition-tagged and chosen deterministically per day, exactly like
+# the daily question, so both partners share the same reading with no scheduler.
+# The seeded catalog uses only universal, non-sectarian reflections plus
+# public-domain (KJV) scripture; richer, curated per-tradition content is a
+# follow-up left to content ops, not code.
+
+
+class DailyReading(models.Model):
+    """
+    Catalog of daily faith readings. One is surfaced per day for a given
+    tradition, chosen by date ordinal (see ``services.todays_reading``).
+    """
+
+    TRADITION_CHOICES = [
+        ("universal", "Universal / spiritual"),
+        ("christian", "Christian"),
+        ("islamic", "Islamic"),
+        ("jewish", "Jewish"),
+        ("buddhist", "Buddhist"),
+        ("hindu", "Hindu"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tradition = models.CharField(
+        max_length=20, choices=TRADITION_CHOICES, default="universal", db_index=True
+    )
+    title = models.CharField(max_length=200)
+    reference = models.CharField(max_length=120, blank=True)  # e.g. "Psalm 133:1 (KJV)"
+    body = models.TextField()  # the reading itself (public-domain / universal only)
+    reflection_prompt = models.TextField()  # a question for the couple to discuss
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "daily_readings"
+        ordering = ["order", "created_at"]
+
+    def __str__(self) -> str:
+        return f"[{self.tradition}] {self.title}"
+
+
+class FaithPractice(models.Model):
+    """
+    Catalog entry for a daily spiritual practice a couple can check off
+    (e.g. prayer, scripture, fasting, gratitude, an act of service). A blank
+    ``tradition`` means it is shown to everyone.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key = models.SlugField(max_length=60, unique=True)
+    label = models.CharField(max_length=120)
+    icon = models.CharField(max_length=8, blank=True)  # a single emoji
+    tradition = models.CharField(max_length=20, blank=True, db_index=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "faith_practices"
+        ordering = ["order", "created_at"]
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class FaithPracticeLog(models.Model):
+    """One user's completion of a single practice on a given day."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="faith_practice_logs"
+    )
+    relationship = models.ForeignKey(
+        Relationship,
+        on_delete=models.CASCADE,
+        related_name="faith_practice_logs",
+        null=True,
+        blank=True,
+    )
+    practice = models.ForeignKey(
+        FaithPractice, on_delete=models.CASCADE, related_name="logs"
+    )
+    date_key = models.CharField(max_length=10)  # 'YYYY-MM-DD'
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "faith_practice_logs"
+        ordering = ["-completed_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "practice", "date_key"],
+                name="uniq_faith_practice_per_day",
+            )
+        ]
+
+
+class FaithReflection(models.Model):
+    """
+    A user's private, encrypted reflection on the day's reading. Encrypted at
+    rest per-user exactly like ``GratitudeMoment`` — the partner never sees the
+    text; it exists to make the reading a moment of pause, not a shared feed.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="faith_reflections"
+    )
+    relationship = models.ForeignKey(
+        Relationship,
+        on_delete=models.CASCADE,
+        related_name="faith_reflections",
+        null=True,
+        blank=True,
+    )
+    reading = models.ForeignKey(
+        DailyReading, on_delete=models.SET_NULL, related_name="reflections", null=True
+    )
+    date_key = models.CharField(max_length=10)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "faith_reflections"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "date_key"], name="uniq_faith_reflection_per_day"
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.text and not self.text.startswith("ENC:"):
+            self.text = encrypt_field_value(self.user, self.text)
+        super().save(*args, **kwargs)
+
+    @property
+    def decrypted_text(self) -> str:
+        return decrypt_field_value(self.user, self.text)

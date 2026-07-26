@@ -3,7 +3,9 @@ from django.contrib import admin
 from apps.engagement.models import (
     GameConsent,
     DailyQuestion,
+    DailyReading,
     EngagementStreak,
+    FaithPractice,
     GamePack,
     GameQuestion,
     GoalProgressEntry,
@@ -52,3 +54,16 @@ admin.site.register(PointsLedger)
 admin.site.register(EngagementStreak)
 
 admin.site.register(GameConsent)
+
+
+@admin.register(DailyReading)
+class DailyReadingAdmin(admin.ModelAdmin):
+    list_display = ("title", "tradition", "reference", "is_active", "order")
+    list_filter = ("tradition", "is_active")
+    search_fields = ("title", "reference")
+
+
+@admin.register(FaithPractice)
+class FaithPracticeAdmin(admin.ModelAdmin):
+    list_display = ("label", "key", "tradition", "is_active", "order")
+    list_filter = ("tradition", "is_active")

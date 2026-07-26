@@ -2,9 +2,17 @@
 
 from django.urls import path
 
-from apps.engagement import game_views, views
+from apps.engagement import faith_views, game_views, views
 
 urlpatterns = [
+    # Faith / spirituality (opt-in)
+    path("faith/today", faith_views.faith_today, name="engagement-faith-today"),
+    path(
+        "faith/practices/complete",
+        faith_views.complete_practice,
+        name="engagement-faith-practice-complete",
+    ),
+    path("faith/reflect", faith_views.reflect, name="engagement-faith-reflect"),
     # Couple games
     path("games", game_views.game_list, name="engagement-games"),
     path("games/spicy-consent", game_views.spicy_consent, name="engagement-spicy-consent"),
