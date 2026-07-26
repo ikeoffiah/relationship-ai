@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as provider;
 import 'package:uuid/uuid.dart';
+import 'package:mobile/features/bliss/bliss_viewmodel.dart';
+import 'package:mobile/features/bliss/widgets/bliss_confirm_sheet.dart';
 import 'package:mobile/features/consent/consent_summary_sheet.dart';
 import 'package:mobile/features/chat/widgets/in_session_consent_banner.dart';
 import 'package:mobile/features/consent/widgets/consent_badge.dart';
@@ -174,6 +177,38 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
     }
   }
 
+  /// A "@bliss …" message is handled by the assistant (interpret → confirm →
+  /// create) instead of being sent to counseling. Returns true if it was a
+  /// bliss command (so the caller skips the normal send).
+  Future<bool> _maybeHandleBliss(String text) async {
+    if (!isBlissCommand(text)) return false;
+    final vm = provider.Provider.of<BlissViewModel>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    final draft = await vm.interpret(text);
+    if (!mounted) return true;
+    if (draft == null) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text("I couldn't find something to schedule there. "
+            'Try “@bliss remind us to call the venue tomorrow at 5pm”.'),
+      ));
+      return true;
+    }
+    final confirmed = await BlissConfirmSheet.open(context, draft);
+    if (confirmed == null || !mounted) return true;
+    final item = await vm.create(confirmed);
+    if (!mounted) return true;
+    messenger.showSnackBar(SnackBar(
+      content: Text(item != null ? 'Added to your plan 🌸' : "Couldn't save that, try again."),
+      action: item != null
+          ? SnackBarAction(
+              label: 'View',
+              onPressed: () => Navigator.of(context).pushNamed('/engagement/bliss'),
+            )
+          : null,
+    ));
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider(widget.sessionId));
@@ -234,7 +269,8 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
           controller: _composer,
           disabled: isTurnHold,
           onCoach: _openCoach,
-          onSend: (text) {
+          onSend: (text) async {
+            if (await _maybeHandleBliss(text)) return;
             ref.read(chatProvider(widget.sessionId).notifier).sendMessage(text);
             _tone.clearSuggestions();
             Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
