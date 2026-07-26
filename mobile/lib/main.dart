@@ -15,6 +15,7 @@ import 'package:mobile/features/auth/viewmodels/welcome_viewmodel.dart';
 import 'package:mobile/features/auth/views/splash_screen.dart';
 import 'package:mobile/features/auth/views/age_verification_screen.dart';
 import 'package:mobile/features/auth/views/signup_screen.dart';
+import 'package:mobile/features/auth/views/new_password_screen.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
 import 'package:mobile/features/consent/consent_dashboard_screen.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
@@ -141,12 +142,22 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleDeepLink(Uri uri) {
-    if (uri.scheme == 'relationshipai' && uri.host == 'accept-invite') {
+    if (uri.scheme != 'relationshipai') return;
+    if (uri.host == 'accept-invite') {
       final token = uri.queryParameters['token'];
       if (token != null) {
         _navigatorKey.currentState?.pushNamed(
           '/relationship/accept',
           arguments: token,
+        );
+      }
+    } else if (uri.host == 'reset-password') {
+      final token = uri.queryParameters['token'];
+      final email = uri.queryParameters['email'];
+      if (token != null && email != null) {
+        _navigatorKey.currentState?.pushNamed(
+          '/reset-password',
+          arguments: {'email': email, 'token': token},
         );
       }
     }
@@ -164,6 +175,7 @@ class _MyAppState extends State<MyApp> {
         '/consent': (context) => const ConsentDashboardScreen(),
         '/verify-age': (context) => const AgeVerificationScreen(),
         '/signup': (context) => const SignupScreen(),
+        '/reset-password': (context) => const NewPasswordScreen(),
         '/relationship/invite': (context) => const InvitePartnerScreen(),
         '/relationship/settings': (context) =>
             const DissolveRelationshipScreen(),

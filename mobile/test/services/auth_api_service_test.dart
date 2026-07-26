@@ -92,8 +92,12 @@ void main() {
           requestOptions: RequestOptions(path: '/api/v1/auth/reset-password/'),
       ));
       
-      await authApiService.resetPassword('new_pass', 'token123');
-      verify(() => mockDio.post('/api/v1/auth/reset-password/', data: {'new_password': 'new_pass', 'token': 'token123'})).called(1);
+      await authApiService.resetPassword('new_pass', 'token123', 'user@test.com');
+      verify(() => mockDio.post('/api/v1/auth/reset-password/', data: {
+            'new_password': 'new_pass',
+            'token': 'token123',
+            'email': 'user@test.com',
+          })).called(1);
     });
   });
 }

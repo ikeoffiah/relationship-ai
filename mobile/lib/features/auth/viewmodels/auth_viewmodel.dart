@@ -34,6 +34,11 @@ class AuthViewModel extends ChangeNotifier {
   String _confirmPassword = '';
   String _fullName = '';
 
+  // Password-reset credentials, captured from the reset deep link
+  // (relationshipai://reset-password?email=…&token=…).
+  String _resetEmail = '';
+  String _resetToken = '';
+
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -46,6 +51,15 @@ class AuthViewModel extends ChangeNotifier {
   void setEmail(String value) {
     _email = value;
     _clearError();
+    notifyListeners();
+  }
+
+  /// Capture the email + token from a password-reset deep link so
+  /// [resetPassword] can complete the flow.
+  void setResetCredentials({required String email, required String token}) {
+    _resetEmail = email;
+    _resetToken = token;
+    _email = email; // keep the display email consistent
     notifyListeners();
   }
 
@@ -364,16 +378,19 @@ class AuthViewModel extends ChangeNotifier {
       return false;
     }
 
+    // The token + email come from the reset deep link
+    // (relationshipai://reset-password?email=…&token=…), captured via
+    // setResetCredentials. Without them, there's nothing to reset against.
+    if (_resetToken.isEmpty || _resetEmail.isEmpty) {
+      _setError('This reset link is invalid or has expired. Please request a new one.');
+      return false;
+    }
+
     _setLoading(true);
     try {
-      // Assuming we have a token somehow.
-      // For this flow, usually the token is from a deep link.
-      // Since we don't have deep linking implemented yet, we might need a placeholder or update the flow.
-      // But adhering to the API spec I created:
-      // TODO: Implement deep-linking to retrieve actual reset token
-      await _authService.resetPassword(_password, "placeholder-token");
+      await _authService.resetPassword(_password, _resetToken, _resetEmail);
 
-      debugPrint('Password reset successful for: $_email');
+      debugPrint('Password reset successful for: $_resetEmail');
       _setLoading(false);
       return true;
     } catch (e) {

@@ -59,11 +59,13 @@ class AuthApiService extends BaseApiService {
     }
   }
 
-  Future<void> resetPassword(String newPassword, String token) async {
+  Future<void> resetPassword(String newPassword, String token, String email) async {
     try {
       await dio.post(
         '/api/v1/auth/reset-password/',
-        data: {'new_password': newPassword, 'token': token},
+        // The backend's ResetPasswordView reads `email` alongside token +
+        // new_password to look up the user, so all three must be sent.
+        data: {'new_password': newPassword, 'token': token, 'email': email},
       );
     } catch (e) {
       throw handleError(e);
