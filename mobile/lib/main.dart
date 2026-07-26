@@ -47,6 +47,8 @@ import 'package:mobile/features/bliss/bliss_viewmodel.dart';
 import 'package:mobile/features/bliss/views/bliss_plan_screen.dart';
 import 'package:mobile/features/two_truths/two_truths_viewmodel.dart';
 import 'package:mobile/features/two_truths/views/two_truths_screen.dart';
+import 'package:mobile/features/commitments/commitment_viewmodel.dart';
+import 'package:mobile/features/commitments/views/commitments_screen.dart';
 import 'package:mobile/core/api_services/notification_api_service.dart';
 
 Future<void> main() async {
@@ -84,6 +86,7 @@ Future<void> main() async {
           provider.ChangeNotifierProvider(create: (_) => FaithViewModel()),
           provider.ChangeNotifierProvider(create: (_) => BlissViewModel()),
           provider.ChangeNotifierProvider(create: (_) => TwoTruthsViewModel()),
+          provider.ChangeNotifierProvider(create: (_) => CommitmentViewModel()),
         ],
         child: const riverpod.ProviderScope(child: MyApp()),
       ),
@@ -173,6 +176,7 @@ class _MyAppState extends State<MyApp> {
         '/engagement/faith': (context) => const FaithScreen(),
         '/engagement/bliss': (context) => const BlissPlanScreen(),
         '/engagement/two-truths': (context) => const TwoTruthsScreen(),
+        '/engagement/commitments': (context) => const CommitmentsScreen(),
         '/onboarding': (context) => const OnboardingFlowScreen(),
         '/onboarding/portrait': (context) => const RelationshipPortraitScreen(),
         '/onboarding/complete': (context) => const OnboardingCompleteScreen(),
