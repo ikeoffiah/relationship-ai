@@ -5,11 +5,22 @@ class MessageInput extends StatefulWidget {
   final bool disabled;
   final ValueChanged<String> onSend;
 
+  /// Optional external controller so a parent can prefill the draft (from a
+  /// suggestion or a coach rewrite) and read it back for coaching. When omitted,
+  /// the widget manages its own controller as before.
+  final TextEditingController? controller;
+
+  /// When provided, a "tune" button appears while there is a draft; tapping it
+  /// asks the tone coach to review the current text.
+  final VoidCallback? onCoach;
+
   const MessageInput({
     super.key,
     required this.onSend,
     this.isSending = false,
     this.disabled = false,
+    this.controller,
+    this.onCoach,
   });
 
   @override
@@ -17,23 +28,28 @@ class MessageInput extends StatefulWidget {
 }
 
 class _MessageInputState extends State<MessageInput> {
-  final TextEditingController _controller = TextEditingController();
+  TextEditingController? _ownController;
+  TextEditingController get _controller =>
+      widget.controller ?? (_ownController ??= TextEditingController());
   int _charCount = 0;
   static const int _maxChars = 1000;
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(() {
-      setState(() {
-        _charCount = _controller.text.length;
-      });
-    });
+    _controller.addListener(_onChanged);
+    _charCount = _controller.text.length;
+  }
+
+  void _onChanged() {
+    if (!mounted) return;
+    setState(() => _charCount = _controller.text.length);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller.removeListener(_onChanged);
+    _ownController?.dispose(); // never dispose a controller we don't own
     super.dispose();
   }
 
@@ -83,6 +99,17 @@ class _MessageInputState extends State<MessageInput> {
                     ),
                   ),
                 ),
+                if (widget.onCoach != null &&
+                    _controller.text.trim().isNotEmpty &&
+                    !widget.disabled) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.spa_outlined),
+                    color: Theme.of(context).primaryColor,
+                    tooltip: 'Check the tone',
+                    onPressed: widget.isSending ? null : widget.onCoach,
+                  ),
+                ],
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(

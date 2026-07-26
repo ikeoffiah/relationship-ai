@@ -12,6 +12,9 @@ import 'package:mobile/features/chat/widgets/chat_header.dart';
 import 'package:mobile/features/chat/widgets/message_list.dart';
 import 'package:mobile/features/chat/widgets/message_input.dart';
 import 'package:mobile/features/chat/widgets/safety_protocol_modal.dart';
+import 'package:mobile/features/chat/widgets/suggestion_strip.dart';
+import 'package:mobile/features/chat/widgets/tone_coach_sheet.dart';
+import 'package:mobile/features/chat/tone/tone_viewmodel.dart';
 
 /// The main chat session screen.
 ///
@@ -133,11 +136,32 @@ class _ChatBody extends ConsumerStatefulWidget {
 
 class _ChatBodyState extends ConsumerState<_ChatBody> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _composer = TextEditingController();
+  final ToneViewModel _tone = ToneViewModel();
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _composer.dispose();
+    _tone.dispose();
     super.dispose();
+  }
+
+  /// Map the recent conversation into the tone API's {role, content} shape.
+  List<Map<String, String>> _recentForTone(List<ChatMessage> messages) => [
+        for (final m in messages.where((m) => m.text.trim().isNotEmpty))
+          {'role': m.isUser ? 'me' : 'partner', 'content': m.text},
+      ];
+
+  Future<void> _openCoach() async {
+    final draft = _composer.text.trim();
+    if (draft.isEmpty) return;
+    final rewrite = await ToneCoachSheet.open(context, _tone, draft);
+    if (rewrite != null && rewrite.isNotEmpty) {
+      _composer.text = rewrite;
+      _composer.selection =
+          TextSelection.collapsed(offset: _composer.text.length);
+    }
   }
 
   void _scrollToBottom() {
@@ -169,6 +193,11 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
       
       if (next.messages.length > (previous?.messages.length ?? 0)) {
         Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+        // Refresh auto-suggestions when a new inbound (non-user) message lands.
+        final last = next.messages.isNotEmpty ? next.messages.last : null;
+        if (last != null && !last.isUser) {
+          _tone.refreshSuggestions(_recentForTone(next.messages));
+        }
       }
     });
 
@@ -188,10 +217,26 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
             },
           ),
         ),
+        AnimatedBuilder(
+          animation: _tone,
+          builder: (context, _) => SuggestionStrip(
+            suggestions: _tone.suggestions,
+            onDismiss: _tone.clearSuggestions,
+            onTap: (text) {
+              _composer.text = text;
+              _composer.selection =
+                  TextSelection.collapsed(offset: _composer.text.length);
+              _tone.clearSuggestions();
+            },
+          ),
+        ),
         MessageInput(
+          controller: _composer,
           disabled: isTurnHold,
+          onCoach: _openCoach,
           onSend: (text) {
             ref.read(chatProvider(widget.sessionId).notifier).sendMessage(text);
+            _tone.clearSuggestions();
             Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
           },
         ),
