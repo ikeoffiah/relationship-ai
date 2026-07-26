@@ -860,3 +860,55 @@ class TwoTruthsPlay(models.Model):
 
     def __str__(self) -> str:
         return f"TwoTruths({self.user_id})"
+
+
+# ── Partner commitments ─────────────────────────────────────────────────
+#
+# A commitment is a promise a partner adds for themselves — either something
+# they want to do FOR their partner ("bring you coffee in bed") or something the
+# couple wants to do WITH each other ("cook dinner together Friday") — with an
+# optional reminder so it doesn't slip.
+#
+# Privacy differs by kind: a "for my partner" commitment is the author's own
+# intention (kept private so it can stay a sweet surprise — only the author is
+# reminded), while a "with each other" commitment is shared and reminds both.
+# The list view enforces this; the reminder sweep (engagement.tasks) picks
+# recipients accordingly. Text is shared-by-design for the WITH kind, so — like a
+# SharedGoal — it's stored plaintext, not per-user encrypted.
+
+
+class Commitment(models.Model):
+    KIND_CHOICES = [
+        ("for_partner", "For my partner"),
+        ("with_partner", "With each other"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("done", "Done"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship, on_delete=models.CASCADE, related_name="commitments"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="commitments"
+    )
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default="for_partner")
+    text = models.CharField(max_length=280)
+    remind_at = models.DateTimeField(null=True, blank=True)
+    # Stamped once the reminder has fired, so the sweep never repeats it.
+    reminded_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "commitments"
+        ordering = ["remind_at", "created_at"]
+        indexes = [
+            models.Index(fields=["relationship", "status", "remind_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.kind}] {self.text}"

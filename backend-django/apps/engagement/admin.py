@@ -11,6 +11,7 @@ from apps.engagement.models import (
     GameQuestion,
     GoalProgressEntry,
     GratitudeMoment,
+    Commitment,
     MicroActionTemplate,
     PointsLedger,
     SharedGoal,
@@ -81,3 +82,10 @@ class BlissItemAdmin(admin.ModelAdmin):
 @admin.register(TwoTruthsPlay)
 class TwoTruthsPlayAdmin(admin.ModelAdmin):
     list_display = ("user", "relationship", "lie_index", "guess_index", "updated_at")
+
+
+@admin.register(Commitment)
+class CommitmentAdmin(admin.ModelAdmin):
+    list_display = ("text", "kind", "status", "remind_at", "created_by", "created_at")
+    list_filter = ("kind", "status")
+    search_fields = ("text",)

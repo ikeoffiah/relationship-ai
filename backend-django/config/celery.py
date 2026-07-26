@@ -25,6 +25,10 @@ app.conf.beat_schedule = {
         "task": "engagement.tasks.deliver_due_reminders",
         "schedule": crontab(minute="*/5"),  # every 5 minutes
     },
+    "deliver-due-commitment-reminders": {
+        "task": "engagement.tasks.deliver_due_commitments",
+        "schedule": crontab(minute="*/5"),  # every 5 minutes
+    },
 }
 
 

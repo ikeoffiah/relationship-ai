@@ -4,6 +4,7 @@ from django.urls import path
 
 from apps.engagement import (
     bliss_views,
+    commitment_views,
     faith_views,
     game_views,
     two_truths_views,
@@ -11,6 +12,18 @@ from apps.engagement import (
 )
 
 urlpatterns = [
+    # Partner commitments (for / with)
+    path("commitments", commitment_views.commitments, name="engagement-commitments"),
+    path(
+        "commitments/<uuid:item_id>/done",
+        commitment_views.complete_commitment,
+        name="engagement-commitment-done",
+    ),
+    path(
+        "commitments/<uuid:item_id>/cancel",
+        commitment_views.cancel_commitment,
+        name="engagement-commitment-cancel",
+    ),
     # Two Truths & a Lie
     path("two-truths", two_truths_views.state, name="engagement-two-truths"),
     path("two-truths/author", two_truths_views.author, name="engagement-two-truths-author"),

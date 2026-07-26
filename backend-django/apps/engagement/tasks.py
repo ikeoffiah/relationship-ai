@@ -14,7 +14,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.engagement import services
-from apps.engagement.models import BlissItem
+from apps.engagement.models import BlissItem, Commitment
 from apps.notifications.notification_models import NotificationType
 
 logger = logging.getLogger(__name__)
@@ -64,4 +64,53 @@ def deliver_due_reminders() -> int:
     count = _deliver()
     if count:
         logger.info("Delivered %d due @bliss reminder(s)", count)
+    return count
+
+
+def _commitment_recipients(item: Commitment) -> list:
+    """Who a commitment reminder goes to. A 'with each other' commitment reminds
+    both partners; a 'for my partner' one reminds only its author, so it can
+    stay a private surprise."""
+    if item.kind == "with_partner" and item.relationship is not None:
+        rel = item.relationship
+        return [uid for uid in {rel.partner_a_id, rel.partner_b_id} if uid is not None]
+    return [item.created_by_id]
+
+
+def _deliver_commitments(now=None) -> int:
+    """Fire reminders for due, un-reminded, active commitments. Callable in
+    tests via an injected ``now``."""
+    now = now or timezone.now()
+    due = Commitment.objects.filter(
+        status="active",
+        reminded_at__isnull=True,
+        remind_at__isnull=False,
+        remind_at__lte=now,
+    )
+    delivered = 0
+    for item in due:
+        body = (
+            item.text
+            if item.kind == "with_partner"
+            else f"You wanted to do this for your partner: {item.text}"
+        )
+        for uid in _commitment_recipients(item):
+            services.notify(
+                uid,
+                NotificationType.COMMITMENT_REMINDER,
+                title="A little commitment 💞",
+                body=body,
+                data={"deep_link": "/engagement/commitments", "item_id": str(item.id)},
+            )
+        item.reminded_at = now
+        item.save(update_fields=["reminded_at"])
+        delivered += 1
+    return delivered
+
+
+@shared_task(name="engagement.tasks.deliver_due_commitments")
+def deliver_due_commitments() -> int:
+    count = _deliver_commitments()
+    if count:
+        logger.info("Delivered %d due commitment reminder(s)", count)
     return count

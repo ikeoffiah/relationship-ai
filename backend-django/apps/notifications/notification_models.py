@@ -23,6 +23,8 @@ class NotificationType(models.TextChoices):
     GAME_READY = "game_ready", "Couple Game Results Ready"
     BLISS_REMINDER = "bliss_reminder", "Bliss Reminder"
     BLISS_CREATED = "bliss_created", "Bliss Item Created"
+    COMMITMENT_REMINDER = "commitment_reminder", "Commitment Reminder"
+    COMMITMENT_CREATED = "commitment_created", "Commitment Created"
     SYSTEM = "system", "System"
 
 
