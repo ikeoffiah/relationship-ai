@@ -12,6 +12,7 @@ from apps.engagement.models import (
     GoalProgressEntry,
     GratitudeMoment,
     Commitment,
+    FocusSession,
     MicroActionTemplate,
     PointsLedger,
     SharedGoal,
@@ -89,3 +90,9 @@ class CommitmentAdmin(admin.ModelAdmin):
     list_display = ("text", "kind", "status", "remind_at", "created_by", "created_at")
     list_filter = ("kind", "status")
     search_fields = ("text",)
+
+
+@admin.register(FocusSession)
+class FocusSessionAdmin(admin.ModelAdmin):
+    list_display = ("relationship", "status", "duration_minutes", "initiated_by", "started_at")
+    list_filter = ("status",)

@@ -912,3 +912,55 @@ class Commitment(models.Model):
 
     def __str__(self) -> str:
         return f"[{self.kind}] {self.text}"
+
+
+# ── Focus Mode (consensual, mutual) ─────────────────────────────────────
+#
+# A Focus session is a SHARED, opt-in intention to be present together for a
+# stretch — phones down, undistracted. It is deliberately the healthy inverse of
+# a controlling "app lock": it locks nothing and monitors nothing, one partner
+# proposes and the other must accept, and EITHER partner can end it at any moment
+# with no permission needed. The client shows a gentle shared timer; the backend
+# only tracks the mutual state. Never used to restrict, surveil, or gate a
+# partner's device.
+
+
+class FocusSession(models.Model):
+    STATUS_CHOICES = [
+        ("proposed", "Proposed"),      # awaiting the partner's acceptance
+        ("active", "Active"),          # both in; timer running
+        ("ended", "Ended"),            # finished or ended early by either
+        ("declined", "Declined"),      # partner declined the invite
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship, on_delete=models.CASCADE, related_name="focus_sessions"
+    )
+    initiated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="focus_sessions"
+    )
+    duration_minutes = models.PositiveSmallIntegerField(default=20)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="proposed")
+    started_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "focus_sessions"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["relationship", "status"]),
+        ]
+        constraints = [
+            # At most one live (proposed or active) session per couple.
+            models.UniqueConstraint(
+                fields=["relationship"],
+                condition=models.Q(status__in=["proposed", "active"]),
+                name="uniq_live_focus_per_relationship",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Focus({self.status}, {self.duration_minutes}m)"

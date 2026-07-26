@@ -6,12 +6,19 @@ from apps.engagement import (
     bliss_views,
     commitment_views,
     faith_views,
+    focus_views,
     game_views,
     two_truths_views,
     views,
 )
 
 urlpatterns = [
+    # Focus Mode (consensual, mutual)
+    path("focus", focus_views.current, name="engagement-focus"),
+    path("focus/propose", focus_views.propose, name="engagement-focus-propose"),
+    path("focus/accept", focus_views.accept, name="engagement-focus-accept"),
+    path("focus/decline", focus_views.decline, name="engagement-focus-decline"),
+    path("focus/end", focus_views.end, name="engagement-focus-end"),
     # Partner commitments (for / with)
     path("commitments", commitment_views.commitments, name="engagement-commitments"),
     path(

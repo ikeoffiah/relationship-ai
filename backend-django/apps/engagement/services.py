@@ -35,6 +35,7 @@ POINTS = {
     "game_completed": 15,
     "faith_practice": 5,
     "faith_reflection": 10,
+    "focus_completed": 10,
 }
 
 
