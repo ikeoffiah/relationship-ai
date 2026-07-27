@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.example.relationshipai</string>
+    <string>co.owjar.bliss</string>
     <key>CFBundleName</key>
     <string>RelationshipAI</string>
     <key>CFBundleVersion</key>

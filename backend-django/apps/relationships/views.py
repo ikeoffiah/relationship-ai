@@ -61,7 +61,7 @@ class RelationshipInviteView(views.APIView):
             )
 
             # Send email
-            invite_url = f"relationshipai://accept-invite?token={token}"
+            invite_url = f"bliss://accept-invite?token={token}"
             try:
                 send_mail(
                     subject="Connect on RelationshipAI",

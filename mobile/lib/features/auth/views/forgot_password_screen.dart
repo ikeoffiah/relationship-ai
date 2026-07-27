@@ -45,7 +45,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final success = await viewModel.sendPasswordResetEmail();
 
     // The reset link is delivered by email and opens the New Password screen via
-    // a deep link (relationshipai://reset-password) — so here we just confirm
+    // a deep link (bliss://reset-password) — so here we just confirm
     // and send the user back, rather than opening it directly (it needs the
     // emailed token).
     if (success && mounted) {
