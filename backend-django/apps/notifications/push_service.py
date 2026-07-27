@@ -60,7 +60,7 @@ class PushNotificationService:
             messaging.send(message)
             return True
         except Exception as e:
-            log.error("push_send_failed", title=notification.title, error=str(e))
+            log.error("push_send_failed for %s: %s", notification.title, str(e))
             return False
 
 
