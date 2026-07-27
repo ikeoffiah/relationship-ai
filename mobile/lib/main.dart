@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'
     hide Provider;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:mobile/firebase_options.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:mobile/features/chat/chat_screen.dart';
@@ -58,10 +57,13 @@ import 'package:mobile/core/api_services/notification_api_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Best-effort Firebase init for push. Guarded so a missing/incomplete native
-  // config never blocks app startup — push simply stays inert in that case.
+  // Best-effort Firebase init for push. No explicit options — Firebase reads the
+  // per-platform native config (android/app/google-services.json,
+  // ios/Runner/GoogleService-Info.plist), which are provided per-environment and
+  // NOT committed (they hold client API keys). Guarded so a missing config never
+  // blocks startup — push simply stays inert in that case.
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp();
   } catch (e) {
     debugPrint('Firebase init skipped: $e');
   }
