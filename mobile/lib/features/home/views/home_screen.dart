@@ -7,6 +7,7 @@ import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 import 'package:mobile/features/home/home_notifier.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
+import 'package:mobile/core/services/push_service.dart';
 import 'package:mobile/shared/widgets/get_help_now_button.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final userId = authVM.user?.id;
       if (userId != null) {
         provider.Provider.of<NotificationViewModel>(context, listen: false).fetchUnreadCount(userId);
+        // Register this device for push now that we have an authenticated
+        // session (the token POST needs the JWT). Idempotent + best-effort.
+        pushService.register();
       }
     });
   }
