@@ -265,8 +265,10 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
           child: MessageList(
             messages: chatState.messages,
             controller: _scrollController,
-            onRejectReframe: (correction) {
-              // TODO: Find message ID for the reframe correction
+            onRejectReframe: (messageId, correction) {
+              ref
+                  .read(chatProvider(widget.sessionId).notifier)
+                  .rejectReframe(messageId, correction);
             },
           ),
         ),

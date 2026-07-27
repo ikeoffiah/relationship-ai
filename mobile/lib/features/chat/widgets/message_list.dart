@@ -32,7 +32,9 @@ class UserMessageBubble extends StatelessWidget {
 
 class MessageList extends StatelessWidget {
   final List<ChatMessage> messages;
-  final ValueChanged<String>? onRejectReframe;
+  /// Called when the user rejects an assistant message's NVC reframe, with the
+  /// id of the message being corrected and the user's correction text.
+  final void Function(String messageId, String correction)? onRejectReframe;
   final ScrollController controller;
 
   const MessageList({
@@ -55,7 +57,10 @@ class MessageList extends StatelessWidget {
         } else {
           return AssistantMessageBubble(
             message: message,
-            onRejectReframe: onRejectReframe ?? (_) {},
+            // The bubble only knows the correction text; supply this message's
+            // id so the caller can route the correction to the right message.
+            onRejectReframe: (correction) =>
+                onRejectReframe?.call(message.id, correction),
           );
         }
       },
