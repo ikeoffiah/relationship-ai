@@ -106,12 +106,20 @@ class MemoryExtractor:
         self._provider = (
             provider or os.environ.get("LLM_PROVIDER", "openai")
         ).strip().lower()
-        self._client = client or self._build_client()
+        # The client is built lazily on first use (see _get_client): constructing
+        # it eagerly would raise when no API key is set even for calls that never
+        # reach the provider (e.g. an empty session that short-circuits).
+        self._client = client
         self._model = self._resolve_model()
 
+    def _get_client(self) -> Any:
+        if self._client is None:
+            self._client = self._build_client()
+        return self._client
+
     def _build_client(self) -> Any:
-        """Lazily build the default client for the configured provider so a
-        missing SDK never breaks module import."""
+        """Build the default client for the configured provider. Imports the SDK
+        lazily so a missing SDK never breaks module import."""
         if self._provider == "anthropic":
             from anthropic import AsyncAnthropic
 
@@ -139,15 +147,16 @@ class MemoryExtractor:
 
     async def _complete(self, prompt: str) -> str:
         """Call the provider and return the raw model text."""
+        client = self._get_client()
         if self._provider == "anthropic":
-            response = await self._client.messages.create(
+            response = await client.messages.create(
                 model=self._model,
                 max_tokens=MAX_EXTRACTION_TOKENS,
                 messages=[{"role": "user", "content": prompt}],
             )
             return "".join(getattr(b, "text", "") for b in response.content)
 
-        response = await self._client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=self._model,
             max_tokens=MAX_EXTRACTION_TOKENS,
             messages=[{"role": "user", "content": prompt}],
