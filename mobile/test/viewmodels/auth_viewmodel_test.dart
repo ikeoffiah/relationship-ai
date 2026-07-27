@@ -222,16 +222,30 @@ void main() {
       verify(() => mockAuthService.forgotPassword('test@example.com')).called(1);
     });
 
-    test('resetPassword triggers resetPassword', () async {
-      authViewModel.setEmail('test@example.com');
+    test('resetPassword sends new password + deep-link token + email', () async {
+      // Credentials come from the reset deep link.
+      authViewModel.setResetCredentials(email: 'test@example.com', token: 'reset-tok-123');
       authViewModel.setPassword('newpassword123');
       authViewModel.setConfirmPassword('newpassword123');
-      
-      when(() => mockAuthService.resetPassword(any(), any())).thenAnswer((_) async {});
+
+      when(() => mockAuthService.resetPassword(any(), any(), any()))
+          .thenAnswer((_) async {});
 
       final result = await authViewModel.resetPassword();
       expect(result, true);
-      verify(() => mockAuthService.resetPassword('newpassword123', 'placeholder-token')).called(1);
+      verify(() => mockAuthService.resetPassword(
+          'newpassword123', 'reset-tok-123', 'test@example.com')).called(1);
+    });
+
+    test('resetPassword refuses without deep-link credentials', () async {
+      authViewModel.setPassword('newpassword123');
+      authViewModel.setConfirmPassword('newpassword123');
+      // No setResetCredentials → no token/email.
+
+      final result = await authViewModel.resetPassword();
+      expect(result, false);
+      expect(authViewModel.errorMessage, contains('invalid'));
+      verifyNever(() => mockAuthService.resetPassword(any(), any(), any()));
     });
 
     test('resetPassword returns false for empty password', () async {

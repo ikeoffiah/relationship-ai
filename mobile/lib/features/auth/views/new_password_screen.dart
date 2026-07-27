@@ -27,6 +27,16 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
     super.initState();
     _passwordController.addListener(_onPasswordChanged);
     _confirmPasswordController.addListener(_onConfirmPasswordChanged);
+    // When opened from the reset deep link, the route carries {email, token}.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map && args['token'] is String && args['email'] is String) {
+        context.read<AuthViewModel>().setResetCredentials(
+              email: args['email'] as String,
+              token: args['token'] as String,
+            );
+      }
+    });
   }
 
   void _onPasswordChanged() {

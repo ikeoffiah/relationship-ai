@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:mobile/features/auth/views/forgot_password_screen.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
-import 'package:mobile/features/auth/views/new_password_screen.dart';
 
 class MockAuthViewModel extends Mock implements AuthViewModel {}
 
@@ -50,18 +49,20 @@ void main() {
       verify(() => mockAuthViewModel.sendPasswordResetEmail()).called(1);
     });
 
-    testWidgets('routes to NewPasswordScreen on success', (WidgetTester tester) async {
+    testWidgets('confirms the reset link was sent on success', (WidgetTester tester) async {
+      // The reset link is emailed and opens the New Password screen via a deep
+      // link, so success just shows a confirmation here (not direct navigation).
       when(() => mockAuthViewModel.sendPasswordResetEmail()).thenAnswer((_) async => true);
-      
+
       await tester.pumpWidget(createWidgetUnderTest());
-      
+
       final sendCodeFinder = find.text('Send Code');
       await tester.ensureVisible(sendCodeFinder);
       await tester.tap(sendCodeFinder);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      
-      expect(find.byType(NewPasswordScreen), findsOneWidget);
+
+      expect(find.textContaining('reset link is on its way'), findsOneWidget);
     });
 
     testWidgets('ForgotPasswordScreen shows error message when viewModel has error', (WidgetTester tester) async {

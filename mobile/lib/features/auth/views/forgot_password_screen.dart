@@ -4,7 +4,6 @@ import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/shared/widgets/animated_button.dart';
-import 'package:mobile/features/auth/views/new_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -41,14 +40,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _handleResetRequest() async {
     final viewModel = context.read<AuthViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     final success = await viewModel.sendPasswordResetEmail();
 
+    // The reset link is delivered by email and opens the New Password screen via
+    // a deep link (relationshipai://reset-password) — so here we just confirm
+    // and send the user back, rather than opening it directly (it needs the
+    // emailed token).
     if (success && mounted) {
-      // Navigate to New Password Screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const NewPasswordScreen()),
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('If that email is registered, a reset link is on its way. '
+              'Open it on this device to set a new password.'),
+        ),
       );
+      if (navigator.canPop()) navigator.pop();
     }
   }
 
