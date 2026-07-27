@@ -198,13 +198,13 @@ async def extract_memories(
     """
     Async post-session memory extraction pipeline.
 
-    1. Calls MemoryExtractor (Claude Haiku) to extract MemoryCandidates
+    1. Calls MemoryExtractor (OpenAI by default) to extract MemoryCandidates
     2. Upserts candidates into VectorMemoryStore
     3. Updates ConflictPatternTracker
     4. Updates TriggerInventoryBuilder
 
-    Note: Anthropic API key required for real extraction.
-    In test/staging environments, mock the MemoryExtractor.
+    Note: an LLM API key (OPENAI_API_KEY by default) is required for real
+    extraction. In test/staging environments, mock the MemoryExtractor.
     """
     from app.memory.extractor import MemoryExtractor
     from app.memory.conflict_tracker import ConflictPatternTracker

@@ -2,18 +2,23 @@
 Memory Extraction Pipeline (REL-89)
 
 After every session, MemoryUpdateTask calls POST /internal/extract-memories
-which runs this pipeline. Uses Claude claude-haiku-4-5-20251001 (fast, cost-effective)
-with a structured extraction prompt.
+which runs this pipeline. It uses the same provider switch as the rest of the
+app — OpenAI by default (Anthropic optional) — with a structured extraction
+prompt. The extraction model is cost-optimised (``gpt-4o-mini`` by default),
+since this is bulk structured extraction rather than a counseling turn.
+
+    LLM_PROVIDER             openai | anthropic            (default: openai)
+    OPENAI_API_KEY, OPENAI_EXTRACTION_MODEL                (default: gpt-4o-mini)
+    ANTHROPIC_API_KEY, ANTHROPIC_EXTRACTION_MODEL          (default: model_config)
 """
 
 import json
 import os
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
-from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
 
-from app.orchestration.model_config import MODEL_CONFIG
+from app.orchestration.model_config import ANTHROPIC_MODEL_CONFIG
 
 
 # ---------------------------------------------------------------------------
@@ -84,21 +89,52 @@ SESSION CONVERSATION:
 CONFIDENCE_THRESHOLD = 0.5
 HIGH_CONFIDENCE_THRESHOLD = 0.7
 
+MAX_EXTRACTION_TOKENS = 2048
+
 
 class MemoryExtractor:
     """
-    Extracts structured memories from a session using Claude Haiku.
+    Extracts structured memories from a session using the configured LLM
+    provider (OpenAI by default).
 
     Upsert logic (applied per memory_type):
     - If a memory of the same memory_type exists with confidence >= 0.7: update (don't duplicate)
     - If a new memory type or new topic: insert
     """
 
-    def __init__(self, anthropic_client: Optional[AsyncAnthropic] = None):
-        self._client = anthropic_client or AsyncAnthropic(
-            api_key=os.environ.get("ANTHROPIC_API_KEY", "")
-        )
-        self._model = MODEL_CONFIG["memory_extraction"]["model_id"]
+    def __init__(self, client: Optional[Any] = None, provider: Optional[str] = None):
+        self._provider = (
+            provider or os.environ.get("LLM_PROVIDER", "openai")
+        ).strip().lower()
+        # The client is built lazily on first use (see _get_client): constructing
+        # it eagerly would raise when no API key is set even for calls that never
+        # reach the provider (e.g. an empty session that short-circuits).
+        self._client = client
+        self._model = self._resolve_model()
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            self._client = self._build_client()
+        return self._client
+
+    def _build_client(self) -> Any:
+        """Build the default client for the configured provider. Imports the SDK
+        lazily so a missing SDK never breaks module import."""
+        if self._provider == "anthropic":
+            from anthropic import AsyncAnthropic
+
+            return AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+        from openai import AsyncOpenAI
+
+        return AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+
+    def _resolve_model(self) -> str:
+        if self._provider == "anthropic":
+            return os.environ.get(
+                "ANTHROPIC_EXTRACTION_MODEL",
+                ANTHROPIC_MODEL_CONFIG["memory_extraction"]["model_id"],
+            )
+        return os.environ.get("OPENAI_EXTRACTION_MODEL", "gpt-4o-mini")
 
     def _format_conversation(self, session_messages: list[dict]) -> str:
         """Format session messages into a readable conversation string."""
@@ -108,6 +144,24 @@ class MemoryExtractor:
             content = msg.get("content", "")
             lines.append(f"{role}: {content}")
         return "\n".join(lines)
+
+    async def _complete(self, prompt: str) -> str:
+        """Call the provider and return the raw model text."""
+        client = self._get_client()
+        if self._provider == "anthropic":
+            response = await client.messages.create(
+                model=self._model,
+                max_tokens=MAX_EXTRACTION_TOKENS,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return "".join(getattr(b, "text", "") for b in response.content)
+
+        response = await client.chat.completions.create(
+            model=self._model,
+            max_tokens=MAX_EXTRACTION_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.choices[0].message.content or ""
 
     async def extract(
         self,
@@ -131,13 +185,7 @@ class MemoryExtractor:
         conversation = self._format_conversation(session_messages)
         prompt = EXTRACTION_PROMPT.format(conversation=conversation)
 
-        response = await self._client.messages.create(
-            model=self._model,
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        raw_text = response.content[0].text.strip()
+        raw_text = (await self._complete(prompt)).strip()
 
         # Strip markdown code fences if present
         if raw_text.startswith("```"):
@@ -149,7 +197,7 @@ class MemoryExtractor:
         try:
             raw_candidates = json.loads(raw_text)
         except (json.JSONDecodeError, ValueError):
-            # If Claude returns malformed JSON, log and return empty
+            # If the model returns malformed JSON, log and return empty
             return []
 
         candidates = []

@@ -1,11 +1,17 @@
-from app.orchestration.model_config import MODEL_CONFIG
+from app.orchestration.model_config import ANTHROPIC_MODEL_CONFIG, MODEL_CONFIG
 from app.orchestration.session_limiter import SessionFrequencyLimiter
 
 def test_model_version_pinning():
+    # OpenAI is the default provider across all task paths.
     assert 'primary_counseling' in MODEL_CONFIG
-    assert MODEL_CONFIG['primary_counseling']['model_id'] == 'claude-opus-4-6'
-    assert MODEL_CONFIG['primary_counseling']['fallback'] == 'claude-sonnet-4-6'
-    assert MODEL_CONFIG['fast_path']['model_id'] == 'claude-haiku-4-5-20251001'
+    assert MODEL_CONFIG['primary_counseling']['model_id'] == 'gpt-4o'
+    assert MODEL_CONFIG['primary_counseling']['fallback'] == 'gpt-4o-mini'
+    assert MODEL_CONFIG['fast_path']['model_id'] == 'gpt-4o-mini'
+    assert MODEL_CONFIG['memory_extraction']['model_id'] == 'gpt-4o-mini'
+
+    # Anthropic remains available as an explicit opt-in (LLM_PROVIDER=anthropic).
+    assert ANTHROPIC_MODEL_CONFIG['primary_counseling']['model_id'] == 'claude-opus-4-6'
+    assert ANTHROPIC_MODEL_CONFIG['fast_path']['model_id'] == 'claude-haiku-4-5-20251001'
 
 def test_session_frequency_limiter():
     # Safe limits
