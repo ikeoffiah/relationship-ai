@@ -1,9 +1,20 @@
+import base64
 import json
 import logging
 import os
 from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
+
+
+def _parse_service_account(value: str) -> dict:
+    """Parse the service-account credential from the env var, accepting either
+    raw JSON or a base64-encoded JSON blob (easier to store as a single-line
+    secret on most hosts)."""
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, ValueError):
+        return json.loads(base64.b64decode(value).decode())
 
 
 @dataclass
@@ -25,8 +36,8 @@ class PushNotificationService:
         """Send a push notification to a specific device token."""
         account_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
         if not account_json:
-            log.warning("FIREBASE_SERVICE_ACCOUNT_JSON not set — push logged only",
-                        title=notification.title)
+            log.warning("FIREBASE_SERVICE_ACCOUNT_JSON not set — push logged only: %s",
+                        notification.title)
             print(f"[PUSH DRY-RUN] {notification.title}: {notification.body}")
             return True  # Dry run in dev/test
 
@@ -35,7 +46,7 @@ class PushNotificationService:
             from firebase_admin import credentials, messaging
 
             if not firebase_admin._apps:
-                cred = credentials.Certificate(json.loads(account_json))
+                cred = credentials.Certificate(_parse_service_account(account_json))
                 firebase_admin.initialize_app(cred)
 
             message = messaging.Message(
