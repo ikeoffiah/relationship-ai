@@ -169,3 +169,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# Firebase config — client keys, provided per-environment (flutterfire configure), never committed.
+mobile/lib/firebase_options.dart
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+mobile/macos/Runner/GoogleService-Info.plist
+mobile/firebase.json

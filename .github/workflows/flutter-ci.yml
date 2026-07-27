@@ -23,5 +23,14 @@ jobs:
         working-directory: mobile/
       - run: flutter test --coverage
         working-directory: mobile/
+      # The real google-services.json is gitignored (holds client keys); supply a
+      # placeholder so the release build's Google Services Gradle task can run.
+      - name: Provide placeholder google-services.json for the build
+        working-directory: mobile/
+        run: |
+          if [ ! -f android/app/google-services.json ]; then
+            cp android/app/google-services.json.example android/app/google-services.json
+            echo "Using placeholder google-services.json for CI build."
+          fi
       - run: flutter build apk --release
         working-directory: mobile/
