@@ -25,12 +25,13 @@ def candidate_dict(**overrides):
 
 
 def make_client(text):
-    """Anthropic client double whose messages.create returns `text`."""
+    """OpenAI client double whose chat.completions.create returns `text`."""
     client = MagicMock()
     response = MagicMock()
-    response.content = [MagicMock(text=text)]
-    client.messages = MagicMock()
-    client.messages.create = AsyncMock(return_value=response)
+    response.choices = [MagicMock(message=MagicMock(content=text))]
+    client.chat = MagicMock()
+    client.chat.completions = MagicMock()
+    client.chat.completions.create = AsyncMock(return_value=response)
     return client
 
 
@@ -74,7 +75,7 @@ def test_unknown_memory_type_is_rejected():
 # ---------------------------------------------------------------------------
 
 def test_format_conversation_uppercases_roles_and_joins_with_newlines():
-    extractor = MemoryExtractor(anthropic_client=make_client("[]"))
+    extractor = MemoryExtractor(client=make_client("[]"))
 
     formatted = extractor._format_conversation(
         [
@@ -87,7 +88,7 @@ def test_format_conversation_uppercases_roles_and_joins_with_newlines():
 
 
 def test_format_conversation_handles_missing_fields():
-    extractor = MemoryExtractor(anthropic_client=make_client("[]"))
+    extractor = MemoryExtractor(client=make_client("[]"))
 
     formatted = extractor._format_conversation([{}, {"role": "user"}])
 
@@ -95,7 +96,7 @@ def test_format_conversation_handles_missing_fields():
 
 
 def test_format_conversation_of_empty_list_is_empty_string():
-    extractor = MemoryExtractor(anthropic_client=make_client("[]"))
+    extractor = MemoryExtractor(client=make_client("[]"))
     assert extractor._format_conversation([]) == ""
 
 
@@ -106,10 +107,10 @@ def test_format_conversation_of_empty_list_is_empty_string():
 @pytest.mark.asyncio
 async def test_empty_session_returns_empty_without_calling_api():
     client = make_client("[]")
-    extractor = MemoryExtractor(anthropic_client=client)
+    extractor = MemoryExtractor(client=client)
 
     assert await extractor.extract(session_messages=[], user_id="u1") == []
-    client.messages.create.assert_not_awaited()
+    client.chat.completions.create.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -121,7 +122,7 @@ async def test_happy_path_parses_candidates(messages):
                            memory_type="conflict_pattern", confidence=0.82),
         ]
     )
-    extractor = MemoryExtractor(anthropic_client=make_client(payload))
+    extractor = MemoryExtractor(client=make_client(payload))
 
     results = await extractor.extract(session_messages=messages, user_id="u1")
 
@@ -135,12 +136,12 @@ async def test_happy_path_parses_candidates(messages):
 @pytest.mark.asyncio
 async def test_prompt_includes_the_formatted_conversation(messages):
     client = make_client("[]")
-    extractor = MemoryExtractor(anthropic_client=client)
+    extractor = MemoryExtractor(client=client)
 
     await extractor.extract(session_messages=messages, user_id="u1")
 
-    kwargs = client.messages.create.await_args.kwargs
-    assert kwargs["model"] == "claude-haiku-4-5-20251001"
+    kwargs = client.chat.completions.create.await_args.kwargs
+    assert kwargs["model"] == "gpt-4o-mini"
     assert kwargs["max_tokens"] == 2048
     prompt = kwargs["messages"][0]["content"]
     assert "USER: We argued about the holidays again." in prompt
@@ -156,7 +157,7 @@ async def test_low_confidence_candidates_are_dropped(messages):
             candidate_dict(content="also dropped", confidence=0.1),
         ]
     )
-    extractor = MemoryExtractor(anthropic_client=make_client(payload))
+    extractor = MemoryExtractor(client=make_client(payload))
 
     results = await extractor.extract(session_messages=messages, user_id="u1")
 
@@ -165,7 +166,7 @@ async def test_low_confidence_candidates_are_dropped(messages):
 
 @pytest.mark.asyncio
 async def test_malformed_json_returns_empty_list(messages):
-    extractor = MemoryExtractor(anthropic_client=make_client("Sure! Here you go: {oops"))
+    extractor = MemoryExtractor(client=make_client("Sure! Here you go: {oops"))
 
     assert await extractor.extract(session_messages=messages, user_id="u1") == []
 
@@ -173,7 +174,7 @@ async def test_malformed_json_returns_empty_list(messages):
 @pytest.mark.asyncio
 async def test_json_code_fence_is_stripped(messages):
     payload = "```json\n" + json.dumps([candidate_dict(content="fenced")]) + "\n```"
-    extractor = MemoryExtractor(anthropic_client=make_client(payload))
+    extractor = MemoryExtractor(client=make_client(payload))
 
     results = await extractor.extract(session_messages=messages, user_id="u1")
 
@@ -183,7 +184,7 @@ async def test_json_code_fence_is_stripped(messages):
 @pytest.mark.asyncio
 async def test_bare_code_fence_is_stripped(messages):
     payload = "```\n" + json.dumps([candidate_dict(content="bare fence")]) + "\n```"
-    extractor = MemoryExtractor(anthropic_client=make_client(payload))
+    extractor = MemoryExtractor(client=make_client(payload))
 
     results = await extractor.extract(session_messages=messages, user_id="u1")
 
@@ -193,7 +194,7 @@ async def test_bare_code_fence_is_stripped(messages):
 @pytest.mark.asyncio
 async def test_surrounding_whitespace_is_tolerated(messages):
     payload = "\n\n  " + json.dumps([candidate_dict(content="padded")]) + "  \n"
-    extractor = MemoryExtractor(anthropic_client=make_client(payload))
+    extractor = MemoryExtractor(client=make_client(payload))
 
     results = await extractor.extract(session_messages=messages, user_id="u1")
 
@@ -210,7 +211,7 @@ async def test_malformed_item_is_skipped_but_siblings_survive(messages):
             candidate_dict(content="good two", memory_type="trigger"),
         ]
     )
-    extractor = MemoryExtractor(anthropic_client=make_client(payload))
+    extractor = MemoryExtractor(client=make_client(payload))
 
     results = await extractor.extract(session_messages=messages, user_id="u1")
 
@@ -225,7 +226,7 @@ async def test_invalid_memory_type_item_is_skipped(messages):
             candidate_dict(content="valid"),
         ]
     )
-    extractor = MemoryExtractor(anthropic_client=make_client(payload))
+    extractor = MemoryExtractor(client=make_client(payload))
 
     results = await extractor.extract(session_messages=messages, user_id="u1")
 
@@ -234,11 +235,12 @@ async def test_invalid_memory_type_item_is_skipped(messages):
 
 @pytest.mark.asyncio
 async def test_empty_json_array_returns_empty_list(messages):
-    extractor = MemoryExtractor(anthropic_client=make_client("[]"))
+    extractor = MemoryExtractor(client=make_client("[]"))
 
     assert await extractor.extract(session_messages=messages, user_id="u1") == []
 
 
-def test_extractor_pins_the_memory_extraction_model():
-    extractor = MemoryExtractor(anthropic_client=make_client("[]"))
-    assert extractor._model == "claude-haiku-4-5-20251001"
+def test_extractor_defaults_to_openai_extraction_model():
+    extractor = MemoryExtractor(client=make_client("[]"))
+    assert extractor._provider == "openai"
+    assert extractor._model == "gpt-4o-mini"
