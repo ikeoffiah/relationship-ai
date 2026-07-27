@@ -153,7 +153,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _handleDeepLink(Uri uri) {
-    if (uri.scheme != 'relationshipai') return;
+    if (uri.scheme != 'bliss') return;
     if (uri.host == 'accept-invite') {
       final token = uri.queryParameters['token'];
       if (token != null) {

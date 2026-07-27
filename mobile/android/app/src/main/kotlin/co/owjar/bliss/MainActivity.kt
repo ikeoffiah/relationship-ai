@@ -1,4 +1,4 @@
-package ai.relationship.mobile
+package co.owjar.bliss
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

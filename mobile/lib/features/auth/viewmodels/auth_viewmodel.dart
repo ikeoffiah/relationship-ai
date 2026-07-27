@@ -35,7 +35,7 @@ class AuthViewModel extends ChangeNotifier {
   String _fullName = '';
 
   // Password-reset credentials, captured from the reset deep link
-  // (relationshipai://reset-password?email=…&token=…).
+  // (bliss://reset-password?email=…&token=…).
   String _resetEmail = '';
   String _resetToken = '';
 
@@ -379,7 +379,7 @@ class AuthViewModel extends ChangeNotifier {
     }
 
     // The token + email come from the reset deep link
-    // (relationshipai://reset-password?email=…&token=…), captured via
+    // (bliss://reset-password?email=…&token=…), captured via
     // setResetCredentials. Without them, there's nothing to reset against.
     if (_resetToken.isEmpty || _resetEmail.isEmpty) {
       _setError('This reset link is invalid or has expired. Please request a new one.');

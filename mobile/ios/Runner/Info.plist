@@ -113,19 +113,24 @@
 		</dict>
 	</dict>
 
-	<!-- Deep Link configuration for relationship invitations -->
+	<!-- Deep Link configuration (invites, password reset): bliss://… -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.relationshipai.mobile</string>
+			<string>co.owjar.bliss</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>relationshipai</string>
+				<string>bliss</string>
 			</array>
 		</dict>
+	</array>
+	<!-- Allow the app to process pushes delivered while backgrounded. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
 	</array>
 
 </dict>

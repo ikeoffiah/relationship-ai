@@ -150,7 +150,7 @@ class ForgotPasswordView(views.APIView):
                 token = default_token_generator.make_token(user)
                 # In a real app, this would be a link to your frontend mobile deep link
                 reset_link = (
-                    f"relationshipai://reset-password?email={email}&token={token}"
+                    f"bliss://reset-password?email={email}&token={token}"
                 )
 
                 send_mail(
