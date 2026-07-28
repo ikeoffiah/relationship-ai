@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "apps.counseling",
     "apps.sessions",
     "apps.safety",
+    "apps.chat",
     "apps.config",
     "apps.notifications",
     "apps.engagement",
