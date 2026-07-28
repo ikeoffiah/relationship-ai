@@ -246,16 +246,89 @@ _CHECK_SYSTEM = (
 # unnecessarily is one cheap call, while the cost of skipping wrongly is a
 # missed catch. Only clearly-benign drafts short-circuit.
 
-_CONTEMPT_MARKERS = (
-    "pathetic", "stupid", "idiot", "moron", "selfish", "lazy", "useless",
-    "ridiculous", "grow up", "shut up", "whatever", "get over it", "childish",
-    "immature", "disgusting", "embarrassing",
+# Contempt is the single strongest predictor of a relationship failing, and it
+# is also the thing a keyword list can actually catch — so this list is
+# deliberately long. Recall matters far more than precision here: a term that
+# over-triggers costs one cheap call the model then clears, while a term that
+# is missing means the model never sees that message at all.
+#
+# What is deliberately NOT here: words that are both extremely common and
+# usually benign ("obviously", "seriously", "actually"). Those would push the
+# escalation rate toward 100% and cost the tiering its whole purpose without
+# catching anything.
+
+# Split in two, because these words behave differently.
+#
+# Strong terms are contempt wherever they appear — nobody calls the traffic a
+# "worthless bastard" and means it kindly. Contextual terms are only contempt
+# when aimed at a person: "that show was ridiculous" and "this traffic is
+# disgusting" are ordinary sentences, and firing on them was pure waste.
+#
+# Matched on word boundaries, so "pig" does not fire on "pigment".
+_CONTEMPT_WORDS_STRONG = (
+    # name-calling
+    "pathetic", "idiot", "moron", "loser", "jerk", "asshole", "arsehole",
+    "bitch", "bastard", "prick", "twat", "psycho", "brat", "slob",
+    # character attacks
+    "worthless", "spineless", "narcissist", "insufferable",
+    # disgust aimed at a person
+    "revolting", "repulsive", "vile", "sickening",
+    # dismissal of a person's mind
+    "delusional", "unhinged", "hysterical",
+)
+
+# Contempt only when there is a "you" to attach them to.
+_CONTEMPT_WORDS_CONTEXTUAL = (
+    "stupid", "dumb", "selfish", "lazy", "useless", "childish", "immature",
+    "manipulative", "toxic", "controlling", "disgusting", "gross", "ridiculous",
+    "absurd", "laughable", "dramatic", "embarrassing", "humiliating", "freak",
+    "weirdo", "pig", "clown", "joke",
+)
+
+# Phrases — matched as substrings, since word boundaries do not help here.
+_CONTEMPT_PHRASES = (
+    # mockery
+    "grow up", "shut up", "get over it", "get a grip", "give me a break",
+    "oh please", "boo hoo", "poor you", "cry me a river", "wow just wow",
+    "spare me", "you're kidding me", "youre kidding me",
+    # minimising / gaslighting-adjacent
+    "you're overreacting", "youre overreacting", "calm down", "you're too sensitive",
+    "youre too sensitive", "stop being so", "drama queen", "it's not that deep",
+    "its not that deep", "you're imagining", "youre imagining", "that never happened",
+    "no one would believe", "nobody would believe",
+    # condescension
+    "as usual", "typical you", "here we go again", "why am i not surprised",
+    "of course you", "should have known", "figures",
+    # character verdicts
+    "just like your mother", "just like your father", "you'll never change",
+    "youll never change", "that's who you are", "thats who you are",
+    "this is why", "no wonder",
+    # profanity aimed at the partner
+    "fuck you", "screw you", "go to hell", "piss off", "sod off",
+    # stonewalling / withdrawal
+    "forget it", "don't talk to me", "dont talk to me",
+    "leave me alone", "done talking", "not doing this",
+    # relationship threats thrown in anger
+    "maybe we should break up", "i want a divorce", "we're done", "were done",
+)
+
+_STRONG_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in _CONTEMPT_WORDS_STRONG) + r")\b"
+)
+_CONTEXTUAL_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in _CONTEMPT_WORDS_CONTEXTUAL) + r")\b"
 )
 
 # Sweeping character claims, the Gottman "always/never" pattern.
-_ABSOLUTE_MARKERS = ("always", "never", "every single time", "nobody else", "no one else")
+_ABSOLUTE_MARKERS = (
+    "always", "never", "every single time", "every time", "nobody else",
+    "no one else", "not once", "constantly",
+)
 
-_THREAT_MARKERS = ("i'm done", "im done", "i'm gone", "im gone", "watch me", "or else")
+_THREAT_MARKERS = (
+    "i'm done", "im done", "i'm gone", "im gone", "watch me", "or else",
+    "you'll regret", "youll regret", "don't push me", "dont push me",
+)
 
 # Second-person plus any of these reads as an attack on the person rather than
 # a description of a feeling.
@@ -263,12 +336,13 @@ _THREAT_MARKERS = ("i'm done", "im done", "i'm gone", "im gone", "watch me", "or
 # Matched on word boundaries, not substrings. An earlier version looked for
 # "you " with a trailing space and so missed "nobody else would put up with
 # you" — real contempt, silently skipped, because the word ended the sentence.
-_SECOND_PERSON_RE = re.compile(r"\b(you|your|you're|youre|yourself|u)\b")
+_SECOND_PERSON_RE = re.compile(r"\b(you|your|you're|youre|yourself|u|ur)\b")
 
 _NEGATIVE_WORDS = (
     "hate", "fault", "blame", "don't care", "dont care", "didn't even",
-    "didnt even", "don't even", "dont even", "ruin", "worst", "sick of",
-    "fed up", "typical", "put up with",
+    "didnt even", "don't even", "dont even", "ruin", "ruined", "worst",
+    "sick of", "fed up", "typical", "put up with", "can't stand", "cant stand",
+    "problem is", "issue is", "always do", "never do",
 )
 
 
@@ -277,7 +351,11 @@ def _needs_model(draft: str) -> bool:
     text = draft.lower()
     second_person = bool(_SECOND_PERSON_RE.search(text))
 
-    if any(m in text for m in _CONTEMPT_MARKERS):
+    if _STRONG_RE.search(text):
+        return True
+    if second_person and _CONTEXTUAL_RE.search(text):
+        return True
+    if any(m in text for m in _CONTEMPT_PHRASES):
         return True
     if any(m in text for m in _THREAT_MARKERS):
         return True
@@ -291,7 +369,11 @@ def _needs_model(draft: str) -> bool:
     letters = [c for c in draft if c.isalpha()]
     if len(letters) > 12 and sum(c.isupper() for c in letters) / len(letters) > 0.7:
         return True
-    if draft.count("!") >= 3:
+    # Exclamation marks alone are a poor signal — "I got the job!!!" is the
+    # commonest form by far. Anger that reaches three of them almost always
+    # also has a target or is shouting, both of which are caught above, so
+    # require one of those rather than firing on punctuation by itself.
+    if draft.count("!") >= 3 and second_person:
         return True
     return False
 

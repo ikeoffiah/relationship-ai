@@ -611,3 +611,61 @@ class ReadCoachTests(AssistTestCase):
         system = assist._READ_COACH_SYSTEM.lower()
         self.assertIn("never diagnose, label or characterise the partner", system)
         self.assertIn("never take the reader's side", system)
+
+
+class ContemptVocabularyTests(AssistTestCase):
+    """The expanded gate vocabulary.
+
+    Recall is asserted absolutely; escalation rate only loosely. A term that
+    over-triggers costs one cheap call the model then clears — a term that is
+    missing means the model never sees that message at all.
+    """
+
+    def test_contempt_the_original_list_missed(self):
+        for draft in (
+            "oh please, spare me the drama queen act",
+            "here we go again, why am I not surprised",
+            "you're just like your mother and you'll never change",
+            "wow just wow. cry me a river",
+            "that never happened, you're imagining things again",
+            "fuck you, I'm not doing this",
+            "what a joke. absolutely pathetic",
+            "don't talk to me, leave me alone",
+        ):
+            self.assertTrue(assist._needs_model(draft), draft)
+
+    def test_strong_terms_fire_without_a_target(self):
+        """Nobody calls the traffic a worthless bastard and means it kindly."""
+        self.assertTrue(assist._needs_model("this is pathetic"))
+
+    def test_contextual_terms_need_someone_to_aim_at(self):
+        """'That show was ridiculous' is an ordinary sentence."""
+        self.assertFalse(assist._needs_model("that show was ridiculous, I laughed"))
+        self.assertFalse(assist._needs_model("this traffic is absolutely disgusting"))
+        # ...but the same word aimed at a partner does escalate.
+        self.assertTrue(assist._needs_model("you are being ridiculous"))
+
+    def test_never_mind_is_not_treated_as_stonewalling(self):
+        """Far more often a benign correction. Real stonewalling keeps its
+        other markers, which are still in the list."""
+        self.assertFalse(assist._needs_model("never mind, I found my keys"))
+        self.assertTrue(assist._needs_model("forget it, I'm done talking"))
+
+    def test_word_boundaries_prevent_substring_false_fires(self):
+        for benign in ("I need to buy pigment for the wall", "let us assume the best"):
+            self.assertFalse(assist._needs_model(benign), benign)
+
+    def test_recall_is_total_across_the_eval_set(self):
+        from apps.chat.evalset import EVAL_DRAFTS
+
+        missed = [d for d, should in EVAL_DRAFTS if should and not assist._needs_model(d)]
+        self.assertEqual(missed, [], f"gate would skip these entirely: {missed}")
+
+    def test_expanding_the_vocabulary_did_not_wreck_the_escalation_rate(self):
+        from apps.chat.evalset import EVAL_DRAFTS
+
+        escalated = sum(1 for d, _ in EVAL_DRAFTS if assist._needs_model(d))
+        # Measured at 46% on a set deliberately loaded with hard cases; real
+        # traffic skews far more benign. Anywhere near 100% means the tiering
+        # has stopped earning its place.
+        self.assertLess(escalated / len(EVAL_DRAFTS), 0.7)

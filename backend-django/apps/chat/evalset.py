@@ -46,6 +46,28 @@ EVAL_DRAFTS: list[tuple[str, bool]] = [
     ("nobody else would put up with you", True),
     ("you never cared about me, not once", True),
     ("shut up. I'm done talking to you", True),
+
+    # ── Contempt the original word list missed entirely ─────────────────────
+    ("oh please, spare me the drama queen act", True),
+    ("here we go again, why am I not surprised", True),
+    ("you're just like your mother and you'll never change", True),
+    ("wow just wow. cry me a river", True),
+    ("that never happened, you're imagining things again", True),
+    ("fuck you, I'm not doing this", True),
+    ("you're being hysterical, calm down", True),
+    ("what a joke. absolutely pathetic", True),
+    ("don't talk to me, leave me alone", True),
+    ("maybe we should break up then", True),
+
+    # ── Benign uses of words that appear in the vocabulary ───────────────────
+    # These may still escalate — that costs one cheap call the model clears —
+    # but they must never be *flagged*, so they belong in the set.
+    ("that show was ridiculous, I laughed so hard", False),
+    ("relax, I've got the tickets sorted", False),
+    ("this traffic is absolutely disgusting", False),
+    ("never mind, I found my keys", False),
+    ("I always look forward to fridays with you", False),
+    ("my boss is being a nightmare, not you", False),
 ]
 
 
