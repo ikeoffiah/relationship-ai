@@ -36,6 +36,7 @@ import 'package:mobile/features/notifications/notification_center_screen.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
 import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/features/settings/email_change_screen.dart';
+import 'package:mobile/features/settings/settings_screen.dart';
 import 'package:mobile/features/relay/relay_inbox_screen.dart';
 import 'package:mobile/features/relay/relay_viewmodel.dart';
 import 'package:mobile/features/engagement/engagement_viewmodel.dart';
@@ -194,6 +195,7 @@ class _MyAppState extends State<MyApp> {
       },
       routes: {
         '/consent': (context) => const ConsentDashboardScreen(),
+        '/settings': (context) => const SettingsScreen(),
         '/verify-age': (context) => const AgeVerificationScreen(),
         '/signup': (context) => const SignupScreen(),
         '/reset-password': (context) => const NewPasswordScreen(),

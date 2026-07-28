@@ -2,15 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 
-/// Beautiful bottom navigation bar
+/// One tab in the bottom bar.
+class NavItem {
+  final IconData icon;
+  final String label;
+
+  const NavItem({required this.icon, required this.label});
+}
+
+/// The app's bottom navigation.
+///
+/// This was built, styled on-brand, and then bypassed — MainNavigationScreen
+/// used a stock Material bar instead, and the items hardcoded here
+/// (Home/Quiz/Partner/Profile) did not even match the tabs the app actually
+/// had. Items are now passed in, so the bar cannot drift from the routes again.
 class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
+  final List<NavItem> items;
 
   const CustomBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    required this.items,
   });
 
   @override
@@ -32,30 +47,13 @@ class CustomBottomNav extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                isActive: currentIndex == 0,
-                onTap: () => onTap(0),
-              ),
-              _NavItem(
-                icon: Icons.extension_rounded,
-                label: 'Quiz',
-                isActive: currentIndex == 1,
-                onTap: () => onTap(1),
-              ),
-              _NavItem(
-                icon: Icons.favorite_rounded,
-                label: 'Partner',
-                isActive: currentIndex == 2,
-                onTap: () => onTap(2),
-              ),
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                isActive: currentIndex == 3,
-                onTap: () => onTap(3),
-              ),
+              for (var i = 0; i < items.length; i++)
+                _NavItem(
+                  icon: items[i].icon,
+                  label: items[i].label,
+                  isActive: currentIndex == i,
+                  onTap: () => onTap(i),
+                ),
             ],
           ),
         ),
