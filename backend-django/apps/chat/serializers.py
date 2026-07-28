@@ -39,12 +39,42 @@ class ReplyPreviewSerializer(serializers.Serializer):
         return "" if obj.is_deleted else obj.body[:180]
 
 
+#: Delivery state of a message, from the sender's point of view. ``sending``
+#: and ``failed`` never come from the server — the client owns those, because
+#: only it knows about a request that has not landed yet.
+STATUS_SENT = "sent"
+STATUS_DELIVERED = "delivered"
+STATUS_SEEN = "seen"
+
+
+def message_status(message: CoupleMessage, cursor) -> str:
+    """Where this message has got to, given the *partner's* thread cursor.
+
+    Derived on read from two timestamps rather than stored per message. The
+    alternative — a status column updated on every receipt — means writing to
+    every unread message each time a partner opens the app, and gets the
+    ordering wrong the moment two receipts race.
+
+    ``cursor`` is the partner's :class:`ReadReceipt`, or None when there is no
+    partner yet or they have never opened the thread. Both cases mean the same
+    thing to a sender, and it is the truthful one: sent, not delivered.
+    """
+    if cursor is None:
+        return STATUS_SENT
+    if cursor.last_read_at and message.created_at <= cursor.last_read_at:
+        return STATUS_SEEN
+    if cursor.last_delivered_at and message.created_at <= cursor.last_delivered_at:
+        return STATUS_DELIVERED
+    return STATUS_SENT
+
+
 class CoupleMessageSerializer(serializers.ModelSerializer):
     sender_id = serializers.SerializerMethodField()
     body = serializers.SerializerMethodField()
     reactions = serializers.SerializerMethodField()
     reply_to = serializers.SerializerMethodField()
     is_deleted = serializers.BooleanField(read_only=True)
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = CoupleMessage
@@ -59,9 +89,22 @@ class CoupleMessageSerializer(serializers.ModelSerializer):
             "reactions",
             "client_id",
             "is_deleted",
+            "status",
             "created_at",
             "edited_at",
         ]
+
+    def get_status(self, obj) -> str | None:
+        """Only ever populated on the reader's own messages.
+
+        You get ticks on what you sent; you do not get to watch your own
+        reading habits reported back at you, and neither partner learns
+        anything about the other beyond what the other's own ticks show them.
+        """
+        viewer_id = self.context.get("viewer_id")
+        if viewer_id is None or obj.sender_id != viewer_id:
+            return None
+        return message_status(obj, self.context.get("partner_cursor"))
 
     def get_sender_id(self, obj) -> str | None:
         return str(obj.sender_id) if obj.sender_id else None

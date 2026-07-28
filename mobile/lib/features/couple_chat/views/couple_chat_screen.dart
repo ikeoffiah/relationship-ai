@@ -51,6 +51,7 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
       _socket = CoupleChatSocket(
         relationshipId: widget.relationshipId,
         onEvent: (event) => _handleSocketEvent(vm, event),
+        onConnectionLost: vm.onSocketLost,
       )..connect();
     });
   }
@@ -71,7 +72,31 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
           event['message_id'] as String? ?? '',
           event['reactions'],
         );
+      case 'thread_ready':
+        vm.onPartnerPresence(event['partner_online'] as bool? ?? false);
+      case 'presence':
+        vm.onPartnerPresence(event['online'] as bool? ?? false);
+      case 'couple_receipt':
+        // Their cursor moved, so our ticks do too — without this the sender
+        // only ever sees ticks advance on a refetch, which in practice means
+        // "never, while I am looking at the thread".
+        vm.onPartnerReceipt(
+          deliveredAt: DateTime.tryParse(
+            event['last_delivered_at'] as String? ?? '',
+          )?.toLocal(),
+          readAt: DateTime.tryParse(
+            event['last_read_at'] as String? ?? '',
+          )?.toLocal(),
+        );
     }
+  }
+
+  /// Index of the last message this user sent, or -1 if they have not sent one.
+  int _lastOwnIndex(CoupleChatViewModel vm, String userId) {
+    for (var i = vm.messages.length - 1; i >= 0; i--) {
+      if (vm.messages[i].isMine(userId)) return i;
+    }
+    return -1;
   }
 
   @override
@@ -287,9 +312,40 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            title: Text(
-              widget.partnerName,
-              style: Theme.of(context).textTheme.titleLarge,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.partnerName,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                // Shown only while they are here. The absence of a line is the
+                // offline state — an explicit "Offline", or worse a last-seen
+                // time, turns the header into a status board for one partner
+                // to watch the other on.
+                if (vm.partnerOnline)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: AppColors.seenTick,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        'Online',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.seenTick,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
             actions: const [SupportAction()],
           ),
@@ -315,6 +371,12 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
                             key: Key('bubble_${message.id}'),
                             message: message,
                             userId: widget.userId,
+                            status: vm.statusFor(message),
+                            // Only the newest message of mine spells the state
+                            // out in words. Repeating "Delivered" down the whole
+                            // thread is noise; the one at the bottom is the one
+                            // anyone is actually asking about.
+                            showStatusLabel: i == _lastOwnIndex(vm, widget.userId),
                             onLongPress: () => _showReactions(message),
                             onRetry: () => vm.retry(message),
                           );
@@ -350,12 +412,20 @@ enum _CautionChoice { sendAnyway, sendSuggestion, edit }
 class _Bubble extends StatelessWidget {
   final CoupleMessage message;
   final String userId;
+
+  /// Null on the partner's messages — ticks belong to the sender.
+  final MessageStatus? status;
+
+  /// Whether to spell the state out in words as well as ticks.
+  final bool showStatusLabel;
   final VoidCallback onLongPress;
   final VoidCallback onRetry;
 
   const _Bubble({
     required this.message,
     required this.userId,
+    required this.status,
+    required this.showStatusLabel,
     required this.onLongPress,
     required this.onRetry,
     super.key,
@@ -364,9 +434,7 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mine = message.isMine(userId);
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
+    final bubble = GestureDetector(
         onLongPress: message.isDeleted ? null : onLongPress,
         child: Container(
           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -405,11 +473,34 @@ class _Bubble extends StatelessWidget {
                 ),
               ),
               if (message.reactions.isNotEmpty) _reactions(mine),
-              if (message.isPending || message.failed) _status(context, mine),
             ],
           ),
         ),
-      ),
+      );
+
+    // The footer sits outside the bubble on purpose. Inside, the ticks would be
+    // sitting on saturated coral, where the "seen" tint manages about 1.1:1
+    // against the background — invisible at glyph size. On the page ground it
+    // has room to actually carry meaning.
+    return Column(
+      crossAxisAlignment: mine
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        bubble,
+        if (mine && status != null)
+          Padding(
+            padding: const EdgeInsets.only(
+              right: AppSpacing.xs,
+              bottom: AppSpacing.sm,
+            ),
+            child: _StatusFooter(
+              status: status!,
+              showLabel: showStatusLabel,
+              onRetry: onRetry,
+            ),
+          ),
+      ],
     );
   }
 
@@ -472,31 +563,89 @@ class _Bubble extends StatelessWidget {
     );
   }
 
-  Widget _status(BuildContext context, bool mine) {
-    if (message.failed) {
+}
+
+/// The tick line under a message you sent.
+///
+/// The glyph carries the state for anyone who already reads ticks fluently;
+/// the word next to it carries the state for everyone else, and only on the
+/// newest message, where it answers the question people are actually asking.
+class _StatusFooter extends StatelessWidget {
+  final MessageStatus status;
+  final bool showLabel;
+  final VoidCallback onRetry;
+
+  const _StatusFooter({
+    required this.status,
+    required this.showLabel,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // A failed send is the one state that is worth interrupting for, because
+    // it is the only one the user can do something about.
+    if (status == MessageStatus.failed) {
       return GestureDetector(
         onTap: onRetry,
-        child: Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.xs),
-          child: Text(
-            'Not sent — tap to retry',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: mine ? Colors.white : AppColors.error,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 14,
+              color: AppColors.error,
             ),
-          ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'Not delivered — tap to retry',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.error),
+            ),
+          ],
         ),
       );
     }
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
-      child: Text(
+
+    final muted = AppColors.softCharcoal.withValues(alpha: 0.45);
+    final (icon, color, label) = switch (status) {
+      MessageStatus.sending => (
+        Icons.schedule_rounded,
+        muted,
         'Sending…',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: mine
-              ? Colors.white.withValues(alpha: 0.8)
-              : AppColors.softCharcoal.withValues(alpha: 0.5),
-        ),
       ),
+      MessageStatus.sent => (Icons.check_rounded, muted, 'Sent'),
+      MessageStatus.delivered => (Icons.done_all_rounded, muted, 'Delivered'),
+      MessageStatus.seen => (
+        Icons.done_all_rounded,
+        AppColors.seenTick,
+        'Seen',
+      ),
+      MessageStatus.failed => (Icons.error_outline_rounded, muted, ''),
+    };
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showLabel) ...[
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: color),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+        Icon(
+          icon,
+          size: 14,
+          color: color,
+          // Ticks are decorative once the label is present; without it they
+          // are the only signal, so they need a name a screen reader can say.
+          semanticLabel: showLabel ? null : label,
+        ),
+      ],
     );
   }
 }

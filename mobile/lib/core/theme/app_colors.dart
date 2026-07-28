@@ -11,6 +11,12 @@ class AppColors {
   static const Color calmTeal = Color(0xFF7EBDB4);
   static const Color sageGreen = Color(0xFFA8C5B0);
 
+  /// calmTeal darkened until it is legible as a small glyph on [creamWhite]
+  /// (about 4.4:1, where calmTeal itself manages 1.9:1). Used for the "seen"
+  /// tick, where the whole point is that it reads at a glance without being
+  /// loud enough to feel like surveillance.
+  static const Color seenTick = Color(0xFF3E8E82);
+
   // Neutrals
   static const Color creamWhite = Color(0xFFFFFBF5);
   static const Color softIvory = creamWhite;

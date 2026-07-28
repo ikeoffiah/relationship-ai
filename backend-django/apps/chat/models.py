@@ -146,10 +146,25 @@ class MessageReaction(models.Model):
 
 
 class ReadReceipt(models.Model):
-    """How far through the thread each partner has read.
+    """How far through the thread each partner has got.
 
-    Stored as a high-water timestamp rather than per-message rows: the unread
-    count is one comparison, and it cannot go backwards.
+    Two high-water timestamps rather than per-message rows: the unread count is
+    one comparison, delivery status is one comparison, and neither can go
+    backwards. Per-message receipt rows would mean one write per message per
+    partner and a join on every history page, to answer a question two integers
+    already answer.
+
+    ``last_delivered_at`` is how far the partner's *device* has received —
+    reaching the phone, not reaching their attention. ``last_read_at`` is how
+    far they have actually opened. The pair is what makes a sender's ticks
+    honest: one tick means we hold it, two means their phone holds it, two in
+    colour means they looked. Collapsing the two would force us to call a
+    message "read" the moment it was delivered, which is the specific lie that
+    makes read receipts feel untrustworthy.
+
+    Delivery is necessarily client-asserted — only the receiving device knows
+    it has the message — so this is an acknowledgement, not a proof. That is
+    also true of every chat app that shows two ticks.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -160,6 +175,30 @@ class ReadReceipt(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="read_receipts"
     )
     last_read_at = models.DateTimeField()
+    # Null on rows written before delivery tracking existed. Those threads
+    # simply show one tick until the partner's app next opens, which is the
+    # honest reading: we genuinely do not know that it arrived.
+    last_delivered_at = models.DateTimeField(null=True, blank=True)
+
+    def advance(self, *, delivered_at=None, read_at=None) -> bool:
+        """Move the cursors forward. Returns True if anything actually moved.
+
+        Reading implies delivery — you cannot open a message that never
+        arrived — so a read that outruns the delivery cursor drags it along.
+        Without that, a message read straight from a push notification would be
+        stuck showing one tick behind a blue one.
+        """
+        moved = False
+        if read_at is not None and read_at > self.last_read_at:
+            self.last_read_at = read_at
+            moved = True
+        effective = max(filter(None, [delivered_at, read_at]), default=None)
+        if effective is not None and (
+            self.last_delivered_at is None or effective > self.last_delivered_at
+        ):
+            self.last_delivered_at = effective
+            moved = True
+        return moved
 
     class Meta:
         db_table = "couple_read_receipts"

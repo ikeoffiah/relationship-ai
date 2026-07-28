@@ -6,6 +6,8 @@ in. It returns 404 rather than 403 on purpose — a stranger probing ids should
 not be able to learn which relationships exist.
 """
 
+from datetime import UTC, datetime
+
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -29,6 +31,11 @@ from .serializers import (
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 
+# A sentinel for "delivered, never opened". ``last_read_at`` is non-null in the
+# schema, and widening it to accept null would mean revisiting every existing
+# comparison against it; a floor no message can precede does the same job.
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+
 
 def _thread_or_404(user, relationship_id) -> Relationship:
     """Return the relationship only if `user` is one of its partners."""
@@ -45,6 +52,28 @@ def _with_relations(queryset):
     return queryset.select_related("sender", "reply_to", "reply_to__sender").prefetch_related(
         "reactions"
     )
+
+
+def _partner_id(relationship, user):
+    """The other person, or None in a solo relationship."""
+    if relationship.partner_a_id == user.id:
+        return relationship.partner_b_id
+    return relationship.partner_a_id
+
+
+def _viewer_context(request, relationship) -> dict:
+    """Everything the serializer needs to put ticks on the reader's messages.
+
+    One extra query per response, not per message — the partner's cursor is a
+    single row that answers the delivery question for the entire page.
+    """
+    partner_id = _partner_id(relationship, request.user)
+    cursor = (
+        ReadReceipt.objects.filter(relationship=relationship, user_id=partner_id).first()
+        if partner_id
+        else None
+    )
+    return {"viewer_id": request.user.id, "partner_cursor": cursor}
 
 
 @api_view(["GET"])
@@ -77,7 +106,9 @@ def messages(request, relationship_id):
 
     return Response(
         {
-            "results": CoupleMessageSerializer(page, many=True).data,
+            "results": CoupleMessageSerializer(
+                page, many=True, context=_viewer_context(request, relationship)
+            ).data,
             "has_more": has_more,
             # Feed straight back as `before` to get the next page.
             "next_before": page[-1].created_at.isoformat() if page and has_more else None,
@@ -115,7 +146,10 @@ def send_message(request, relationship_id):
         ).first()
         if existing is not None:
             return Response(
-                CoupleMessageSerializer(existing).data, status=status.HTTP_200_OK
+                CoupleMessageSerializer(
+                    existing, context=_viewer_context(request, relationship)
+                ).data,
+                status=status.HTTP_200_OK,
             )
 
     message = CoupleMessage(
@@ -138,18 +172,29 @@ def send_message(request, relationship_id):
         ).first()
         if existing is not None:
             return Response(
-                CoupleMessageSerializer(existing).data, status=status.HTTP_200_OK
+                CoupleMessageSerializer(
+                    existing, context=_viewer_context(request, relationship)
+                ).data,
+                status=status.HTTP_200_OK,
             )
         raise
 
-    payload = CoupleMessageSerializer(message).data
+    # Two renderings on purpose. The socket payload carries no viewer context,
+    # so `status` is null on the copy the partner receives — ticks belong to
+    # whoever sent the message, and shipping the sender's tick state to the
+    # recipient would only invite the client to render it on the wrong side.
     realtime.publish(
         relationship.id,
-        {"type": "couple_message", "message": payload},
+        {"type": "couple_message", "message": CoupleMessageSerializer(message).data},
         exclude_user_id=request.user.id,
     )
     _maybe_refresh_summary(relationship)
-    return Response(payload, status=status.HTTP_201_CREATED)
+    return Response(
+        CoupleMessageSerializer(
+            message, context=_viewer_context(request, relationship)
+        ).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
 def _maybe_refresh_summary(relationship) -> None:
@@ -248,30 +293,75 @@ def toggle_reaction(request, message_id):
     return Response(payload)
 
 
+def _advance_cursor(request, relationship, *, read: bool):
+    """Move this user's cursor to now and tell the partner, so their ticks move.
+
+    Delivery and read share one code path because they share one row and one
+    invariant (delivery never trails read). The event is published to the
+    partner only — a cursor is news to the person waiting on ticks, never to
+    the person whose own app just moved it.
+    """
+    now = timezone.now()
+    receipt, created = ReadReceipt.objects.get_or_create(
+        relationship=relationship,
+        user=request.user,
+        defaults={
+            "last_read_at": now if read else _EPOCH,
+            "last_delivered_at": now,
+        },
+    )
+    if not created:
+        moved = receipt.advance(
+            read_at=now if read else None, delivered_at=None if read else now
+        )
+        if moved:
+            receipt.save(update_fields=["last_read_at", "last_delivered_at"])
+
+    realtime.publish(
+        relationship.id,
+        {
+            "type": "couple_receipt",
+            "user_id": str(request.user.id),
+            "last_read_at": receipt.last_read_at.isoformat()
+            if receipt.last_read_at > _EPOCH
+            else None,
+            "last_delivered_at": receipt.last_delivered_at.isoformat()
+            if receipt.last_delivered_at
+            else None,
+        },
+        exclude_user_id=request.user.id,
+    )
+    return receipt
+
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def mark_read(request, relationship_id):
     """Advance this user's read high-water mark. Never moves backwards."""
     relationship = _thread_or_404(request.user, relationship_id)
-    now = timezone.now()
-
-    receipt, created = ReadReceipt.objects.get_or_create(
-        relationship=relationship, user=request.user, defaults={"last_read_at": now}
-    )
-    if not created and receipt.last_read_at < now:
-        receipt.last_read_at = now
-        receipt.save(update_fields=["last_read_at"])
-
-    realtime.publish(
-        relationship.id,
-        {
-            "type": "couple_read",
-            "user_id": str(request.user.id),
-            "last_read_at": receipt.last_read_at.isoformat(),
-        },
-        exclude_user_id=request.user.id,
-    )
+    receipt = _advance_cursor(request, relationship, read=True)
     return Response({"last_read_at": receipt.last_read_at.isoformat()})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def mark_delivered(request, relationship_id):
+    """This device now holds the thread up to now — but nobody has opened it.
+
+    Called when the app has the messages in hand and *not* when they are on
+    screen: on connecting the socket, on fetching history in the background, on
+    a push arriving. That separation is the whole point of having two cursors.
+    """
+    relationship = _thread_or_404(request.user, relationship_id)
+    receipt = _advance_cursor(request, relationship, read=False)
+    return Response(
+        {
+            "last_delivered_at": receipt.last_delivered_at.isoformat()
+            if receipt.last_delivered_at
+            else None
+        }
+    )
 
 
 @api_view(["GET"])

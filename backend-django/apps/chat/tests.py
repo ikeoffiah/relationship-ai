@@ -553,3 +553,142 @@ class RealtimeSerialisationTests(TestCase):
 
         decoded = _json.loads(sent)
         self.assertEqual(decoded["event"]["message"]["body"], "hello")
+
+
+class DeliveryStatusTests(ChatTestCase):
+    """Ticks. The property under test is that each state is *earned* — that we
+    never claim a message reached a phone, or was looked at, without something
+    having actually said so."""
+
+    def status_of(self, message_id) -> str | None:
+        response = self.client.get(self.list_url())
+        for row in response.json()["results"]:
+            if row["id"] == str(message_id):
+                return row["status"]
+        raise AssertionError(f"{message_id} not in the thread")
+
+    def test_fresh_message_is_sent_not_delivered(self):
+        """The default is the pessimistic one. A partner who has never opened
+        the app must not make our ticks lie."""
+        message = self.make_message(sender=self.alex)
+        self.assertEqual(self.status_of(message.id), "sent")
+
+    def test_partner_ack_moves_it_to_delivered(self):
+        message = self.make_message(sender=self.alex)
+        partner = APIClient()
+        partner.force_authenticate(user=self.sam)
+        partner.post(reverse("chat-mark-delivered", args=[self.relationship.id]))
+        self.assertEqual(self.status_of(message.id), "delivered")
+
+    def test_delivered_is_not_seen(self):
+        """The distinction the whole two-cursor design exists for: a message on
+        their phone is not a message they have read."""
+        message = self.make_message(sender=self.alex)
+        partner = APIClient()
+        partner.force_authenticate(user=self.sam)
+        partner.post(reverse("chat-mark-delivered", args=[self.relationship.id]))
+
+        receipt = ReadReceipt.objects.get(relationship=self.relationship, user=self.sam)
+        self.assertIsNotNone(receipt.last_delivered_at)
+        self.assertEqual(self.status_of(message.id), "delivered")
+
+    def test_partner_reading_moves_it_to_seen(self):
+        message = self.make_message(sender=self.alex)
+        partner = APIClient()
+        partner.force_authenticate(user=self.sam)
+        partner.post(reverse("chat-mark-read", args=[self.relationship.id]))
+        self.assertEqual(self.status_of(message.id), "seen")
+
+    def test_reading_drags_the_delivery_cursor_with_it(self):
+        """Read without a prior delivery ack — a message opened straight from a
+        push. Delivery must not be left trailing behind read, or the sender
+        sees a blue tick on a message we also claim never arrived."""
+        partner = APIClient()
+        partner.force_authenticate(user=self.sam)
+        partner.post(reverse("chat-mark-read", args=[self.relationship.id]))
+
+        receipt = ReadReceipt.objects.get(relationship=self.relationship, user=self.sam)
+        self.assertIsNotNone(receipt.last_delivered_at)
+        self.assertGreaterEqual(receipt.last_delivered_at, receipt.last_read_at)
+
+    def test_a_later_message_stays_sent_after_an_earlier_one_is_seen(self):
+        """Ticks are per message, not per thread. Reading up to here does not
+        retroactively mark what came after."""
+        early = self.make_message(sender=self.alex, body="first")
+        partner = APIClient()
+        partner.force_authenticate(user=self.sam)
+        partner.post(reverse("chat-mark-read", args=[self.relationship.id]))
+        late = self.make_message(sender=self.alex, body="second")
+
+        self.assertEqual(self.status_of(early.id), "seen")
+        self.assertEqual(self.status_of(late.id), "sent")
+
+    def test_cursors_never_move_backwards(self):
+        partner = APIClient()
+        partner.force_authenticate(user=self.sam)
+        partner.post(reverse("chat-mark-read", args=[self.relationship.id]))
+        receipt = ReadReceipt.objects.get(relationship=self.relationship, user=self.sam)
+        read_at = receipt.last_read_at
+
+        # A stale delivery ack arriving late (a retry, a queued request) must
+        # not walk a seen message back to a single tick.
+        receipt.advance(delivered_at=read_at - timezone.timedelta(hours=1))
+        receipt.save()
+        receipt.refresh_from_db()
+        self.assertGreaterEqual(receipt.last_delivered_at, read_at)
+        self.assertEqual(self.status_of(self.make_message(sender=self.alex).id), "sent")
+
+    def test_status_is_absent_on_the_partners_messages(self):
+        """You get ticks on what you sent. Nothing tells Alex how far Alex has
+        read — that is Sam's business, and Sam already sees it as ticks."""
+        theirs = self.make_message(sender=self.sam, body="from sam")
+        self.assertIsNone(self.status_of(theirs.id))
+
+    def test_solo_relationship_has_no_delivery(self):
+        """No partner means nowhere to deliver to. It must read as sent
+        forever rather than falling through to delivered."""
+        solo_user = User.objects.create_user(email="solo@test.local", password="pw12345!")
+        solo = Relationship.objects.create(partner_a=solo_user, status="active")
+        message = CoupleMessage(relationship=solo, sender=solo_user)
+        message.body = "note to self"
+        message.save()
+
+        client = APIClient()
+        client.force_authenticate(user=solo_user)
+        response = client.get(reverse("chat-messages", args=[solo.id]))
+        self.assertEqual(response.json()["results"][0]["status"], "sent")
+
+    def test_receipt_event_reaches_the_partner_only(self):
+        """The person whose app moved the cursor learns nothing new from it;
+        the sender waiting on ticks is the entire audience."""
+        self.publish.reset_mock()
+        partner = APIClient()
+        partner.force_authenticate(user=self.sam)
+        partner.post(reverse("chat-mark-delivered", args=[self.relationship.id]))
+
+        self.assertTrue(self.publish.called)
+        _, kwargs = self.publish.call_args
+        event = self.publish.call_args[0][1]
+        self.assertEqual(event["type"], "couple_receipt")
+        self.assertIsNotNone(event["last_delivered_at"])
+        self.assertIsNone(event["last_read_at"])
+        self.assertEqual(kwargs["exclude_user_id"], self.sam.id)
+
+    def test_delivery_ack_is_not_a_read_and_does_not_clear_unread(self):
+        """Receiving is not reading. If an ack cleared the badge, the app would
+        silently mark things read that nobody opened."""
+        self.make_message(sender=self.sam, body="unread")
+        partner = APIClient()
+        partner.force_authenticate(user=self.alex)
+        partner.post(reverse("chat-mark-delivered", args=[self.relationship.id]))
+
+        response = self.client.get(reverse("chat-unread", args=[self.relationship.id]))
+        self.assertEqual(response.json()["unread"], 1)
+
+    def test_stranger_cannot_ack_delivery(self):
+        client = APIClient()
+        client.force_authenticate(user=self.stranger)
+        response = client.post(
+            reverse("chat-mark-delivered", args=[self.relationship.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
