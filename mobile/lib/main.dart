@@ -182,6 +182,16 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
+      // Tapping outside a text field (on empty space) dismisses the keyboard.
+      // Interactive widgets consume their own taps, so this only fires when the
+      // tap isn't handled elsewhere.
+      builder: (context, child) {
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: child,
+        );
+      },
       routes: {
         '/consent': (context) => const ConsentDashboardScreen(),
         '/verify-age': (context) => const AgeVerificationScreen(),
