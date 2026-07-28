@@ -291,7 +291,11 @@ structlog.configure(
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "utils.exception_handler.exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
+        # Auth is carried by Bearer tokens (JWTAuthenticationMiddleware sets
+        # request.user); this trusts that user without enforcing CSRF, which
+        # only applies to cookie-based auth. Stock SessionAuthentication was
+        # 403-ing authenticated POST/PATCH with "CSRF Failed".
+        "apps.accounts.auth.CsrfExemptSessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
