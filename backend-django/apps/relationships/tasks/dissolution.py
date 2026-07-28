@@ -52,7 +52,7 @@ def RelationshipDissolutionJob(self, relationship_id):
                 try:
                     send_mail(
                         subject="Relationship Dissolved",
-                        message="Your relationship on RelationshipAI has been dissolved. All shared context access has been revoked.",
+                        message="Your relationship on Bliss has been dissolved. All shared context access has been revoked.",
                         from_email=None,
                         recipient_list=recipient_list,
                     )

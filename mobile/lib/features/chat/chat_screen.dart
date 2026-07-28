@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/theme/app_dimens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:uuid/uuid.dart';
@@ -8,7 +9,7 @@ import 'package:mobile/features/bliss/widgets/bliss_confirm_sheet.dart';
 import 'package:mobile/features/consent/consent_summary_sheet.dart';
 import 'package:mobile/features/chat/widgets/in_session_consent_banner.dart';
 import 'package:mobile/features/consent/widgets/consent_badge.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 import 'package:mobile/features/chat/providers/chat_provider.dart';
 import 'package:mobile/features/chat/models/chat_models.dart';
 import 'package:mobile/features/chat/widgets/chat_header.dart';
@@ -92,7 +93,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
         ),
         actions: [
-          const GetHelpNowButton(compact: true),
+          const SupportAction(),
           if (widget.isJointSession)
             TextButton(
               onPressed: () => _handleStepOut(),
@@ -219,15 +220,44 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
 
     // Handle safety modal trigger
     ref.listen(chatProvider(widget.sessionId), (previous, next) {
-      if (next.safetyOverlayLevel != null && previous?.safetyOverlayLevel == null) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => SafetyProtocolModal(
-            level: next.safetyOverlayLevel!,
-            resources: next.safetyOverlayResources ?? [],
-          ),
-        );
+      if (next.safetyOverlayLevel != null &&
+          previous?.safetyOverlayLevel == null) {
+        // Only a genuine crisis earns the full-screen, non-dismissible
+        // interruption. Everything else — an elevated score, a legal question,
+        // a manipulation attempt — gets a quiet, dismissible offer of support
+        // that sits alongside the conversation instead of blocking it.
+        if (next.safetyOverlayLevel == 'critical') {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => SafetyProtocolModal(
+              level: next.safetyOverlayLevel!,
+              resources: next.safetyOverlayResources ?? [],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.noticeSurface,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              content: Text(
+                'If it would help, support is a tap away.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.softCharcoal,
+                ),
+              ),
+              action: SnackBarAction(
+                label: 'See support',
+                textColor: AppColors.noticeInk,
+                onPressed: () => Navigator.of(context).pushNamed('/safety'),
+              ),
+            ),
+          );
+        }
       }
       
       if (next.messages.length > (previous?.messages.length ?? 0)) {

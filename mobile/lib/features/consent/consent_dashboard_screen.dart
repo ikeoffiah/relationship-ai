@@ -6,7 +6,7 @@ import 'package:mobile/features/consent/models/consent_model.dart';
 import 'package:mobile/features/consent/models/memory_model.dart';
 import 'package:mobile/features/consent/widgets/memory_transparency_panel.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 class ConsentDashboardScreen extends StatefulWidget {
   const ConsentDashboardScreen({super.key});
@@ -41,6 +41,7 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        actions: const [SupportAction()],
       ),
       body: Consumer<ConsentViewModel>(
         builder: (context, vm, child) {
@@ -58,8 +59,6 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                const GetHelpNowButton(),
-                const SizedBox(height: 16),
                 if (context.read<AuthViewModel>().isMinor)
                   _buildMinorSafetyBanner(),
                 _buildSectionHeader('What\'s stored about you', 'Your memory zones and item counts'),

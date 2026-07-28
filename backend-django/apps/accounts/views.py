@@ -436,7 +436,7 @@ class VerifyAgeView(views.APIView):
                         "reason": "User is under 13 (COPPA)"
                     })
                 return Response(
-                    {"error": "minor_blocked", "message": "RelationshipAI is not available for users under 13 due to COPPA compliance."},
+                    {"error": "minor_blocked", "message": "Bliss is not available for users under 13 due to COPPA compliance."},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
@@ -493,8 +493,8 @@ class GuardianConsentView(views.APIView):
         confirm_link = f"{settings.SITE_URL}/guardian/confirm/{token}"
         
         send_mail(
-            "Guardian Consent Request - RelationshipAI",
-            f"Your child ({request.user.email}) has requested access to RelationshipAI. "
+            "Guardian Consent Request - Bliss",
+            f"Your child ({request.user.email}) has requested access to Bliss. "
             f"Please review the platform and confirm your consent here: {confirm_link}",
             settings.DEFAULT_FROM_EMAIL,
             [guardian_email],

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/utils/external_links.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 /// About screen – displays app version and informational links.
 class AboutScreen extends StatefulWidget {
@@ -32,11 +32,11 @@ class _AboutScreenState extends State<AboutScreen> {
     return Scaffold(
       backgroundColor: AppColors.creamWhite,
       appBar: AppBar(
-        title: const Text('About RelationshipAI'),
+        title: const Text('About Bliss'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        actions: const [GetHelpNowButton()],
+        actions: const [SupportAction()],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -45,7 +45,7 @@ class _AboutScreenState extends State<AboutScreen> {
             Text('Version: $_version', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 24),
             const Text(
-              'RelationshipAI is an AI-powered support tool, not a licensed therapist or medical service.',
+              'Bliss is an AI-powered support tool, not a licensed therapist or medical service.',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 24),

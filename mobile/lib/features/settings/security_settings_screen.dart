@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 /// Security settings screen — biometric / PIN unlock and app lock timeout.
 class SecuritySettingsScreen extends StatefulWidget {
@@ -31,7 +31,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        actions: const [GetHelpNowButton()],
+        actions: const [SupportAction()],
       ),
       body: Consumer<SettingsViewModel>(
         builder: (context, vm, _) {

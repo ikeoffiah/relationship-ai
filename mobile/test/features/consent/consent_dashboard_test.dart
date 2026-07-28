@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
@@ -93,8 +94,8 @@ void main() {
     expect(find.text('Therapist access'), findsOneWidget);
     expect(find.text('Model improvement data'), findsOneWidget);
 
-    // Verify "Get Help Now" Header
-    expect(find.textContaining('Get Help Now'), findsOneWidget);
+    // Support must remain reachable from the privacy dashboard.
+    expect(find.byType(SupportAction), findsOneWidget);
   });
 
   testWidgets('Toggle Therapist Access calls API with correct parameters', (WidgetTester tester) async {

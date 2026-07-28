@@ -1,12 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/theme/app_dimens.dart';
+import 'package:mobile/shared/widgets/app_card.dart';
 import 'safety_resources_data.dart';
 
+/// Support resources — hotlines and crisis services.
+///
+/// Every resource, phone number, availability line and disclaimer here is
+/// unchanged. What changed is the framing: this screen used to open under a
+/// full-bleed `#B71C1C` app bar titled "Get Help Now 🆘", matching a red bar
+/// that was stamped onto nine other screens. Reaching help is still one tap
+/// from anywhere, but the app no longer looks like it is bracing for
+/// catastrophe on the games screen.
+///
+/// Emergency red is retained for the emergency-services block specifically,
+/// where the urgency is real and the colour carries meaning.
 class SafetyResourcesScreen extends StatelessWidget {
   const SafetyResourcesScreen({super.key});
 
   Future<void> _launchResource(SafetyResource resource) async {
-    if (resource.phoneNumber != null && resource.chatUrl == null && resource.textNumber == null) {
+    if (resource.phoneNumber != null &&
+        resource.chatUrl == null &&
+        resource.textNumber == null) {
       // Phone call
       final Uri uri = Uri(scheme: 'tel', path: resource.phoneNumber);
       if (await canLaunchUrl(uri)) {
@@ -31,65 +47,110 @@ class SafetyResourcesScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildResourceCard(SafetyResource resource) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+  Widget _buildSectionHeading(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        AppSpacing.xxl,
+        AppSpacing.xxl,
+        AppSpacing.md,
+      ),
+      child: Text(text, style: Theme.of(context).textTheme.titleLarge),
+    );
+  }
+
+  Widget _buildResourceCard(BuildContext context, SafetyResource resource) {
+    // The emergency block keeps the urgent colour. Everything else sits on the
+    // app's own palette so the screen reads as care rather than alarm.
+    final bool isEmergency = resource.category == 'Emergency';
+    final Color accent = isEmergency ? AppColors.crisis : AppColors.calmTeal;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        0,
+        AppSpacing.xxl,
+        AppSpacing.md,
+      ),
+      child: AppCard(
+        borderColor: accent.withValues(alpha: isEmergency ? 0.45 : 0.3),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${resource.category == 'DomesticViolence' ? '🏠' : resource.category == 'Emergency' ? '🚨' : '💬'} ${resource.name}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              resource.name,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: accent),
             ),
-            const SizedBox(height: 8),
             if (resource.description != null) ...[
-              Text(resource.description!),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                resource.description!,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ],
-            Text('Available: ${resource.available}'),
-            const SizedBox(height: 12),
-            Row(
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Available: ${resource.available}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               children: [
-                if (resource.phoneNumber != null) ...[
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.phone),
-                    label: Text(resource.category == 'DomesticViolence' ? 'Call' : 'Call ${resource.phoneNumber}'),
-                    onPressed: () => _launchResource(SafetyResource(
-                      category: resource.category,
-                      name: resource.name,
-                      phoneNumber: resource.phoneNumber,
-                      available: resource.available,
-                    )),
+                if (resource.phoneNumber != null)
+                  _action(
+                    context,
+                    icon: Icons.phone,
+                    label: resource.category == 'DomesticViolence'
+                        ? 'Call'
+                        : 'Call ${resource.phoneNumber}',
+                    accent: accent,
+                    filled: true,
+                    onPressed: () => _launchResource(
+                      SafetyResource(
+                        category: resource.category,
+                        name: resource.name,
+                        phoneNumber: resource.phoneNumber,
+                        available: resource.available,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                ],
-                if (resource.textNumber != null) ...[
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.message),
-                    label: const Text('Text'),
-                    onPressed: () => _launchResource(SafetyResource(
-                      category: resource.category,
-                      name: resource.name,
-                      textNumber: resource.textNumber,
-                      textKeyword: resource.textKeyword,
-                      available: resource.available,
-                    )),
+                if (resource.textNumber != null)
+                  _action(
+                    context,
+                    icon: Icons.message_outlined,
+                    label: 'Text',
+                    accent: accent,
+                    filled: false,
+                    onPressed: () => _launchResource(
+                      SafetyResource(
+                        category: resource.category,
+                        name: resource.name,
+                        textNumber: resource.textNumber,
+                        textKeyword: resource.textKeyword,
+                        available: resource.available,
+                      ),
+                    ),
                   ),
-                ],
-                if (resource.chatUrl != null) ...[
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.chat),
-                    label: const Text('Chat online'),
-                    onPressed: () => _launchResource(SafetyResource(
-                      category: resource.category,
-                      name: resource.name,
-                      chatUrl: resource.chatUrl,
-                      available: resource.available,
-                    )),
+                if (resource.chatUrl != null)
+                  _action(
+                    context,
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: 'Chat online',
+                    accent: accent,
+                    filled: false,
+                    onPressed: () => _launchResource(
+                      SafetyResource(
+                        category: resource.category,
+                        name: resource.name,
+                        chatUrl: resource.chatUrl,
+                        available: resource.available,
+                      ),
+                    ),
                   ),
-                ],
               ],
             ),
           ],
@@ -98,89 +159,115 @@ class SafetyResourcesScreen extends StatelessWidget {
     );
   }
 
+  Widget _action(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color accent,
+    required bool filled,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: filled ? accent : accent.withValues(alpha: 0.12),
+        foregroundColor: filled ? Colors.white : accent,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Check if there are arguments passed (e.g., from safety overlay)
-    final String? prependedMessage = ModalRoute.of(context)?.settings.arguments as String?;
+    final String? prependedMessage =
+        ModalRoute.of(context)?.settings.arguments as String?;
 
     return Scaffold(
+      backgroundColor: AppColors.creamWhite,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFB71C1C),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Row(
-          children: [
-            Text('Get Help Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24)),
-            SizedBox(width: 8),
-            Text('🆘', style: TextStyle(fontSize: 24)),
-          ],
-        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: AppColors.softCharcoal),
+        title: Text('Support', style: Theme.of(context).textTheme.titleLarge),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (prependedMessage != null) ...[
-              Container(
-                color: Colors.yellow.shade100,
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  prependedMessage,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            if (prependedMessage != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xxl,
+                  0,
+                  AppSpacing.xxl,
+                  AppSpacing.lg,
+                ),
+                child: AppCard(
+                  color: AppColors.noticeSurface,
+                  borderColor: AppColors.noticeInk.withValues(alpha: 0.25),
+                  child: Text(
+                    prependedMessage,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
                 ),
               ),
-            ],
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl,
+                0,
+                AppSpacing.xxl,
+                AppSpacing.lg,
+              ),
               child: Text(
-                'If you\'re in immediate danger, please call emergency services:',
-                style: TextStyle(fontSize: 18),
+                "If you're in immediate danger, please call emergency services:",
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),
-            ...safetyResources.where((r) => r.category == 'Emergency').map(_buildResourceCard),
-            
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-              child: Text(
-                'Crisis support',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            ...safetyResources.where((r) => r.category == 'Crisis').map(_buildResourceCard),
-            
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-              child: Text(
-                'Domestic violence & safety',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            ...safetyResources.where((r) => r.category == 'DomesticViolence').map(_buildResourceCard),
+            ...safetyResources
+                .where((r) => r.category == 'Emergency')
+                .map((r) => _buildResourceCard(context, r)),
 
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+            _buildSectionHeading(context, 'Crisis support'),
+            ...safetyResources
+                .where((r) => r.category == 'Crisis')
+                .map((r) => _buildResourceCard(context, r)),
+
+            _buildSectionHeading(context, 'Domestic violence & safety'),
+            ...safetyResources
+                .where((r) => r.category == 'DomesticViolence')
+                .map((r) => _buildResourceCard(context, r)),
+
+            _buildSectionHeading(context, 'About this app'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
               child: Text(
-                'About this app',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Text(
-                'RelationshipAI is an AI system, not a licensed therapist. It cannot provide emergency support.',
-                style: TextStyle(fontSize: 16),
+                'Bliss is an AI system, not a licensed therapist. It cannot provide emergency support.',
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.softCharcoal.withValues(
+                    alpha: 0.7,
+                  ),
+                ),
                 child: const Text('Return to app'),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: AppSpacing.xxxl),
           ],
         ),
       ),

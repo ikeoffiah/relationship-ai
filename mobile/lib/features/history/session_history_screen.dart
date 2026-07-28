@@ -5,7 +5,7 @@ import 'package:mobile/features/history/models/session_history_model.dart';
 import 'package:mobile/features/history/viewmodels/session_history_viewmodel.dart';
 import 'package:mobile/features/history/viewmodels/session_detail_viewmodel.dart';
 import 'package:mobile/features/history/session_detail_screen.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 class SessionHistoryScreen extends StatefulWidget {
   const SessionHistoryScreen({super.key});
@@ -50,10 +50,10 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+        actions: const [SupportAction()],
       ),
       body: Column(
         children: [
-          const GetHelpNowButton(),
           _buildFilterTabs(),
           Expanded(child: _buildBody()),
         ],

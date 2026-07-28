@@ -60,7 +60,7 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Your partner has invited you to join them on RelationshipAI. Connecting will allow you to share therapeutic context and participate in joint sessions.',
+                'Your partner has invited you to join them on Bliss. Connecting will allow you to share therapeutic context and participate in joint sessions.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,

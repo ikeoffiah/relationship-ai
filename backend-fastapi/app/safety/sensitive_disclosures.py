@@ -33,7 +33,7 @@ MANIPULATION_PATTERNS = [
 ]
 
 LEGAL_REFUSAL_RESPONSE = """
-Session transcripts and AI-generated content from RelationshipAI are not 
+Session transcripts and AI-generated content from Bliss are not 
 designed or intended for use as legal documentation. I can't produce output 
 intended for legal proceedings. What I can do is support you in processing 
 what you're going through. Would that be helpful?

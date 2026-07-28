@@ -7,7 +7,7 @@ import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/features/settings/profile_edit_screen.dart';
 import 'package:mobile/features/settings/security_settings_screen.dart';
 import 'package:mobile/features/settings/about_screen.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 /// Main Settings screen — account management hub (bottom-nav tab 4).
 class SettingsScreen extends StatefulWidget {
@@ -45,6 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        actions: const [SupportAction()],
       ),
       body: Consumer2<SettingsViewModel, AuthViewModel>(
         builder: (context, settingsVM, authVM, _) {
@@ -53,8 +54,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             children: [
-              const GetHelpNowButton(),
-              const SizedBox(height: 20),
 
               // ── Account ─────────────────────────────────────────────────
               _buildSectionHeader('ACCOUNT'),
@@ -191,7 +190,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSectionHeader('SUPPORT'),
               _buildSettingsTile(
                 icon: Icons.info_outline_rounded,
-                title: 'About RelationshipAI',
+                title: 'About Bliss',
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const AboutScreen()),

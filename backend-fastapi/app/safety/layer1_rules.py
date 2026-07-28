@@ -24,9 +24,13 @@ class Layer1Result:
 # HIGH-CONFIDENCE PATTERNS (score: 0.9+)
 HIGH_CONFIDENCE_PATTERNS = {
     SignalCategory.SUICIDAL_IDEATION: [
-        r'\b(want to|going to|thinking about|considering)\s+(kill|end|take)\s+(my(self)?|it all)\b',
-        r'\b(suicide|suicidal|kill myself|end my life|take my life)\b',
-        r'\b(don\'?t want to (live|be alive|be here) anymore)\b',
+        # Gerunds matter here: "thinking about killing myself" is a far more
+        # natural phrasing than "thinking about kill myself", but only the bare
+        # stems were listed, so the commonest wording went undetected.
+        r'\b(want to|going to|thinking about|considering)\s+(kill(ing)?|end(ing)?|tak(e|ing))\s+(my(self)?|it all)\b',
+        r'\b(suicide|suicidal|kill(ing)? myself|end(ing)? my life|tak(e|ing) my life)\b',
+        # Accept the uncontracted form as well as "don't".
+        r'\b((don\'?t|do not) want to (live|be alive|be here) anymore)\b',
         r'\b(better off (dead|without me))\b',
         r'\b(no reason to (live|keep going|continue|go on))\b',
     ],

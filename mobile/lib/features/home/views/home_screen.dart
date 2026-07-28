@@ -8,7 +8,7 @@ import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 import 'package:mobile/features/home/home_notifier.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
 import 'package:mobile/core/services/push_service.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -48,17 +48,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.creamWhite,
       appBar: AppBar(
-        title: const Text(
-          'RelationshipAI',
-          style: TextStyle(
-            color: AppColors.softCharcoal,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
+        title: Text('Bliss', style: Theme.of(context).textTheme.titleLarge),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          const SupportAction(),
           provider.Consumer<NotificationViewModel>(
             builder: (context, notifVM, _) {
               return Stack(
@@ -144,8 +138,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
               ),
-              const GetHelpNowButton(),
-              const SizedBox(height: 16),
             ],
           ),
         ),

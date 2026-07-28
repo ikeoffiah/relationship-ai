@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/features/history/viewmodels/session_history_viewmodel.dart';
 import 'package:mobile/features/history/models/session_history_model.dart';
@@ -119,12 +120,12 @@ void main() {
       );
     });
 
-    testWidgets('GetHelpNowButton is always visible', (tester) async {
+    testWidgets('support is always reachable', (tester) async {
       final vm = _FakeSessionHistoryViewModel(items: []);
       await tester.pumpWidget(_buildTestWidget(vm));
       await tester.pump();
 
-      expect(find.text('Get Help Now'), findsOneWidget);
+      expect(find.byType(SupportAction), findsOneWidget);
     });
 
     testWidgets('relay session shows mail-from label', (tester) async {

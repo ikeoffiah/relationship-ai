@@ -64,8 +64,8 @@ class RelationshipInviteView(views.APIView):
             invite_url = f"bliss://accept-invite?token={token}"
             try:
                 send_mail(
-                    subject="Connect on RelationshipAI",
-                    message=f"Your partner has invited you to link accounts on RelationshipAI. Click here to accept: {invite_url}",
+                    subject="Connect on Bliss",
+                    message=f"Your partner has invited you to link accounts on Bliss. Click here to accept: {invite_url}",
                     from_email=None,
                     recipient_list=[invitee_email],
                 )

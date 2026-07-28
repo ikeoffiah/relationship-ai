@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/history/models/session_history_model.dart';
 import 'package:mobile/features/history/viewmodels/session_detail_viewmodel.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 class SessionDetailScreen extends StatefulWidget {
   final String sessionId;
@@ -34,10 +34,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             leading: const BackButton(),
+            actions: const [SupportAction()],
           ),
           body: Column(
             children: [
-              const GetHelpNowButton(),
               Expanded(child: _buildBody(vm)),
             ],
           ),

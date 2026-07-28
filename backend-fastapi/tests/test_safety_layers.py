@@ -109,3 +109,45 @@ async def test_layer3_uses_llm_when_configured(monkeypatch):
     res = await l3.screen_layer3("they won't let me see anyone", [])
     assert res.category == SignalCategory.COERCIVE_CONTROL
     assert res.score >= 0.8
+
+
+# ── Phrasing coverage for suicidal ideation ─────────────────────────────────
+# The high-confidence patterns originally listed only bare verb stems
+# ("kill", "end", "take") and the contracted "don't", so the most natural
+# phrasings of a disclosure — "thinking about killing myself", "ending my
+# life", "I do not want to live anymore" — scored 0.00 and reached no
+# intervention at all. Missing a real disclosure is the worst failure this
+# system has, so these are pinned.
+
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "I have been thinking about killing myself.",
+        "I am thinking about ending my life.",
+        "I keep thinking about taking my life.",
+        "I do not want to live anymore.",
+        "I want to kill myself.",
+        "I feel suicidal.",
+        "I would be better off dead.",
+    ],
+)
+def test_suicidal_phrasings_are_detected(message):
+    result = screen_layer1(message)
+    assert result.category == SignalCategory.SUICIDAL_IDEATION
+    assert result.score >= 0.7, f"undetected disclosure: {message}"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "We killed it at work today.",
+        "I want to end this argument.",
+        "That movie was to die for.",
+        "I do not want to live in that city anymore.",
+    ],
+)
+def test_benign_phrasings_stay_safe(message):
+    """Broadening the patterns must not manufacture false crises."""
+    assert screen_layer1(message).category == SignalCategory.SAFE

@@ -92,7 +92,7 @@ class _AgeVerificationScreenState extends State<AgeVerificationScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'RelationshipAI is designed for adults. We require your date of birth to verify eligibility and ensure safety.',
+                'Bliss is designed for adults. We require your date of birth to verify eligibility and ensure safety.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppColors.softCharcoal.withValues(alpha: 0.7),
                     ),
@@ -195,7 +195,7 @@ class _AgeVerificationScreenState extends State<AgeVerificationScreen> {
           const Icon(Icons.block, color: Colors.red, size: 40),
           const SizedBox(height: 12),
           const Text(
-            'RelationshipAI is not available for users under 13.',
+            'Bliss is not available for users under 13.',
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
           ),

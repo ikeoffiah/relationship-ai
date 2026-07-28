@@ -1,4 +1,4 @@
-/// Certificate pinning configuration for RelationshipAI API hosts.
+/// Certificate pinning configuration for Bliss API hosts.
 ///
 /// IMPORTANT: Replace the placeholder hashes before a production release.
 ///

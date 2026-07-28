@@ -178,7 +178,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: _navigatorKey,
-      title: 'RelationshipAI',
+      title: 'Bliss',
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,

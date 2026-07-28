@@ -395,7 +395,7 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
       builder: (context) => AlertDialog(
         title: const Text('Delete memory?'),
         content: const Text(
-          'This action cannot be undone. RelationshipAI will no longer factor this pattern into your insights.',
+          'This action cannot be undone. Bliss will no longer factor this pattern into your insights.',
         ),
         actions: [
           TextButton(

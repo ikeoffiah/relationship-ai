@@ -9,7 +9,7 @@ class EmailService:
     Sends transactional emails via Resend (free tier: 3,000/month).
     Called from Celery notifications queue — non-blocking.
     """
-    FROM_ADDRESS = "RelationshipAI <hello@relationshipai.app>"
+    FROM_ADDRESS = "Bliss <hello@relationshipai.app>"
 
     def send(self, to: str, subject: str, html: str, text: str = '') -> bool:
         """

@@ -61,6 +61,61 @@ class AppTheme {
         letterSpacing: -0.2,
         color: AppColors.softCharcoal,
       ),
+
+      // ── Title & label slots ─────────────────────────────────────────────
+      // Added so the inner app can stop hardcoding TextStyle(fontSize: …).
+      // Only 7 of Material's 15 slots were defined, so screens that needed a
+      // "card title" or "button label" invented one inline — dozens of times,
+      // at drifting sizes. The styles above are deliberately untouched: the
+      // onboarding flow reads from them and must render exactly as it does now.
+
+      /// Screen and app-bar titles.
+      titleLarge: GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.3,
+        color: AppColors.softCharcoal,
+      ),
+
+      /// Card titles — the most repeated inline literal in the inner app.
+      titleMedium: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.15,
+        color: AppColors.softCharcoal,
+      ),
+
+      /// List-row and compact card titles.
+      titleSmall: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.1,
+        color: AppColors.softCharcoal,
+      ),
+
+      /// Button labels.
+      labelLarge: GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+        color: AppColors.softCharcoal,
+      ),
+
+      /// Uppercase eyebrow labels above a section or card.
+      labelMedium: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.8,
+        color: AppColors.softCharcoal,
+      ),
+
+      /// Smallest supporting label (counts, timestamps, units).
+      labelSmall: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.5,
+        color: AppColors.softCharcoal,
+      ),
     );
   }
 

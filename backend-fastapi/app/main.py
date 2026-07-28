@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
     # Cleanup tasks could be added here if necessary
 
 
-app = FastAPI(title="RelationshipAI - FastAPI Service", lifespan=lifespan)
+app = FastAPI(title="Bliss - FastAPI Service", lifespan=lifespan)
 
 # ── Middleware (REL-14) ────────────────────────────────────────────────────────
 # SecurityHeadersMiddleware: injects HSTS, CSP, X-Frame-Options, etc. on every
@@ -83,7 +83,7 @@ Instrumentator().instrument(app).expose(app)
 
 @app.get("/")
 async def root():
-    return {"message": "RelationshipAI FastAPI Service is running"}
+    return {"message": "Bliss FastAPI Service is running"}
 
 
 @app.get("/health")
