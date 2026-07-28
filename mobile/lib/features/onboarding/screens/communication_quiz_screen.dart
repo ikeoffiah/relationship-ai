@@ -39,7 +39,10 @@ class CommunicationQuizScreen extends StatelessWidget {
                   final index = entry.key;
                   final q = entry.value;
                   final qId = q['id'].toString();
-                  final prompt = q['prompt'] as String? ?? '';
+                  // Backend serves the prompt under "question" (with a "prompt"
+                  // fallback for safety).
+                  final prompt =
+                      (q['question'] ?? q['prompt']) as String? ?? '';
                   final options =
                       List<Map<String, dynamic>>.from(q['options'] ?? []);
                   final selected = vm.communicationQuizResponses[qId];
@@ -95,8 +98,9 @@ class CommunicationQuizScreen extends StatelessWidget {
                         // Options
                         ...options.map((opt) {
                           final val = opt['value']?.toString() ?? '';
+                          // Backend serves the option label under "text".
                           final label =
-                              opt['label'] as String? ?? '';
+                              (opt['text'] ?? opt['label']) as String? ?? '';
                           final isSelected = selected == val;
 
                           return Padding(
