@@ -133,12 +133,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // One quiet line instead of the gold streak banner —
                       // consistency, not a chain that resets to zero and tells
                       // a couple they failed each other on a hard week.
-                      if (engagement.summary.currentStreak > 0)
+                      if (engagement.summary.daysActive30 > 0)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
-                            'Together ${engagement.summary.currentStreak} '
-                            '${engagement.summary.currentStreak == 1 ? "day" : "days"} running',
+                            'Together ${engagement.summary.daysActive30} of the '
+                            'last ${engagement.summary.windowDays} days',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),

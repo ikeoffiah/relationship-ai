@@ -451,6 +451,11 @@ def summary(request):
             "points_balance": services.points_balance(request.user),
             "current_streak": streak.current_streak if streak else 0,
             "longest_streak": streak.longest_streak if streak else 0,
+            # Rolling consistency, which is what the app actually shows now.
+            # The streaks above stay in the payload for anything still reading
+            # them, but nothing user-facing leads with a resettable chain.
+            "days_active_30": services.days_active_in_window(request.user),
+            "window_days": services.ROLLING_WINDOW_DAYS,
             "today": done,
             "has_partner": relationship is not None,
         }

@@ -230,3 +230,35 @@ def notify_partner_checked_in(recipient_id, partner_name: str) -> Notification:
         body="See how you're both feeling today.",
         data={"deep_link": "/engagement/check-in"},
     )
+
+
+# ── Kind progress ───────────────────────────────────────────────────────────
+
+ROLLING_WINDOW_DAYS = 30
+
+
+def days_active_in_window(user, days: int = ROLLING_WINDOW_DAYS) -> int:
+    """How many of the last `days` this person did something on.
+
+    A rolling count rather than a consecutive chain, because a streak that
+    resets to zero turns interaction frequency into a proxy for relationship
+    health — and hands a couple a number telling them they failed each other on
+    a week one of them was ill. A quiet day simply does not count here; it
+    cannot undo the ones that did.
+
+    PointsLedger already writes one row per earning action with a date_key, so
+    the distinct count over the window is exactly this, with no new table.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from .models import PointsLedger
+
+    start = (timezone.now() - timedelta(days=days - 1)).date().isoformat()
+    return (
+        PointsLedger.objects.filter(user=user, date_key__gte=start)
+        .values("date_key")
+        .distinct()
+        .count()
+    )

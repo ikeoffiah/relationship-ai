@@ -339,3 +339,81 @@ class SummaryTests(APITestCase):
         self.assertTrue(r.data["today"]["daily_question"])
         self.assertGreater(r.data["points_balance"], 0)
         self.assertEqual(r.data["current_streak"], 1)
+
+
+from django.test import TestCase as DjangoTestCase  # noqa: E402
+
+
+class RollingConsistencyTests(DjangoTestCase):
+    """Consistency over a window, not a chain that resets.
+
+    The property that matters: a missed day must not undo the days that came
+    before it. That is the whole point of the change.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.user = get_user_model().objects.create_user(
+            email="rolling@test.local", password="pw12345!"
+        )
+
+    def _active_on(self, days_ago):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.engagement.models import PointsLedger
+
+        day = (timezone.now() - timedelta(days=days_ago)).date().isoformat()
+        PointsLedger.objects.create(
+            user=self.user, points=5, reason="check_in", date_key=day
+        )
+
+    def test_counts_distinct_days_not_actions(self):
+        from apps.engagement import services
+
+        # Three actions on one day is still one day.
+        for _ in range(3):
+            self._active_on(0)
+
+        self.assertEqual(services.days_active_in_window(self.user), 1)
+
+    def test_a_gap_does_not_reset_the_count(self):
+        """The behaviour a streak gets wrong."""
+        from apps.engagement import services
+
+        self._active_on(5)
+        self._active_on(4)
+        # day 3 missed — someone was ill, travelling, having a bad week
+        self._active_on(2)
+        self._active_on(1)
+
+        # A consecutive streak would read 2 here. This reads 4, because the
+        # earlier days genuinely happened.
+        self.assertEqual(services.days_active_in_window(self.user), 4)
+
+    def test_days_outside_the_window_drop_off(self):
+        from apps.engagement import services
+
+        self._active_on(45)
+        self._active_on(2)
+
+        self.assertEqual(services.days_active_in_window(self.user), 1)
+
+    def test_no_activity_is_zero_not_an_error(self):
+        from apps.engagement import services
+
+        self.assertEqual(services.days_active_in_window(self.user), 0)
+
+    def test_one_user_never_counts_anothers_days(self):
+        from django.contrib.auth import get_user_model
+
+        from apps.engagement import services
+
+        other = get_user_model().objects.create_user(
+            email="other@test.local", password="pw12345!"
+        )
+        self._active_on(1)
+
+        self.assertEqual(services.days_active_in_window(other), 0)
