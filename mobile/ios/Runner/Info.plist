@@ -85,6 +85,11 @@
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
+		<!-- Permit cleartext only for local-network dev servers (Mac LAN IP /
+		     *.local / loopback) so a physical device can reach a local http
+		     backend. Does NOT relax ATS for public internet traffic. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Debug/Profile entitlements: intentionally NO aps-environment.
+	     Push Notifications requires a capability that free personal Apple teams
+	     cannot provision, which blocks installing to a physical device. Omitting
+	     it here lets a debug/profile build sign and run on a device with a free
+	     team. The Release config uses Runner.entitlements (with push) for the
+	     paid-account App Store / TestFlight build. -->
+</dict>
+</plist>
