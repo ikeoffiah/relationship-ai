@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/features/sessions/joint_session_entry_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:mobile/core/theme/app_colors.dart';
@@ -9,6 +8,8 @@ import 'package:mobile/features/home/home_notifier.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
 import 'package:mobile/core/services/push_service.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
+import 'package:mobile/features/engagement/engagement_viewmodel.dart';
+import 'package:mobile/features/home/views/today_hero.dart';
 import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
 import 'package:mobile/features/couple_chat/views/couple_chat_screen.dart';
 
@@ -31,6 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final authVM = provider.Provider.of<AuthViewModel>(context, listen: false);
       final userId = authVM.user?.id;
       ref.read(homeProvider.notifier).fetchHomeData(relVM, userId: userId);
+      provider.Provider.of<EngagementViewModel>(context, listen: false).loadRitual();
       if (userId != null) {
         provider.Provider.of<NotificationViewModel>(context, listen: false).fetchUnreadCount(userId);
         // Register this device for push now that we have an authenticated
@@ -125,21 +127,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 24),
               Expanded(
-                child: ListView(
-                  children: [
-                    _buildCoupleChatCard(homeState, relVM, authVM),
-                    const SizedBox(height: 16),
-                    _buildDailyRitualCard(),
-                    const SizedBox(height: 16),
-                    _buildIndividualSessionCard(),
-                    const SizedBox(height: 16),
-                    _buildJointSessionCard(homeState, relVM),
-                    const SizedBox(height: 16),
-                    _buildAsyncRelayCard(homeState),
-                    const SizedBox(height: 16),
-                    _buildPartnerConnectionBanner(homeState),
-                    const SizedBox(height: 32),
-                  ],
+                child: provider.Consumer<EngagementViewModel>(
+                  builder: (context, engagement, _) => ListView(
+                    children: [
+                      // One quiet line instead of the gold streak banner —
+                      // consistency, not a chain that resets to zero and tells
+                      // a couple they failed each other on a hard week.
+                      if (engagement.summary.currentStreak > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'Together ${engagement.summary.currentStreak} '
+                            '${engagement.summary.currentStreak == 1 ? "day" : "days"} running',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      TodayHero(
+                        vm: engagement,
+                        onElsewhere: () => Navigator.of(
+                          context,
+                        ).pushNamed('/engagement/games'),
+                      ),
+                      const SizedBox(height: 12),
+                      TodayCheckIn(vm: engagement),
+                      const SizedBox(height: 16),
+                      // What's live — only what needs attention.
+                      _buildCoupleChatCard(homeState, relVM, authVM),
+                      _buildAsyncRelayCard(homeState),
+                      _buildPartnerConnectionBanner(homeState),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -220,170 +238,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const Icon(Icons.chevron_right, color: AppColors.softCharcoal),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Entry point to the daily-ritual hub (question, check-in, goals, streak).
-  /// Placed first so the everyday habit is the first thing on the home screen.
-  Widget _buildDailyRitualCard() {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => Navigator.of(context).pushNamed('/engagement/daily'),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.wb_sunny_outlined, color: AppColors.goldMedium),
-                  SizedBox(width: 8),
-                  Text(
-                    '☀️ Today',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Spacer(),
-                  Icon(Icons.chevron_right, color: AppColors.softCharcoal),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your daily question, check-in and shared goals.',
-                style: TextStyle(color: AppColors.softCharcoal.withValues(alpha: 0.7)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIndividualSessionCard() {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.lock_outline_rounded, color: AppColors.calmTeal),
-                SizedBox(width: 8),
-                Text(
-                  '🟢 Individual session',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Start a private reflection session with your AI guide.',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                // Navigate to ChatScreen
-                Navigator.of(context).pushNamed('/chat');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.calmTeal,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Begin session',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJointSessionCard(
-    HomeState homeState,
-    RelationshipViewModel relVM,
-  ) {
-    if (homeState.relationshipStatus != RelationshipStatus.active) {
-      return const SizedBox.shrink();
-    }
-
-    final isEnrolled = homeState.partnerJointSessionEnrolled;
-    final partnerName = homeState.partnerDisplayName ?? 'Partner';
-
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.people_outline_rounded, color: AppColors.warmCoral),
-                SizedBox(width: 8),
-                Text(
-                  '👥 Joint session',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isEnrolled
-                  ? '$partnerName is enrolled.'
-                  : '$partnerName hasn\'t enabled joint sessions.',
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: isEnrolled
-                  ? () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => JointSessionEntryScreen(
-                            isInitiator: true,
-                            partnerName: partnerName,
-                          ),
-                        ),
-                      );
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.warmCoral,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Start joint session',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
         ),
       ),
     );
