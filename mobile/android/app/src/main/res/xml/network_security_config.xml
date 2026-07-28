@@ -68,12 +68,12 @@
         -->
     </domain-config>
 
-    <!-- ── Local development backend ────────────────────────────────────────
+    <!-- Local development backend.
       Permit cleartext HTTP to loopback / emulator-host addresses only, so a
-      local Django/FastAPI stack (reached via --dart-define=API_SCHEME=http) is
-      usable in development. These are not routable internet domains:
-        10.0.2.2  = the host machine as seen from the Android emulator
-        127.0.0.1 / localhost = on-device loopback
+      local Django/FastAPI stack (reached with the API_SCHEME=http dart-define)
+      is usable in development. These are not routable internet domains:
+        10.0.2.2  is the host machine as seen from the Android emulator
+        127.0.0.1 / localhost is on-device loopback
     -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">10.0.2.2</domain>
