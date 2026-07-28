@@ -55,7 +55,10 @@ class RsqScreen extends StatelessWidget {
                   final q = questions[index];
                   final qId = q['id'].toString();
                   final text = q['text'] as String? ?? '';
-                  final selected = vm.rsqResponses[qId] ?? 3;
+                  // No pre-selected default: the item stays unanswered (no chip
+                  // highlighted) until the user actually taps one, so a neutral
+                  // "3" is never silently submitted.
+                  final int? selected = vm.rsqResponses[qId];
                   return Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
