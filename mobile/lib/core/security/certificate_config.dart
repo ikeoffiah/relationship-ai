@@ -25,12 +25,37 @@ class CertConfig {
   CertConfig._();
 
   // ── Host names ──────────────────────────────────────────────────────────────
+  //
+  // Production hosts are the defaults. For local development, override them at
+  // build time with --dart-define (no code change, production unaffected):
+  //
+  //   flutter run \
+  //     --dart-define=API_HOST=10.0.2.2:8000 \   # Django  (Android emulator → host)
+  //     --dart-define=WS_HOST=10.0.2.2:8001 \     # FastAPI
+  //     --dart-define=API_SCHEME=http             # local backend is plain HTTP
+  //
+  // (iOS simulator uses localhost:8000/8001; a physical device uses your Mac's
+  // LAN IP.) Certificate pinning is already disabled in debug builds.
+
+  static const String _envApiHost = String.fromEnvironment('API_HOST');
+  static const String _envWsHost = String.fromEnvironment('WS_HOST');
+  static const String _envScheme =
+      String.fromEnvironment('API_SCHEME', defaultValue: 'https');
 
   /// Primary REST / Django API host.
-  static const String djangoApiHost = 'api.relationshipai.com';
+  static String get djangoApiHost =>
+      _envApiHost.isEmpty ? 'api.relationshipai.com' : _envApiHost;
 
   /// WebSocket / FastAPI host.
-  static const String fastapiHost = 'ws.relationshipai.com';
+  static String get fastapiHost =>
+      _envWsHost.isEmpty ? 'ws.relationshipai.com' : _envWsHost;
+
+  /// URL scheme (https in production, http for a local backend).
+  static String get scheme => _envScheme;
+
+  /// Fully-qualified base URLs, scheme included.
+  static String get djangoBaseUrl => '$scheme://$djangoApiHost';
+  static String get fastapiBaseUrl => '$scheme://$fastapiHost';
 
   // ── Pinned SPKI SHA-256 fingerprints ────────────────────────────────────────
   //

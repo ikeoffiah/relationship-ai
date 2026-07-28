@@ -21,11 +21,11 @@ abstract class BaseApiService {
   /// a fixed receive timeout would abort a healthy long-lived response.
   BaseApiService({
     Dio? injectedDio,
-    String baseUrl = 'https://${CertConfig.djangoApiHost}',
+    String? baseUrl,
     Duration? receiveTimeout = const Duration(seconds: 10),
   }) {
     final baseOptions = BaseOptions(
-      baseUrl: baseUrl,
+      baseUrl: baseUrl ?? CertConfig.djangoBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: receiveTimeout,
       headers: {
