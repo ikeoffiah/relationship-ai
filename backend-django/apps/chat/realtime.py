@@ -35,12 +35,19 @@ def publish(relationship_id, event: dict, exclude_user_id=None) -> bool:
     Returns True if it was handed to Redis, False if it could not be — never
     raises, so a delivery failure cannot roll back a persisted message.
     """
+    # ``default=str`` is load-bearing, not defensive. A serialized message
+    # carries UUID and datetime objects (DRF renders a related field as the pk
+    # object, not a string), which json.dumps refuses. Without this the publish
+    # raised, got swallowed by the guard below, and every message persisted
+    # correctly while silently never reaching the partner's socket — the worst
+    # kind of failure, because nothing looks broken from the sender's side.
     payload = json.dumps(
         {
             "target_user_id": None,
             "exclude_user_id": str(exclude_user_id) if exclude_user_id else None,
             "event": event,
-        }
+        },
+        default=str,
     )
     try:
         import redis

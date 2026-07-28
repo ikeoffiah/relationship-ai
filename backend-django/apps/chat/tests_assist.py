@@ -457,3 +457,157 @@ class VerdictCacheTests(AssistTestCase):
             assist.check_before_send(self.relationship, self.alex, draft)
             assist.check_before_send(other, self.stranger, draft)
         self.assertEqual(complete.call_count, 2)
+
+
+class RollingSummaryTests(AssistTestCase):
+    """Long-arc context at a fixed token cost — and never on the send path."""
+
+    def test_summary_is_prepended_to_context(self):
+        from apps.chat.models import ThreadSummary
+
+        self.say(self.sam, "see you tonight")
+        ThreadSummary.objects.create(
+            relationship=self.relationship,
+            summary="Recurring tension about in-laws; both tired lately.",
+            covered_message_count=1,
+        )
+
+        context = assist._thread_context(self.relationship)
+
+        self.assertIn("Recurring tension about in-laws", context)
+        self.assertIn("see you tonight", context)
+        # Background first, then the verbatim tail.
+        self.assertLess(context.index("Recurring tension"), context.index("see you tonight"))
+
+    def test_context_works_without_a_summary(self):
+        self.say(self.sam, "just the tail")
+        self.assertEqual(assist._thread_context(self.relationship).count("\n"), 0)
+
+    def test_summarising_never_happens_on_the_send_path(self):
+        """The check reads an already-written summary; it must not generate one."""
+        from apps.chat.models import ThreadSummary
+
+        ThreadSummary.objects.create(
+            relationship=self.relationship, summary="background", covered_message_count=1
+        )
+        self.say(self.sam, "hi")
+
+        with patch("apps.chat.assist._complete", return_value="VERDICT: ok") as complete:
+            assist.check_before_send(self.relationship, self.alex, "you always do this")
+
+        # Exactly one call: the check itself. No summarisation round-trip.
+        self.assertEqual(complete.call_count, 1)
+
+    def test_staleness_triggers_only_after_enough_new_messages(self):
+        from apps.chat.tasks import REFRESH_EVERY_MESSAGES, summary_is_stale
+
+        self.say(self.sam, "one")
+        self.assertFalse(summary_is_stale(self.relationship))
+
+        for i in range(REFRESH_EVERY_MESSAGES):
+            self.say(self.sam, f"m{i}")
+        self.assertTrue(summary_is_stale(self.relationship))
+
+    def test_send_still_succeeds_when_the_broker_is_down(self):
+        with patch(
+            "apps.chat.tasks.refresh_thread_summary.delay", side_effect=Exception("no broker")
+        ):
+            with patch("apps.chat.tasks.summary_is_stale", return_value=True):
+                response = self.client.post(
+                    reverse("chat-send", args=[self.relationship.id]),
+                    {"body": "hello"},
+                    format="json",
+                )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
+class ReadCoachTests(AssistTestCase):
+    """Guidance for the partner receiving something hard.
+
+    The failure mode that matters here is not a bad suggestion — it is the
+    assistant taking a side. An AI that privately tells one partner the other
+    is the problem has made itself a third party inside a two-person system.
+    """
+
+    def url(self):
+        return reverse("chat-assist-read-coach", args=[self.relationship.id])
+
+    def test_guidance_is_returned_for_a_hard_message(self):
+        with patch(
+            "apps.chat.assist._complete",
+            return_value="Take a breath before answering — you can name the "
+            "part that stung without matching it.",
+        ):
+            response = self.client.post(
+                self.url(), {"message": "you never listen, you always do this"}, format="json"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("Take a breath", response.data["guidance"])
+        self.assertFalse(response.data["defer_to_support"])
+
+    def test_abuse_signals_defer_to_support_instead_of_coaching(self):
+        """Coaching someone to respond 'better' to coercive control would be
+        coaching them to accommodate it."""
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(),
+                {"message": "you're not allowed to see your friends this weekend"},
+                format="json",
+            )
+
+        self.assertTrue(response.data["defer_to_support"])
+        self.assertIsNone(response.data["guidance"])
+        # And crucially, no "here's how to respond" was ever generated.
+        complete.assert_not_called()
+
+    def test_threats_defer_to_support(self):
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(), {"message": "if you leave I'll take the kids"}, format="json"
+            )
+        self.assertTrue(response.data["defer_to_support"])
+        complete.assert_not_called()
+
+    def test_an_ordinary_message_gets_no_coaching(self):
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(), {"message": "can you grab milk on the way home?"}, format="json"
+            )
+        self.assertIsNone(response.data["guidance"])
+        complete.assert_not_called()
+
+    def test_model_saying_NONE_shows_nothing(self):
+        with patch("apps.chat.assist._complete", return_value="NONE"):
+            response = self.client.post(
+                self.url(), {"message": "you always do this"}, format="json"
+            )
+        self.assertIsNone(response.data["guidance"])
+
+    def test_coaching_fails_open_and_silent(self):
+        with patch("apps.chat.assist._complete", side_effect=Exception("down")):
+            response = self.client.post(
+                self.url(), {"message": "you always do this"}, format="json"
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["guidance"])
+
+    def test_disabled_assist_means_no_coaching(self):
+        ChatAssistSettings.objects.create(
+            relationship=self.relationship, assist_enabled=False
+        )
+        with patch("apps.chat.assist._complete") as complete:
+            result = assist.coach_response(self.relationship, self.alex, "you always do this")
+        complete.assert_not_called()
+        self.assertIsNone(result["guidance"])
+
+    def test_a_stranger_cannot_request_coaching_on_this_thread(self):
+        self.client.force_authenticate(user=self.stranger)
+        response = self.client.post(self.url(), {"message": "you always"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_the_prompt_forbids_characterising_the_partner(self):
+        """The instruction is the guardrail; pin it so it cannot be softened."""
+        system = assist._READ_COACH_SYSTEM.lower()
+        self.assertIn("never diagnose, label or characterise the partner", system)
+        self.assertIn("never take the reader's side", system)

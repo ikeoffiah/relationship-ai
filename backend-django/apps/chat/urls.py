@@ -34,6 +34,11 @@ urlpatterns = [
         name="chat-assist-check",
     ),
     path(
+        "<uuid:relationship_id>/assist/read-coach",
+        views.assist_read_coach,
+        name="chat-assist-read-coach",
+    ),
+    path(
         "<uuid:relationship_id>/assist/nudge",
         views.assist_nudge,
         name="chat-assist-nudge",

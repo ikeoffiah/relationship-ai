@@ -148,7 +148,26 @@ def send_message(request, relationship_id):
         {"type": "couple_message", "message": payload},
         exclude_user_id=request.user.id,
     )
+    _maybe_refresh_summary(relationship)
     return Response(payload, status=status.HTTP_201_CREATED)
+
+
+def _maybe_refresh_summary(relationship) -> None:
+    """Queue a summary refresh if the thread has drifted far enough.
+
+    Enqueue only — the summarisation itself is a whole extra model round-trip
+    and must never happen while someone is waiting on a send. A broker that is
+    unreachable is not worth failing a message over.
+    """
+    try:
+        from .tasks import refresh_thread_summary, summary_is_stale
+
+        if summary_is_stale(relationship):
+            refresh_thread_summary.delay(str(relationship.id))
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).info("summary_refresh_not_queued: %s", exc)
 
 
 @api_view(["DELETE"])
@@ -374,3 +393,16 @@ def assist_settings(request, relationship_id):
             "night_nudge_enabled": config.night_nudge_enabled,
         }
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def assist_read_coach(request, relationship_id):
+    """Private guidance for the partner who just received a hard message.
+
+    Only the receiver sees this. It is never shown to, or recorded against, the
+    person who sent the message.
+    """
+    relationship = _thread_or_404(request.user, relationship_id)
+    incoming = (request.data.get("message") or "").strip()
+    return Response(assist.coach_response(relationship, request.user, incoming))
