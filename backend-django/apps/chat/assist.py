@@ -144,22 +144,23 @@ def rephrase(relationship, user, draft: str) -> dict:
     try:
         if not settings_for(relationship).assist_enabled:
             return {"suggestion": None}
-    except Exception:
-        return {"suggestion": None}
 
-    context = _thread_context(relationship)
-    notes = _partner_notes(relationship, user)
-    prompt = "\n\n".join(
-        part
-        for part in [
-            f"Recent conversation:\n{context}" if context else "",
-            f"About the partner they are writing to: {notes}" if notes else "",
-            f"Their draft:\n{draft}",
-        ]
-        if part
-    )
-    suggestion = _complete(_REPHRASE_SYSTEM, prompt, REPHRASE_TIMEOUT_SECONDS)
-    return {"suggestion": suggestion or None}
+        context = _thread_context(relationship)
+        notes = _partner_notes(relationship, user)
+        prompt = "\n\n".join(
+            part
+            for part in [
+                f"Recent conversation:\n{context}" if context else "",
+                f"About the partner they are writing to: {notes}" if notes else "",
+                f"Their draft:\n{draft}",
+            ]
+            if part
+        )
+        suggestion = _complete(_REPHRASE_SYSTEM, prompt, REPHRASE_TIMEOUT_SECONDS)
+        return {"suggestion": suggestion or None}
+    except Exception as exc:
+        log.warning("chat_assist_rephrase_failed: %s", exc)
+        return {"suggestion": None}
 
 
 # ── 2. Pre-send check ───────────────────────────────────────────────────────

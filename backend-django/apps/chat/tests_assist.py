@@ -56,9 +56,25 @@ class FailOpenTests(AssistTestCase):
         self.assertEqual(response.data["verdict"], "ok")
 
     def test_check_returns_ok_when_the_model_raises(self):
+        """Even an exception escaping _complete must not strand the message.
+
+        _complete already swallows provider errors, so this exercises the outer
+        guard: anything unexpected at all — a database hiccup building context,
+        a future refactor — still resolves to "send it".
+        """
         with patch("apps.chat.assist._complete", side_effect=Exception("boom")):
-            with self.assertRaises(Exception):
-                assist.check_before_send(self.relationship, self.alex, "whatever")
+            result = assist.check_before_send(self.relationship, self.alex, "whatever")
+
+        self.assertEqual(result["verdict"], "ok")
+
+    def test_rephrase_survives_an_unexpected_failure(self):
+        with patch("apps.chat.assist._thread_context", side_effect=Exception("db down")):
+            result = assist.rephrase(self.relationship, self.alex, "hey")
+        self.assertIsNone(result["suggestion"])
+
+    def test_nudge_survives_an_unexpected_failure(self):
+        with patch("apps.chat.assist._thread_context", side_effect=Exception("db down")):
+            self.assertIsNone(assist.nudge_for(self.relationship, self.alex, local_hour=22))
 
     def test_complete_swallows_provider_failures(self):
         """_complete is the only place a provider error may surface."""
