@@ -24,6 +24,31 @@ urlpatterns = [
         name="chat-unread",
     ),
     path(
+        "<uuid:relationship_id>/assist/rephrase",
+        views.assist_rephrase,
+        name="chat-assist-rephrase",
+    ),
+    path(
+        "<uuid:relationship_id>/assist/check",
+        views.assist_check,
+        name="chat-assist-check",
+    ),
+    path(
+        "<uuid:relationship_id>/assist/nudge",
+        views.assist_nudge,
+        name="chat-assist-nudge",
+    ),
+    path(
+        "<uuid:relationship_id>/assist/settings",
+        views.assist_settings,
+        name="chat-assist-settings",
+    ),
+    path(
+        "assist/nudges/<uuid:nudge_id>/feedback",
+        views.assist_nudge_feedback,
+        name="chat-assist-feedback",
+    ),
+    path(
         "messages/<uuid:message_id>",
         views.delete_message,
         name="chat-delete",

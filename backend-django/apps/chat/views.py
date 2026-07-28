@@ -16,8 +16,8 @@ from rest_framework.response import Response
 
 from apps.relationships.models import Relationship
 
-from . import realtime
-from .models import CoupleMessage, MessageReaction, ReadReceipt
+from . import assist, realtime
+from .models import AssistNudge, CoupleMessage, MessageReaction, ReadReceipt
 from .serializers import (
     CoupleMessageSerializer,
     ReactionSerializer,
@@ -271,3 +271,106 @@ def unread_count(request, relationship_id):
         qs = qs.filter(created_at__gt=receipt.last_read_at)
 
     return Response({"unread": qs.count()})
+
+
+# ── Bliss in the thread ─────────────────────────────────────────────────────
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def assist_rephrase(request, relationship_id):
+    """"Help me say this." Explicitly asked for, so it may take a moment."""
+    relationship = _thread_or_404(request.user, relationship_id)
+    draft = (request.data.get("draft") or "").strip()
+    if not draft:
+        return Response({"error": "draft required"}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(assist.rephrase(relationship, request.user, draft))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def assist_check(request, relationship_id):
+    """Called as the user hits send.
+
+    Always 200 with a verdict, even when the model is unavailable — the client
+    treats "ok" as "send it", so a failure here must never strand a message.
+    """
+    relationship = _thread_or_404(request.user, relationship_id)
+    draft = (request.data.get("draft") or "").strip()
+    return Response(assist.check_before_send(relationship, request.user, draft))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def assist_nudge(request, relationship_id):
+    """The one suggestion worth offering right now, if any.
+
+    ``local_hour`` comes from the device rather than a stored timezone, so
+    "end of the day" means their evening, not the server's.
+    """
+    relationship = _thread_or_404(request.user, relationship_id)
+    raw_hour = request.query_params.get("local_hour")
+    try:
+        local_hour = int(raw_hour) if raw_hour is not None else None
+        if local_hour is not None and not 0 <= local_hour <= 23:
+            local_hour = None
+    except (TypeError, ValueError):
+        local_hour = None
+
+    nudge = assist.nudge_for(relationship, request.user, local_hour=local_hour)
+    if nudge is None:
+        return Response({"nudge": None})
+    return Response(
+        {
+            "nudge": {
+                "id": str(nudge.id),
+                "kind": nudge.kind,
+                "suggestion": nudge.suggestion,
+            }
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def assist_nudge_feedback(request, nudge_id):
+    """Record whether a suggestion was used or waved away.
+
+    An unacted nudge is the signal that it should probably not have fired.
+    """
+    nudge = get_object_or_404(AssistNudge, id=nudge_id, user=request.user)
+    action = (request.data.get("action") or "").strip()
+    now = timezone.now()
+    if action == "acted":
+        nudge.acted_at = now
+    elif action == "dismissed":
+        nudge.dismissed_at = now
+    else:
+        return Response(
+            {"error": "action must be 'acted' or 'dismissed'"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    nudge.save(update_fields=["acted_at", "dismissed_at"])
+    return Response({"ok": True})
+
+
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAuthenticated])
+def assist_settings(request, relationship_id):
+    """Read or change how much Bliss participates. Shared by both partners."""
+    relationship = _thread_or_404(request.user, relationship_id)
+    config = assist.settings_for(relationship)
+
+    if request.method == "PATCH":
+        for field in ("assist_enabled", "interception_enabled", "night_nudge_enabled"):
+            if field in request.data:
+                setattr(config, field, bool(request.data[field]))
+        config.save()
+
+    return Response(
+        {
+            "assist_enabled": config.assist_enabled,
+            "interception_enabled": config.interception_enabled,
+            "night_nudge_enabled": config.night_nudge_enabled,
+        }
+    )

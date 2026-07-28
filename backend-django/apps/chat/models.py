@@ -171,3 +171,74 @@ class ReadReceipt(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} read {self.relationship_id} to {self.last_read_at}"
+
+
+class ChatAssistSettings(models.Model):
+    """Whether Bliss may participate in this couple's thread.
+
+    Two separate switches, because they are different asks. ``assist_enabled``
+    governs whether Bliss reads the thread at all — turning it off disables
+    every feature below. ``interception_enabled`` governs only the unprompted
+    "this might land badly" warning, which some couples will want off even
+    while keeping rephrase-on-demand.
+
+    Both partners share one row: this is a joint decision about a shared space,
+    not a per-user preference one partner could impose on the other.
+    """
+
+    relationship = models.OneToOneField(
+        Relationship, on_delete=models.CASCADE, related_name="chat_assist"
+    )
+    assist_enabled = models.BooleanField(default=True)
+    interception_enabled = models.BooleanField(default=True)
+    # Quiet hours for the nightly suggestion, in the couple's local hour.
+    night_nudge_enabled = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "couple_chat_assist_settings"
+
+    def __str__(self) -> str:
+        return f"Assist settings for {self.relationship_id}"
+
+
+class AssistNudge(models.Model):
+    """A suggestion Bliss offered, unprompted.
+
+    Recorded rather than fired-and-forgotten for two reasons: it enforces the
+    daily budget (an assist that appears constantly stops being an assist and
+    becomes a nag), and it is the only way to learn which kinds are actually
+    worth showing — an unacted nudge is a nudge that should probably not have
+    fired.
+    """
+
+    KIND_NIGHT = "night"
+    KIND_OPPORTUNITY = "opportunity"
+    KIND_REPAIR = "repair"
+    KIND_CHOICES = [
+        (KIND_NIGHT, "End of day"),
+        (KIND_OPPORTUNITY, "Opening in the conversation"),
+        (KIND_REPAIR, "Way back in after a rough exchange"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship, on_delete=models.CASCADE, related_name="assist_nudges"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="assist_nudges"
+    )
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    suggestion = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Set when the suggestion was sent (possibly edited); the signal that it landed.
+    acted_at = models.DateTimeField(null=True, blank=True)
+    dismissed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "couple_assist_nudges"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["relationship", "user", "-created_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.kind} nudge for {self.user_id}"
