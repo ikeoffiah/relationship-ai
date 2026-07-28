@@ -32,7 +32,13 @@ class CreateBlissItemSerializer(serializers.Serializer):
     kind = serializers.ChoiceField(choices=["reminder", "event"], default="reminder")
     title = serializers.CharField(max_length=200, trim_whitespace=True)
     due_at = serializers.DateTimeField(required=False, allow_null=True)
-    source = serializers.ChoiceField(choices=["bliss", "manual"], default="bliss")
+    # "couple_chat" is not cosmetic: it is the only value that causes the item
+    # to be announced in the couple's thread. An item created from a private
+    # counseling session must never post there — that would leak the existence
+    # of the session to the partner.
+    source = serializers.ChoiceField(
+        choices=["bliss", "manual", "couple_chat"], default="bliss"
+    )
 
 
 class CommitmentSerializer(serializers.ModelSerializer):

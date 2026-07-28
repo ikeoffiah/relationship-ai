@@ -176,3 +176,17 @@ mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist
 mobile/macos/Runner/GoogleService-Info.plist
 mobile/firebase.json
+
+# SQLite test databases. config/settings.py names the test database
+# "test_postgres_consent_v2", which under a sqlite DATABASE_URL becomes a file
+# in the working directory — so running the suite used to leave a 1.2MB binary
+# staged for commit, and it was committed once already.
+*.db
+backend-django/test_postgres_consent_v2
+
+# Env files and any backup of one. The bare `.env.local` was already ignored,
+# but a `.env.local.bak-1234` was not — which is one `git add -A` away from
+# committing real credentials.
+.env
+.env.*
+*.env.local*

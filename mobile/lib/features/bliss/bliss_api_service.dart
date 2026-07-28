@@ -20,13 +20,19 @@ class BlissApiService extends BaseApiService {
     }
   }
 
-  Future<BlissItem> create(BlissDraft draft) async {
+  /// Create the item.
+  ///
+  /// [source] is load-bearing, not telemetry: only "couple_chat" causes the
+  /// server to announce the item in the couple's thread. An item raised in a
+  /// private counseling session must stay out of there, because the
+  /// announcement would tell the partner the session happened.
+  Future<BlissItem> create(BlissDraft draft, {String source = 'bliss'}) async {
     try {
       final res = await dio.post('$_base/items', data: {
         'kind': draft.kind,
         'title': draft.title,
         'due_at': draft.dueAt?.toUtc().toIso8601String(),
-        'source': 'bliss',
+        'source': source,
       });
       return BlissItem.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {

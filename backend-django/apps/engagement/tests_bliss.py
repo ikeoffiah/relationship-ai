@@ -1,10 +1,14 @@
 """Tests for the @bliss assistant: the NL parser and the API."""
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.test import TestCase as DjangoTestCase
+from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from apps.engagement.bliss import is_bliss_command, parse_bliss_command
 from apps.engagement.models import BlissItem
@@ -161,3 +165,86 @@ class BlissApiTests(APITestCase):
         ]:
             resp = getattr(self.client, method)(path)
             self.assertIn(resp.status_code, (401, 403))
+
+
+class BlissThreadAnnouncementTests(DjangoTestCase):
+    """A @bliss item raised inside the couple thread should show up there.
+
+    The property that matters most is the negative one: an item created
+    anywhere else must NOT post into the thread, because doing so would tell a
+    partner that the other was in a private counseling session.
+    """
+
+    def setUp(self):
+        from apps.chat.models import CoupleMessage
+
+        self.CoupleMessage = CoupleMessage
+        self.alex = User.objects.create_user(email="a@t.local", password="pw12345!")
+        self.sam = User.objects.create_user(email="s@t.local", password="pw12345!")
+        self.relationship = Relationship.objects.create(
+            partner_a=self.alex, partner_b=self.sam, status="active"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.alex)
+        self.url = reverse("engagement-bliss-items")
+
+    def create(self, **overrides):
+        payload = {
+            "kind": "reminder",
+            "title": "call the venue",
+            "due_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            "source": "couple_chat",
+        }
+        payload.update(overrides)
+        return self.client.post(self.url, payload, format="json")
+
+    def thread(self):
+        return self.CoupleMessage.objects.filter(relationship=self.relationship)
+
+    def test_a_couple_chat_item_posts_a_system_message(self):
+        response = self.create()
+        self.assertEqual(response.status_code, 201)
+
+        message = self.thread().get()
+        self.assertEqual(message.kind, "system")
+        self.assertIsNone(message.sender_id)
+        self.assertIn("call the venue", message.body)
+
+    def test_an_item_from_elsewhere_stays_out_of_the_thread(self):
+        # The privacy case. An item raised in a private counseling session must
+        # not announce itself to the partner.
+        self.create(source="bliss")
+        self.create(source="manual")
+        self.assertEqual(self.thread().count(), 0)
+
+    def test_the_announcement_carries_the_time(self):
+        due = timezone.now() + timedelta(days=2)
+        self.create(due_at=due.isoformat())
+        self.assertIn(due.strftime("%a"), self.thread().get().body)
+
+    def test_an_undated_item_still_announces(self):
+        self.create(due_at=None)
+        self.assertIn("call the venue", self.thread().get().body)
+
+    def test_a_broken_announcement_does_not_lose_the_reminder(self):
+        """A missing line in a thread is a cosmetic failure. A reminder that
+        never saved is a promise broken, so the announcement must not be able
+        to take the item down with it."""
+        with patch(
+            "apps.chat.models.CoupleMessage.save", side_effect=RuntimeError("boom")
+        ):
+            response = self.create()
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(BlissItem.objects.filter(title="call the venue").exists())
+
+    def test_a_solo_user_gets_no_announcement(self):
+        solo = User.objects.create_user(email="solo@t.local", password="pw12345!")
+        client = APIClient()
+        client.force_authenticate(user=solo)
+        response = client.post(
+            self.url,
+            {"kind": "reminder", "title": "water the plants", "source": "couple_chat"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.CoupleMessage.objects.count(), 0)

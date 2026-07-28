@@ -5,6 +5,8 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_dimens.dart';
 import 'package:mobile/features/couple_chat/couple_chat_socket.dart';
 import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
+import 'package:mobile/features/bliss/bliss_viewmodel.dart';
+import 'package:mobile/features/bliss/widgets/bliss_confirm_sheet.dart';
 import 'package:mobile/features/couple_chat/models/couple_message.dart';
 import 'package:mobile/features/couple_chat/models/sticker_catalogue.dart';
 import 'package:mobile/features/couple_chat/views/sticker_picker_sheet.dart';
@@ -123,6 +125,8 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
     if (draft.isEmpty || _sending) return;
     final vm = context.read<CoupleChatViewModel>();
 
+    if (await _maybeHandleBliss(vm, draft)) return;
+
     setState(() => _sending = true);
     final verdict = await vm.checkDraft(draft);
     if (!mounted) return;
@@ -146,6 +150,59 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
     _composer.clear();
     await vm.send(toSend);
     _jumpToLatest();
+  }
+
+  /// "@bliss remind us to call the venue tomorrow at 5pm".
+  ///
+  /// The important difference from the counseling chat, where a @bliss line is
+  /// consumed instead of sent: here the message goes to the partner *as well*.
+  /// This is a conversation between two people, and quietly swallowing what one
+  /// of them typed — so the other never sees that anything was asked — would be
+  /// the wrong trade for a tidier thread. Bliss then replies in the thread
+  /// itself (a system line written server-side on confirm), so both of them see
+  /// the same record of what was scheduled.
+  ///
+  /// Returns true if this was a Bliss command, so the caller does not also run
+  /// the normal draft check on it.
+  Future<bool> _maybeHandleBliss(CoupleChatViewModel vm, String text) async {
+    if (!isBlissCommand(text)) return false;
+
+    final bliss = context.read<BlissViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    _composer.clear();
+    await vm.send(text);
+    _jumpToLatest();
+
+    final draft = await bliss.interpret(text);
+    if (!mounted) return true;
+    if (draft == null) {
+      // The message still went. Only the scheduling failed, and saying so
+      // beats silently doing nothing with the tag.
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            "I couldn't find a time in that. Try “@bliss remind us to call "
+            'the venue tomorrow at 5pm”.',
+          ),
+        ),
+      );
+      return true;
+    }
+
+    final confirmed = await BlissConfirmSheet.open(context, draft);
+    if (confirmed == null || !mounted) return true;
+
+    // source: couple_chat is what tells the server to post the system line
+    // into this thread. Anywhere else, it stays private.
+    final item = await bliss.create(confirmed, source: 'couple_chat');
+    if (!mounted) return true;
+    if (item == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't save that — try again.")),
+      );
+    }
+    return true;
   }
 
   void _showStickers(CoupleChatViewModel vm) {
@@ -447,6 +504,11 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A system line is authored by nobody. Rendering it as a left-hand bubble
+    // would attribute it to the partner, which is exactly the confusion the
+    // separate kind exists to prevent.
+    if (message.kind == 'system') return _systemLine(context);
+
     final mine = message.isMine(userId);
     final bubble = GestureDetector(
         onLongPress: message.isDeleted ? null : onLongPress,
@@ -546,6 +608,34 @@ class _Bubble extends StatelessWidget {
               : AppColors.softCharcoal.withValues(alpha: 0.7),
           fontStyle: quoted.isDeleted ? FontStyle.italic : FontStyle.normal,
         ),
+      ),
+    );
+  }
+
+  Widget _systemLine(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.calmSurface,
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+              ),
+              child: Text(
+                message.body,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
