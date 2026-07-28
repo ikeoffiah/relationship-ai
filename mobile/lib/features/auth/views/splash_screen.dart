@@ -6,6 +6,8 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/shared/widgets/glowing_orb.dart';
 import 'package:mobile/features/auth/views/welcome_screen.dart';
+import 'package:mobile/features/auth/views/auth_landing_screen.dart';
+import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 
 /// Splash screen with animated glowing orbs
 /// Implements gentle, calming design principles
@@ -29,12 +31,16 @@ class _SplashScreenState extends State<SplashScreen>
       viewModel.initialize(
         this,
         size,
-        onAnimationComplete: () {
-          // Navigate to welcome screen
+        onAnimationComplete: () async {
+          // Restore a saved session if there is one, so a logged-in user isn't
+          // sent back to the welcome/login flow on every app start.
+          final authVM = context.read<AuthViewModel>();
+          final restored = await authVM.tryRestoreSession();
+          if (!mounted) return;
           Navigator.of(context).pushReplacement(
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
-                  const WelcomeScreen(),
+                  restored ? const AuthLandingScreen() : const WelcomeScreen(),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) {
                     return FadeTransition(opacity: animation, child: child);

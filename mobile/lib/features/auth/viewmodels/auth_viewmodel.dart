@@ -162,6 +162,30 @@ class AuthViewModel extends ChangeNotifier {
 
 
   /// Login with email and password
+  /// Restore a previous session on app startup from the stored token.
+  ///
+  /// Returns true if a valid session was restored (the user stays logged in
+  /// across restarts). If the token is missing or truly expired — the API
+  /// client already tried a refresh — the stored credentials are cleared and
+  /// the caller sends the user to the welcome/login flow.
+  Future<bool> tryRestoreSession() async {
+    final token = await StorageService.getToken();
+    if (token == null || token.isEmpty) return false;
+    _token = token;
+    try {
+      _user = await _authService.me();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      await StorageService.deleteToken();
+      await StorageService.deleteRefreshToken();
+      await StorageService.deleteUserId();
+      _token = null;
+      _user = null;
+      return false;
+    }
+  }
+
   Future<bool> loginWithEmail() async {
     if (!validateLoginForm()) return false;
 

@@ -1,8 +1,20 @@
 import 'package:mobile/features/auth/models/responses/auth_response.dart';
+import 'package:mobile/features/auth/models/user_profile.dart';
 import 'package:mobile/core/api_services/base_api_service.dart';
 
 class AuthApiService extends BaseApiService {
   AuthApiService({super.injectedDio});
+
+  /// Fetch the currently-authenticated user, validating the stored access
+  /// token (the base client auto-refreshes on a 401 using the refresh token).
+  Future<UserProfile> me() async {
+    try {
+      final response = await dio.get('/api/v1/auth/me/');
+      return UserProfile.fromJson(response.data);
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
   Future<AuthResponse> login(String email, String password) async {
     try {
       final response = await dio.post(
