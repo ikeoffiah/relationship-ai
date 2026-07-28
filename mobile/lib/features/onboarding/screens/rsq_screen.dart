@@ -19,6 +19,33 @@ class RsqScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
+            // Gentle context so the questionnaire doesn't feel clinical — why
+            // we ask, in the same soft, muted style as the rest of onboarding.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.favorite_border_rounded,
+                    size: 16,
+                    color: AppColors.warmCoral.withValues(alpha: 0.85),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'These reveal your attachment style — how you seek closeness '
+                      'and handle distance — so Bliss can make guidance feel personal '
+                      'to you. There are no right or wrong answers.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.softCharcoal.withValues(alpha: 0.6),
+                            height: 1.4,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -28,7 +55,10 @@ class RsqScreen extends StatelessWidget {
                   final q = questions[index];
                   final qId = q['id'].toString();
                   final text = q['text'] as String? ?? '';
-                  final selected = vm.rsqResponses[qId] ?? 3;
+                  // No pre-selected default: the item stays unanswered (no chip
+                  // highlighted) until the user actually taps one, so a neutral
+                  // "3" is never silently submitted.
+                  final int? selected = vm.rsqResponses[qId];
                   return Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -67,17 +97,20 @@ class RsqScreen extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: ElevatedButton(
-                onPressed: vm.isRsqComplete ? onNext : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.warmCoral,
-                  disabledBackgroundColor: AppColors.warmCoral.withValues(alpha: 0.4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: Text(
-                  'Continue',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: vm.isRsqComplete ? onNext : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.warmCoral,
+                    disabledBackgroundColor: AppColors.warmCoral.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(
+                    'Continue',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white),
+                  ),
                 ),
               ),
             ),

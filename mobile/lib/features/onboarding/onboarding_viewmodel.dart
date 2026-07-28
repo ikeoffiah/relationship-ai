@@ -235,8 +235,15 @@ class OnboardingViewModel extends ChangeNotifier {
     }
   }
 
-  /// Checks whether the RSQ section is fully answered.
-  bool get isRsqComplete => _rsqResponses.length >= 30;
+  /// Checks whether the RSQ section is fully answered — every displayed
+  /// question must have a response (no neutral default is assumed), and the
+  /// count follows however many questions the backend actually served rather
+  /// than a hard-coded number.
+  bool get isRsqComplete =>
+      _rsqQuestions.isNotEmpty &&
+      _rsqQuestions.every(
+        (q) => _rsqResponses.containsKey(q['id'].toString()),
+      );
 
   /// Checks whether the relationship context section has a stage selected.
   bool get isRelationshipContextComplete => _relationshipStage.isNotEmpty;
