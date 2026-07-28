@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/couple_chat/couple_chat_api_service.dart';
 import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
 import 'package:mobile/features/couple_chat/models/couple_message.dart';
+import 'package:mobile/features/couple_chat/models/sticker_catalogue.dart';
 
 /// Just enough API to exercise the cursors. The network behaviour of the
 /// thread is covered in couple_chat_viewmodel_test.dart; this file is only
@@ -19,6 +20,37 @@ class _StubApi implements CoupleChatApiService {
   @override
   Future<void> markDelivered(String relationshipId) async {
     deliveredCalls++;
+  }
+
+  bool unlocked = false;
+  String? sentSticker;
+  bool sendThrows = false;
+
+  @override
+  Future<bool> intimateUnlocked(String relationshipId) async => unlocked;
+
+  @override
+  Future<CoupleMessage> send(
+    String relationshipId, {
+    required String clientId,
+    String? body,
+    String? sticker,
+    String? replyTo,
+  }) async {
+    sentSticker = sticker;
+    if (sendThrows) throw Exception('offline');
+    return CoupleMessage(
+      id: 'server-$clientId',
+      senderId: 'me',
+      kind: sticker != null ? 'sticker' : 'text',
+      body: body ?? '',
+      sticker: sticker ?? '',
+      replyTo: null,
+      reactions: const [],
+      clientId: clientId,
+      isDeleted: false,
+      createdAt: DateTime(2026),
+    );
   }
 
   @override
@@ -170,6 +202,8 @@ void main() {
     });
   });
 
+  _stickerTests();
+
   group('presence', () {
     test('starts offline — we have not heard anything yet', () {
       expect(build(_StubApi()).partnerOnline, isFalse);
@@ -186,6 +220,112 @@ void main() {
       final vm = build(_StubApi())..onPartnerPresence(true);
       vm.onSocketLost();
       expect(vm.partnerOnline, isFalse);
+    });
+  });
+}
+
+/// Stickers.
+///
+/// The catalogue is data, so the tests that matter are about the promises the
+/// data makes: stable ids, a gate that fails closed, and an unknown id that
+/// degrades rather than disappearing.
+void _stickerTests() {
+  group('sticker catalogue', () {
+    test('ids are unique across every pack', () {
+      final ids = [
+        for (final pack in kStickerPacks)
+          for (final sticker in pack.stickers) sticker.id,
+      ];
+      expect(ids.toSet().length, ids.length);
+    });
+
+    test('ids are namespaced strings, never positional', () {
+      // A sticker's meaning is stored in the thread forever. If ids were
+      // indexes, reordering this file would rewrite what someone said.
+      for (final pack in kStickerPacks) {
+        for (final sticker in pack.stickers) {
+          expect(sticker.id, startsWith('${pack.key}.'));
+          expect(int.tryParse(sticker.id), isNull);
+        }
+      }
+    });
+
+    test('every sticker has a label a screen reader can say', () {
+      for (final pack in kStickerPacks) {
+        for (final sticker in pack.stickers) {
+          expect(sticker.label.trim(), isNotEmpty);
+        }
+      }
+    });
+
+    test('exactly the intimate pack is gated', () {
+      final gated = kStickerPacks.where((p) => p.intimate).map((p) => p.key);
+      expect(gated, ['close']);
+    });
+
+    test('there is a repair pack, and it is not gated', () {
+      // The one pack that earns its place in this product specifically: a
+      // repair attempt has to be reachable at the worst moment, not behind
+      // a consent flow.
+      final repair = kStickerPacks.firstWhere((p) => p.key == 'repair');
+      expect(repair.intimate, isFalse);
+      expect(repair.stickers, isNotEmpty);
+    });
+
+    test('an unknown id resolves to null rather than throwing', () {
+      expect(stickerById('nope.gone'), isNull);
+    });
+  });
+
+  group('sending stickers', () {
+    test('a sticker sends as a sticker, not as text', () async {
+      final api = _StubApi();
+      final vm = CoupleChatViewModel(
+        relationshipId: 'r1',
+        userId: 'me',
+        api: api,
+      );
+      await vm.sendSticker('love.heart');
+      expect(api.sentSticker, 'love.heart');
+      expect(vm.messages.single.kind, 'sticker');
+      expect(vm.messages.single.sticker, 'love.heart');
+    });
+
+    test('a failed sticker keeps the bubble and retries as a sticker', () async {
+      final api = _StubApi()..sendThrows = true;
+      final vm = CoupleChatViewModel(
+        relationshipId: 'r1',
+        userId: 'me',
+        api: api,
+      );
+      await vm.sendSticker('repair.sorry');
+      expect(vm.messages.single.failed, isTrue);
+
+      api
+        ..sendThrows = false
+        ..sentSticker = null;
+      await vm.retry(vm.messages.single);
+      // The bug this guards: retry() used to resend `body`, which is empty on
+      // a sticker — the retry would have silently sent nothing.
+      expect(api.sentSticker, 'repair.sorry');
+    });
+
+    test('the intimate gate is closed until the server opens it', () async {
+      final api = _StubApi();
+      final vm = CoupleChatViewModel(
+        relationshipId: 'r1',
+        userId: 'me',
+        api: api,
+      );
+      expect(vm.intimateUnlocked, isFalse);
+      await vm.load();
+      await Future<void>.delayed(Duration.zero);
+      expect(vm.intimateUnlocked, isFalse);
+
+      api.unlocked = true;
+      await vm.load();
+      await Future<void>.delayed(Duration.zero);
+      expect(vm.intimateUnlocked, isTrue);
     });
   });
 }

@@ -94,6 +94,23 @@ class CoupleChatApiService extends BaseApiService {
     }
   }
 
+  /// Whether the couple's mutual intimate-content consent is in place.
+  ///
+  /// Deliberately the games endpoint rather than a second consent of our own.
+  /// The gate — both partners age-verified, both opted in — is about the couple,
+  /// not about games, and two switches for one decision is how you end up with
+  /// a couple who thinks they turned something off and did not.
+  Future<bool> intimateUnlocked(String relationshipId) async {
+    try {
+      final res = await dio.get('/api/v1/engagement/games/spicy-consent');
+      final data = res.data as Map<String, dynamic>;
+      return data['unlocked'] as bool? ?? false;
+    } catch (_) {
+      // Fails closed. Not knowing must not be the same as being unlocked.
+      return false;
+    }
+  }
+
   /// Acknowledge that this device now holds the thread — which is a different
   /// claim from having opened it, and is why it is a different endpoint.
   Future<void> markDelivered(String relationshipId) async {
