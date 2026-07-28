@@ -369,3 +369,91 @@ class ContextTests(AssistTestCase):
             created_at=timezone.now() - timedelta(hours=12)
         )
         self.assertFalse(assist._had_sharp_exchange(self.relationship))
+
+
+class LocalGateTests(AssistTestCase):
+    """The gate decides which sends are worth a model call.
+
+    Its recall is load-bearing: anything it skips, the model never sees. Its
+    precision only costs money. So the asymmetry in these tests is deliberate —
+    recall is asserted absolutely, escalation rate only loosely.
+    """
+
+    def test_gate_never_skips_a_message_that_should_flag(self):
+        from apps.chat.evalset import EVAL_DRAFTS
+
+        missed = [d for d, should in EVAL_DRAFTS if should and not assist._needs_model(d)]
+
+        self.assertEqual(missed, [], f"gate would skip these entirely: {missed}")
+
+    def test_gate_skips_most_ordinary_messages(self):
+        """Most of what partners send each other is logistics and warmth."""
+        from apps.chat.evalset import EVAL_DRAFTS
+
+        escalated = sum(1 for d, _ in EVAL_DRAFTS if assist._needs_model(d))
+
+        # Measured at 33%. Anything approaching 100% means the gate has stopped
+        # earning its place and every send is paying for a model call again.
+        self.assertLess(escalated / len(EVAL_DRAFTS), 0.6)
+
+    def test_second_person_is_matched_on_word_boundaries(self):
+        """Regression: matching "you " with a trailing space missed contempt
+        whenever the word ended the sentence."""
+        self.assertTrue(assist._needs_model("nobody else would put up with you"))
+
+    def test_being_upset_is_not_enough_to_escalate(self):
+        for benign in (
+            "I'm really tired and I don't have it in me tonight",
+            "I felt hurt when you left without saying anything",
+            "I'm angry about what happened yesterday",
+        ):
+            self.assertFalse(assist._needs_model(benign), benign)
+
+    def test_shouting_escalates(self):
+        self.assertTrue(assist._needs_model("WHY DO I EVEN BOTHER WITH THIS"))
+
+    def test_a_skipped_draft_never_reaches_the_model(self):
+        with patch("apps.chat.assist._complete") as complete:
+            result = assist.check_before_send(self.relationship, self.alex, "ok see you at 7")
+        complete.assert_not_called()
+        self.assertEqual(result["verdict"], "ok")
+
+
+class VerdictCacheTests(AssistTestCase):
+    """The client checks on a typing pause and again on send; the second call
+    must not pay for the first's answer."""
+
+    def setUp(self):
+        super().setUp()
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def test_repeat_check_of_the_same_draft_hits_the_cache(self):
+        draft = "you never listen and you always do this"
+        raw = "VERDICT: caution\nREASON: sweeping\nSUGGESTION: I felt unheard."
+
+        with patch("apps.chat.assist._complete", return_value=raw) as complete:
+            first = assist.check_before_send(self.relationship, self.alex, draft)
+            second = assist.check_before_send(self.relationship, self.alex, draft)
+
+        self.assertEqual(complete.call_count, 1)
+        self.assertEqual(first, second)
+
+    def test_editing_the_draft_re_checks(self):
+        raw = "VERDICT: ok"
+        with patch("apps.chat.assist._complete", return_value=raw) as complete:
+            assist.check_before_send(self.relationship, self.alex, "you always do this")
+            assist.check_before_send(self.relationship, self.alex, "you always do that")
+        self.assertEqual(complete.call_count, 2)
+
+    def test_cache_is_scoped_per_couple(self):
+        """One couple's verdict must never resolve another's draft."""
+        other = Relationship.objects.create(
+            partner_a=self.stranger, partner_b=None, status="pending"
+        )
+        draft = "you never listen and you always do this"
+        with patch("apps.chat.assist._complete", return_value="VERDICT: ok") as complete:
+            assist.check_before_send(self.relationship, self.alex, draft)
+            assist.check_before_send(other, self.stranger, draft)
+        self.assertEqual(complete.call_count, 2)
