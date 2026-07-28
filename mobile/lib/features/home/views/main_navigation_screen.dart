@@ -3,12 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_dimens.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
-import 'package:mobile/features/consent/consent_dashboard_screen.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 
 import 'package:mobile/features/home/views/home_screen.dart';
-import 'package:mobile/features/history/session_history_screen.dart';
-import 'package:mobile/features/settings/settings_screen.dart';
+import 'package:mobile/features/hubs/talk_screen.dart';
+import 'package:mobile/features/hubs/us_screen.dart';
+import 'package:mobile/features/hubs/you_screen.dart';
+import 'package:mobile/shared/widgets/custom_bottom_nav.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -31,11 +32,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     context.watch<AuthViewModel>();
     final relationshipViewModel = context.watch<RelationshipViewModel>();
 
+    // Four tabs, and three of them are the product rather than admin. The old
+    // arrangement spent Home / History / Privacy / Settings — leaving eleven
+    // features with nowhere to live while three slots went to screens people
+    // open about once a month.
     final List<Widget> screens = [
       const HomeScreen(),
-      const SessionHistoryScreen(),
-      const ConsentDashboardScreen(),
-      const SettingsScreen(),
+      const UsScreen(),
+      const TalkScreen(),
+      const YouScreen(),
     ];
 
     final isPending =
@@ -54,36 +59,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            activeIcon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.lock_outline_rounded),
-            activeIcon: Icon(Icons.lock_rounded),
-            label: 'Privacy',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+      bottomNavigationBar: CustomBottomNav(
         currentIndex: _selectedIndex,
-        selectedItemColor: AppColors.warmCoral,
-        unselectedItemColor: AppColors.softCharcoal.withValues(alpha: 0.5),
         onTap: _onItemTapped,
-        backgroundColor: Colors.white,
-        elevation: 8,
-        type: BottomNavigationBarType.fixed,
+        items: const [
+          NavItem(icon: Icons.wb_sunny_rounded, label: 'Today'),
+          NavItem(icon: Icons.favorite_rounded, label: 'Us'),
+          NavItem(icon: Icons.chat_bubble_rounded, label: 'Talk'),
+          NavItem(icon: Icons.person_rounded, label: 'You'),
+        ],
       ),
     );
   }

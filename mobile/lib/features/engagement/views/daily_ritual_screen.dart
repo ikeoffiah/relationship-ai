@@ -33,33 +33,10 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
         title: const Text('Today', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.creamWhite,
         elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pushNamed('/engagement/games'),
-            icon: const Icon(Icons.videogame_asset_outlined, color: AppColors.warmCoral),
-            tooltip: 'Games',
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pushNamed('/engagement/faith'),
-            icon: const Icon(Icons.self_improvement_outlined, color: AppColors.calmTeal),
-            tooltip: 'Faith',
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pushNamed('/engagement/commitments'),
-            icon: const Icon(Icons.favorite_border, color: AppColors.warmCoral),
-            tooltip: 'Commitments',
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pushNamed('/engagement/focus'),
-            icon: const Icon(Icons.spa_outlined, color: AppColors.sageGreen),
-            tooltip: 'Focus together',
-          ),
-          TextButton.icon(
-            onPressed: () => Navigator.of(context).pushNamed('/engagement/goals'),
-            icon: const Icon(Icons.flag_outlined, color: AppColors.calmTeal),
-            label: const Text('Goals', style: TextStyle(color: AppColors.calmTeal)),
-          ),
-        ],
+        // The five destinations that used to live here — Games, Faith,
+        // Commitments, Focus and Goals — were a navigation menu disguised as
+        // chrome, one level below anywhere anyone would look for them. They
+        // now have real homes in the Us and You tabs.
       ),
       body: RefreshIndicator(
         onRefresh: () => vm.loadRitual(),
