@@ -9,6 +9,8 @@ import 'package:mobile/features/home/home_notifier.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
 import 'package:mobile/core/services/push_service.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
+import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
+import 'package:mobile/features/couple_chat/views/couple_chat_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -26,9 +28,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         context,
         listen: false,
       );
-      ref.read(homeProvider.notifier).fetchHomeData(relVM);
       final authVM = provider.Provider.of<AuthViewModel>(context, listen: false);
       final userId = authVM.user?.id;
+      ref.read(homeProvider.notifier).fetchHomeData(relVM, userId: userId);
       if (userId != null) {
         provider.Provider.of<NotificationViewModel>(context, listen: false).fetchUnreadCount(userId);
         // Register this device for push now that we have an authenticated
@@ -125,6 +127,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Expanded(
                 child: ListView(
                   children: [
+                    _buildCoupleChatCard(homeState, relVM, authVM),
+                    const SizedBox(height: 16),
                     _buildDailyRitualCard(),
                     const SizedBox(height: 16),
                     _buildIndividualSessionCard(),
@@ -138,6 +142,82 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The couple's own conversation — the surface they open daily. Shown only
+  /// once a partner is connected, since a thread needs two people.
+  Widget _buildCoupleChatCard(
+    dynamic homeState,
+    RelationshipViewModel relVM,
+    AuthViewModel authVM,
+  ) {
+    final relationshipId = relVM.currentRelationship?['id'] as String?;
+    final userId = authVM.user?.id;
+    if (relationshipId == null ||
+        userId == null ||
+        homeState.relationshipStatus != RelationshipStatus.active) {
+      return const SizedBox.shrink();
+    }
+    final partnerName =
+        relVM.currentRelationship?['partner_name'] as String? ?? 'your partner';
+
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: AppColors.warmCoral.withValues(alpha: 0.35)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => provider.ChangeNotifierProvider(
+              create: (_) => CoupleChatViewModel(
+                relationshipId: relationshipId,
+                userId: userId,
+              ),
+              child: CoupleChatScreen(
+                relationshipId: relationshipId,
+                userId: userId,
+                partnerName: partnerName,
+              ),
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: AppColors.warmCoral,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Chat with $partnerName',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Your conversation, with Bliss alongside.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.softCharcoal.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.softCharcoal),
             ],
           ),
         ),

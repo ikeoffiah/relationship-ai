@@ -1,5 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
+import 'package:mobile/features/relay/relay_api_service.dart';
 
 part 'home_notifier.g.dart';
 
@@ -40,7 +41,10 @@ class HomeNotifier extends _$HomeNotifier {
   @override
   HomeState build() => HomeState(relationshipStatus: RelationshipStatus.loading);
 
-  Future<void> fetchHomeData(RelationshipViewModel relationshipViewModel) async {
+  Future<void> fetchHomeData(
+    RelationshipViewModel relationshipViewModel, {
+    String? userId,
+  }) async {
     state = state.copyWith(relationshipStatus: RelationshipStatus.loading);
     try {
       await relationshipViewModel.fetchRelationshipStatus();
@@ -49,11 +53,24 @@ class HomeNotifier extends _$HomeNotifier {
       final partnerName = currentRel != null ? currentRel['partner_name'] as String? : null;
       final enrolled = currentRel != null && currentRel['joint_session_participation'] == 'enrolled';
       
+      // Previously pinned to 0, which meant the relay card on Home could never
+      // appear no matter how many messages were waiting — the feature was
+      // effectively unreachable. Fetched now, and a failure here degrades to
+      // "no badge" rather than taking down the whole home screen.
+      var pendingRelays = 0;
+      if (userId != null) {
+        try {
+          pendingRelays = (await RelayApiService().fetchPending(userId)).length;
+        } catch (_) {
+          pendingRelays = 0;
+        }
+      }
+
       state = state.copyWith(
         relationshipStatus: relationshipViewModel.status,
         partnerDisplayName: partnerName,
         partnerJointSessionEnrolled: enrolled,
-        pendingRelayMessageCount: 0,
+        pendingRelayMessageCount: pendingRelays,
       );
     } catch (e) {
       state = state.copyWith(relationshipStatus: RelationshipStatus.notConnected);

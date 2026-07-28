@@ -349,8 +349,14 @@ class _AIDisclosureBanner extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () {},
-            child: Text('Learn more', style: TextStyle(fontSize: 11, color: Colors.blue.shade600)),
+            // Was a no-op that promised more information and delivered none.
+            onPressed: () => Navigator.of(context).pushNamed('/safety'),
+            child: Text(
+              'What that means',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.warmCoral,
+              ),
+            ),
           ),
         ],
       ),
