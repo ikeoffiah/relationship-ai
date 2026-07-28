@@ -174,6 +174,27 @@ class CoupleMessage {
     );
   }
 
+  /// An optimistic sticker bubble.
+  factory CoupleMessage.pendingSticker({
+    required String clientId,
+    required String senderId,
+    required String sticker,
+  }) {
+    return CoupleMessage(
+      id: clientId,
+      senderId: senderId,
+      kind: 'sticker',
+      body: '',
+      sticker: sticker,
+      replyTo: null,
+      reactions: const [],
+      clientId: clientId,
+      isDeleted: false,
+      createdAt: DateTime.now(),
+      isPending: true,
+    );
+  }
+
   CoupleMessage copyWith({
     bool? isPending,
     bool? failed,

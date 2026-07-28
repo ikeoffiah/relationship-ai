@@ -6,6 +6,8 @@ import 'package:mobile/core/theme/app_dimens.dart';
 import 'package:mobile/features/couple_chat/couple_chat_socket.dart';
 import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
 import 'package:mobile/features/couple_chat/models/couple_message.dart';
+import 'package:mobile/features/couple_chat/models/sticker_catalogue.dart';
+import 'package:mobile/features/couple_chat/views/sticker_picker_sheet.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
 
 /// The couple's conversation.
@@ -144,6 +146,17 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
     _composer.clear();
     await vm.send(toSend);
     _jumpToLatest();
+  }
+
+  void _showStickers(CoupleChatViewModel vm) {
+    StickerPickerSheet.show(
+      context,
+      intimateUnlocked: vm.intimateUnlocked,
+      onPick: (id) {
+        vm.sendSticker(id);
+        _jumpToLatest();
+      },
+    );
   }
 
   /// Three ways out, and none of them is "you may not send this."
@@ -398,6 +411,7 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
                 controller: _composer,
                 sending: _sending,
                 onSend: _handleSend,
+                onStickers: () => _showStickers(vm),
               ),
             ],
           ),
@@ -463,15 +477,18 @@ class _Bubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (message.replyTo != null) _quote(context, mine),
-              Text(
-                message.isDeleted ? 'This message was deleted' : message.body,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: mine ? Colors.white : AppColors.softCharcoal,
-                  fontStyle: message.isDeleted
-                      ? FontStyle.italic
-                      : FontStyle.normal,
+              if (message.kind == 'sticker' && !message.isDeleted)
+                _sticker()
+              else
+                Text(
+                  message.isDeleted ? 'This message was deleted' : message.body,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: mine ? Colors.white : AppColors.softCharcoal,
+                    fontStyle: message.isDeleted
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
                 ),
-              ),
               if (message.reactions.isNotEmpty) _reactions(mine),
             ],
           ),
@@ -530,6 +547,23 @@ class _Bubble extends StatelessWidget {
           fontStyle: quoted.isDeleted ? FontStyle.italic : FontStyle.normal,
         ),
       ),
+    );
+  }
+
+  Widget _sticker() {
+    final sticker = stickerById(message.sticker);
+    // An id this build does not know — sent from a newer client, or a pack we
+    // retired. Say so rather than rendering an empty bubble; a message that
+    // silently disappears is worse than one that admits it cannot be shown.
+    if (sticker == null) {
+      return const Text('Sticker', style: TextStyle(fontSize: 14));
+    }
+    return Text(
+      sticker.glyph,
+      // Names the sticker for a screen reader in place of the glyph, which
+      // would otherwise be announced by its Unicode name ("person in bed").
+      semanticsLabel: sticker.label,
+      style: const TextStyle(fontSize: 44),
     );
   }
 
@@ -756,11 +790,13 @@ class _Composer extends StatelessWidget {
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
+  final VoidCallback onStickers;
 
   const _Composer({
     required this.controller,
     required this.sending,
     required this.onSend,
+    required this.onStickers,
   });
 
   @override
@@ -777,6 +813,13 @@ class _Composer extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            IconButton(
+              key: const Key('sticker_button'),
+              onPressed: onStickers,
+              icon: const Icon(Icons.emoji_emotions_outlined),
+              color: AppColors.softCharcoal.withValues(alpha: 0.5),
+              tooltip: 'Stickers',
+            ),
             Expanded(
               child: TextField(
                 controller: controller,

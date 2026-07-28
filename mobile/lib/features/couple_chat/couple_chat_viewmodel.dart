@@ -51,6 +51,11 @@ class CoupleChatViewModel extends ChangeNotifier {
   bool _coachDefersToSupport = false;
   bool get coachDefersToSupport => _coachDefersToSupport;
 
+  /// Whether the intimate sticker pack is available to this couple. Starts
+  /// closed and only opens once the server confirms it.
+  bool _intimateUnlocked = false;
+  bool get intimateUnlocked => _intimateUnlocked;
+
   // ── Delivery cursors ──────────────────────────────────────────────────────
   // How far the *partner* has got. Two timestamps rather than a status stored
   // on each message: a receipt moves one cursor, and every tick in the thread
@@ -170,6 +175,13 @@ class CoupleChatViewModel extends ChangeNotifier {
       // tick into a double one. Fire-and-forget: an ack that does not land is
       // worth nothing more than a stale tick, and must never delay the thread.
       unawaited(_api.markDelivered(relationshipId).catchError((_) {}));
+      unawaited(
+        _api.intimateUnlocked(relationshipId).then((unlocked) {
+          if (unlocked == _intimateUnlocked) return;
+          _intimateUnlocked = unlocked;
+          notifyListeners();
+        }),
+      );
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
     }
@@ -256,11 +268,45 @@ class CoupleChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Send a sticker. Same optimistic path as text — the only real difference
+  /// is that a sticker has no draft, so nothing to check or rephrase.
+  Future<void> sendSticker(String stickerId) async {
+    if (stickerId.isEmpty) return;
+    final clientId = _uuid.v4();
+    final optimistic = CoupleMessage.pendingSticker(
+      clientId: clientId,
+      senderId: userId,
+      sticker: stickerId,
+    );
+    _messages.add(optimistic);
+    _replyingTo = null;
+    notifyListeners();
+
+    try {
+      final saved = await _api.send(
+        relationshipId,
+        clientId: clientId,
+        sticker: stickerId,
+      );
+      _replaceByClientId(clientId, saved);
+    } catch (_) {
+      _replaceByClientId(
+        clientId,
+        optimistic.copyWith(isPending: false, failed: true),
+      );
+    }
+    notifyListeners();
+  }
+
   /// Resend a bubble that previously failed.
   Future<void> retry(CoupleMessage failed) async {
     _messages.removeWhere((m) => m.clientId == failed.clientId);
     notifyListeners();
-    await send(failed.body);
+    if (failed.kind == 'sticker') {
+      await sendSticker(failed.sticker);
+    } else {
+      await send(failed.body);
+    }
   }
 
   void _replaceByClientId(String clientId, CoupleMessage replacement) {
