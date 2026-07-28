@@ -5,9 +5,9 @@ def test_model_version_pinning():
     # OpenAI is the default provider across all task paths.
     assert 'primary_counseling' in MODEL_CONFIG
     assert MODEL_CONFIG['primary_counseling']['model_id'] == 'gpt-4o'
-    assert MODEL_CONFIG['primary_counseling']['fallback'] == 'gpt-4o-mini'
-    assert MODEL_CONFIG['fast_path']['model_id'] == 'gpt-4o-mini'
-    assert MODEL_CONFIG['memory_extraction']['model_id'] == 'gpt-4o-mini'
+    assert MODEL_CONFIG['primary_counseling']['fallback'] == 'gpt-4.1-mini'
+    assert MODEL_CONFIG['fast_path']['model_id'] == 'gpt-4.1-nano'
+    assert MODEL_CONFIG['memory_extraction']['model_id'] == 'gpt-4.1-nano'
 
     # Anthropic remains available as an explicit opt-in (LLM_PROVIDER=anthropic).
     assert ANTHROPIC_MODEL_CONFIG['primary_counseling']['model_id'] == 'claude-opus-4-6'

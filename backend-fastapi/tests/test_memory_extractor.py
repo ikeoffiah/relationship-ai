@@ -141,7 +141,7 @@ async def test_prompt_includes_the_formatted_conversation(messages):
     await extractor.extract(session_messages=messages, user_id="u1")
 
     kwargs = client.chat.completions.create.await_args.kwargs
-    assert kwargs["model"] == "gpt-4o-mini"
+    assert kwargs["model"] == "gpt-4.1-nano"
     assert kwargs["max_tokens"] == 2048
     prompt = kwargs["messages"][0]["content"]
     assert "USER: We argued about the holidays again." in prompt
@@ -240,7 +240,7 @@ async def test_empty_json_array_returns_empty_list(messages):
     assert await extractor.extract(session_messages=messages, user_id="u1") == []
 
 
-def test_extractor_defaults_to_openai_extraction_model():
+def test_extractor_defaults_to_the_fast_extraction_model():
     extractor = MemoryExtractor(client=make_client("[]"))
     assert extractor._provider == "openai"
-    assert extractor._model == "gpt-4o-mini"
+    assert extractor._model == "gpt-4.1-nano"

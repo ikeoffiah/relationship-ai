@@ -7,13 +7,31 @@ Anthropic via ``LLM_PROVIDER=anthropic``.
 """
 
 # Default (OpenAI) models per task path.
+#
+# Latency is a product decision here, not just a cost one. Anything that runs
+# while someone is mid-sentence — rephrasing a message to their partner,
+# screening it before it sends, reading the mood of a thread — has to come back
+# fast enough not to interrupt typing. Measured p50 on a representative rephrase
+# prompt:
+#
+#     gpt-4.1-nano   0.86s   <- fast paths
+#     gpt-4.1-mini   0.96s
+#     gpt-5.4-mini   1.62s
+#     gpt-4o-mini    2.05s   <- previous default
+#
+# (gpt-5-nano spent its whole token budget on reasoning and returned nothing;
+# the gpt-5 reasoning family is the wrong tool for an inline assist.)
+#
+# The counseling reply deliberately stays on the stronger model: it is a
+# considered response the user is waiting on, not an inline assist, and quality
+# matters more than the second it costs.
 MODEL_CONFIG = {
-    'primary_counseling': {'model_id': 'gpt-4o', 'fallback': 'gpt-4o-mini'},
-    'fast_path': {'model_id': 'gpt-4o-mini'},
-    'safety_screening': {'model_id': 'gpt-4o-mini'},
-    # Post-session memory extraction: a mini model is cost-effective for
-    # structured extraction.
-    'memory_extraction': {'model_id': 'gpt-4o-mini'},
+    'primary_counseling': {'model_id': 'gpt-4o', 'fallback': 'gpt-4.1-mini'},
+    'fast_path': {'model_id': 'gpt-4.1-nano'},
+    'safety_screening': {'model_id': 'gpt-4.1-nano'},
+    # Post-session memory extraction: a nano model is plenty for structured
+    # extraction and runs in the background.
+    'memory_extraction': {'model_id': 'gpt-4.1-nano'},
 }
 
 # Opt-in Anthropic equivalents — used only when LLM_PROVIDER=anthropic.
