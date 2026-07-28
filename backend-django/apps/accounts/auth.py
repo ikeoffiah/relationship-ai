@@ -108,3 +108,21 @@ def rotate_refresh_token(old_token_record, plaintext_token):
 
 def revoke_family(family_id):
     RefreshToken.objects.filter(family_id=family_id).delete()
+
+
+from rest_framework.authentication import SessionAuthentication  # noqa: E402
+
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """DRF authentication that trusts the ``request.user`` set by
+    ``JWTAuthenticationMiddleware`` without enforcing CSRF.
+
+    The API authenticates with Bearer tokens, not session cookies. CSRF exists
+    to stop a browser from silently attaching a *cookie* to a forged cross-site
+    request; a Bearer token is never sent automatically, so CSRF does not apply
+    here. DRF's stock ``SessionAuthentication`` was otherwise rejecting
+    authenticated POST/PATCH calls with "CSRF Failed: CSRF cookie not set".
+    """
+
+    def enforce_csrf(self, request):
+        return  # no-op: token-authenticated API, CSRF is not applicable
