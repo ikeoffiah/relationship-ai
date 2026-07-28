@@ -14,7 +14,7 @@ import 'package:mobile/features/chat/models/chat_models.dart';
 class SessionService extends BaseApiService {
   SessionService({super.injectedDio})
     : super(
-        baseUrl: 'https://${CertConfig.fastapiHost}',
+        baseUrl: CertConfig.fastapiBaseUrl,
         receiveTimeout: null,
       );
 

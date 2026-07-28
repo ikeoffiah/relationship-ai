@@ -7,7 +7,7 @@ import 'vibe_models.dart';
 /// [SessionService]) and inherits JWT injection + pinning from [BaseApiService].
 class ToneApiService extends BaseApiService {
   ToneApiService({super.injectedDio})
-      : super(baseUrl: 'https://${CertConfig.fastapiHost}');
+      : super(baseUrl: CertConfig.fastapiBaseUrl);
 
   static const _base = '/api/v1/tone';
 

@@ -8,7 +8,7 @@ import 'package:mobile/features/relay/relay_models.dart';
 /// carried a manually-passed token and hit paths the backend never had.
 class RelayApiService extends BaseApiService {
   RelayApiService({super.injectedDio})
-      : super(baseUrl: 'https://${CertConfig.fastapiHost}');
+      : super(baseUrl: CertConfig.fastapiBaseUrl);
 
   /// Send a relay to the partner resolved from the sender's active
   /// relationship. Returns the new relay's status ('ready' | 'processing').
