@@ -67,17 +67,20 @@ class RsqScreen extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: ElevatedButton(
-                onPressed: vm.isRsqComplete ? onNext : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.warmCoral,
-                  disabledBackgroundColor: AppColors.warmCoral.withValues(alpha: 0.4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: Text(
-                  'Continue',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: vm.isRsqComplete ? onNext : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.warmCoral,
+                    disabledBackgroundColor: AppColors.warmCoral.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(
+                    'Continue',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white),
+                  ),
                 ),
               ),
             ),
