@@ -72,6 +72,25 @@ class AgeVerificationTests(TestCase):
         response = self.client.post(self.verify_url, {})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_anonymous_adult_passes_gate_without_persisting(self):
+        """The age gate runs pre-signup: an anonymous adult is allowed through,
+        and nothing is persisted (there is no user yet)."""
+        anon = APIClient()  # no force_authenticate
+        response = anon.post(self.verify_url, {"dob": dob_for_age(30)})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "verified")
+        self.assertFalse(AgeVerification.objects.exists())
+
+    def test_anonymous_under_13_blocked(self):
+        """An anonymous under-13 is blocked at the gate (COPPA), no persistence."""
+        anon = APIClient()
+        response = anon.post(self.verify_url, {"dob": dob_for_age(9)})
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["error"], "minor_blocked")
+        self.assertFalse(AgeVerification.objects.exists())
+
     def test_guardian_abuse_disclosure_suspends_access(self):
         """handle_minor_guardian_abuse_disclosure suspends guardian access."""
         # Setup a minor with parental consent
