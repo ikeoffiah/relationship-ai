@@ -22,10 +22,22 @@ class CoupleChatSocket {
   /// type means; this class does no interpretation of its own.
   final void Function(Map<String, dynamic> event) onEvent;
 
+  /// Called when the connection drops. Presence has to fall back to "unknown,
+  /// so assume offline" here — a socket we no longer hold cannot tell us the
+  /// partner left, so without this the app would keep showing a stale "Online"
+  /// for as long as the reconnect backoff lasts.
+  final VoidCallback? onConnectionLost;
+
   WebSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
   Timer? _reconnect;
+  Timer? _heartbeat;
   bool _disposed = false;
+
+  /// The server treats an inbound frame as proof this socket is still alive and
+  /// pushes the presence key's expiry out. Comfortably inside the server's
+  /// 90-second window, so one dropped beat does not read as "went offline".
+  static const _heartbeatInterval = Duration(seconds: 30);
 
   /// Backoff between reconnection attempts, capped so a long outage doesn't
   /// leave the thread silently dead once the network returns.
@@ -33,7 +45,11 @@ class CoupleChatSocket {
   static const _maxBackoff = Duration(seconds: 30);
   Duration _backoff = _initialBackoff;
 
-  CoupleChatSocket({required this.relationshipId, required this.onEvent});
+  CoupleChatSocket({
+    required this.relationshipId,
+    required this.onEvent,
+    this.onConnectionLost,
+  });
 
   bool get isConnected => _socket != null;
 
@@ -55,6 +71,7 @@ class CoupleChatSocket {
       }
       _socket = socket;
       _backoff = _initialBackoff; // a good connection resets the backoff
+      _startHeartbeat();
       _subscription = socket.listen(
         _handleFrame,
         onDone: _scheduleReconnect,
@@ -77,7 +94,22 @@ class CoupleChatSocket {
     }
   }
 
+  void _startHeartbeat() {
+    _heartbeat?.cancel();
+    _heartbeat = Timer.periodic(_heartbeatInterval, (_) {
+      try {
+        _socket?.add('{"t":"ping"}');
+      } catch (_) {
+        // A write onto a half-open socket throws; the listener's onError will
+        // schedule the reconnect. Nothing useful to do here.
+      }
+    });
+  }
+
   void _scheduleReconnect() {
+    if (!_disposed) onConnectionLost?.call();
+    _heartbeat?.cancel();
+    _heartbeat = null;
     _socket = null;
     _subscription?.cancel();
     _subscription = null;
@@ -91,6 +123,7 @@ class CoupleChatSocket {
 
   Future<void> dispose() async {
     _disposed = true;
+    _heartbeat?.cancel();
     _reconnect?.cancel();
     await _subscription?.cancel();
     await _socket?.close();

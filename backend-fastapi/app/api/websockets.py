@@ -351,20 +351,25 @@ async def handle_websocket_session(
 
 
 
-async def verify_couple_membership(relationship_id: str, user_id: str) -> bool:
-    """Is this user one of the two partners in this relationship?
+async def couple_membership(relationship_id: str, user_id: str) -> tuple[bool, str | None]:
+    """Return (is a partner here, the other partner's id).
 
-    The couple thread is keyed on the relationship itself, not a session, so it
-    cannot reuse verify_session_and_user (which looks the id up in the session
-    tables and would never find it). Fails closed: without a database we cannot
-    prove membership, so we refuse rather than assume.
+    One query answers both questions, and the handler needs both — the access
+    check to decide whether to accept the socket, and the partner id to report
+    presence. Splitting them into two functions meant opening two connection
+    pools per socket for the same row.
+
+    Fails closed: without a database we cannot prove membership, so we refuse
+    rather than assume. Unlike the session check, this one does NOT fall back
+    to True on error — a couple's private thread is not something to open
+    because a query failed.
     """
     if os.environ.get("WS_SKIP_PARTICIPANT_CHECK") == "1":
-        return True
+        return True, None
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        return False
+        return False, None
 
     pool = None
     try:
@@ -377,16 +382,25 @@ async def verify_couple_membership(relationship_id: str, user_id: str) -> bool:
                 relationship_id,
             )
         if not row:
-            return False
-        return str(user_id) in (str(row["partner_a_id"]), str(row["partner_b_id"]))
+            return False, None
+        a, b = str(row["partner_a_id"]), str(row["partner_b_id"] or "") or None
+        if str(user_id) == a:
+            return True, b
+        if b is not None and str(user_id) == b:
+            return True, a
+        return False, None
     except Exception as e:
-        # Unlike the session check, this one does NOT fall back to True. A
-        # couple's private thread is not something to open on a database error.
         logger.warning("couple_membership_check_failed", error=str(e))
-        return False
+        return False, None
     finally:
         if pool is not None:
             await pool.close()
+
+
+async def verify_couple_membership(relationship_id: str, user_id: str) -> bool:
+    """Membership alone, for callers that do not need the partner id."""
+    allowed, _ = await couple_membership(relationship_id, user_id)
+    return allowed
 
 
 @router.websocket("/ws/couple/{relationship_id}")
@@ -411,7 +425,8 @@ async def couple_thread_websocket(
         await websocket.close(code=4001)
         return
 
-    if not await verify_couple_membership(relationship_id, user_id):
+    allowed, partner_id = await couple_membership(relationship_id, user_id)
+    if not allowed:
         await websocket.close(code=4003)
         return
 
@@ -421,12 +436,52 @@ async def couple_thread_websocket(
     logger.info("couple_thread_connected", relationship_id=relationship_id, user_id=user_id)
 
     try:
-        await websocket.send_text(json.dumps({"type": "thread_ready"}))
+        # Presence is deliberately binary — here, or not here. There is no
+        # "last seen 02:14" anywhere in this payload and there should not be:
+        # in a relationship product that field stops being a convenience and
+        # starts being a record of when you were awake and did not reply.
+        await websocket.send_text(
+            json.dumps(
+                {
+                    "type": "thread_ready",
+                    # Presence on connect, not only on change — otherwise you
+                    # learn nothing until the other person's state happens to
+                    # flip while you are watching.
+                    "partner_online": bool(
+                        partner_id
+                        and await broker.is_online(relationship_id, partner_id)
+                    ),
+                }
+            )
+        )
+        await broker.broadcast_to_session(
+            relationship_id,
+            {"type": "presence", "user_id": user_id, "online": True},
+            exclude_user_id=user_id,
+        )
+
         while True:
-            # Keepalive only. Anything the client sends is ignored by design.
+            # Keepalive only — the content is ignored by design. The arrival
+            # itself is the signal: it pushes out the presence key's TTL, which
+            # is what keeps a crashed pod from leaving someone "online".
             await websocket.receive_text()
+            await broker.touch_presence(relationship_id, user_id)
     except WebSocketDisconnect:
-        await broker.disconnect(relationship_id, user_id, websocket)
+        await _leave_couple_thread(broker, relationship_id, user_id, websocket)
     except Exception as e:
         logger.error("couple_thread_error", relationship_id=relationship_id, error=str(e))
-        await broker.disconnect(relationship_id, user_id, websocket)
+        await _leave_couple_thread(broker, relationship_id, user_id, websocket)
+
+
+async def _leave_couple_thread(broker, relationship_id: str, user_id: str, websocket) -> None:
+    """Drop the socket and tell the partner. Announcing must not be able to
+    prevent the disconnect itself, hence the guard."""
+    await broker.disconnect(relationship_id, user_id, websocket)
+    try:
+        await broker.broadcast_to_session(
+            relationship_id,
+            {"type": "presence", "user_id": user_id, "online": False},
+            exclude_user_id=user_id,
+        )
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.warning("presence_broadcast_failed", relationship_id=relationship_id, error=str(exc))

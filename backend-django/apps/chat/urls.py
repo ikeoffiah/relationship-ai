@@ -19,6 +19,11 @@ urlpatterns = [
         name="chat-mark-read",
     ),
     path(
+        "<uuid:relationship_id>/delivered",
+        views.mark_delivered,
+        name="chat-mark-delivered",
+    ),
+    path(
         "<uuid:relationship_id>/unread",
         views.unread_count,
         name="chat-unread",

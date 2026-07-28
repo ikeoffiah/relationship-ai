@@ -94,6 +94,16 @@ class CoupleChatApiService extends BaseApiService {
     }
   }
 
+  /// Acknowledge that this device now holds the thread — which is a different
+  /// claim from having opened it, and is why it is a different endpoint.
+  Future<void> markDelivered(String relationshipId) async {
+    try {
+      await dio.post('${_base(relationshipId)}/delivered');
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
   /// Ask Bliss whether a draft is likely to land badly.
   ///
   /// Fails open by returning [DraftVerdict.ok]: a check that cannot complete

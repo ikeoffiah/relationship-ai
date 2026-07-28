@@ -70,6 +70,13 @@ class _FakeApi implements CoupleChatApiService {
   @override
   Future<void> markRead(String relationshipId) async {}
 
+  int deliveredCalls = 0;
+
+  @override
+  Future<void> markDelivered(String relationshipId) async {
+    deliveredCalls++;
+  }
+
   @override
   Future<DraftVerdict> checkDraft(String relationshipId, String draft) async =>
       verdict;

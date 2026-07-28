@@ -54,6 +54,38 @@ class ReplyPreview {
   }
 }
 
+/// How far a message you sent has got.
+///
+/// Deliberately the WhatsApp vocabulary, because it is the vocabulary people
+/// already read fluently: a clock while it is in flight, one tick when we hold
+/// it, two when their phone holds it, two in colour when they opened the
+/// thread. The states are ordered, and the UI relies on that order — nothing
+/// may ever move a message backwards down this list.
+enum MessageStatus {
+  /// In flight. Ours alone; the server never reports this.
+  sending,
+
+  /// The send failed. Also ours alone — the server, by definition, never
+  /// hears about a request that did not arrive.
+  failed,
+
+  /// We have it. Whether their phone does is genuinely unknown.
+  sent,
+
+  /// Their device acknowledged it. Says nothing about whether they looked.
+  delivered,
+
+  /// They opened the thread past this message.
+  seen,
+}
+
+MessageStatus? _statusFromName(String? name) => switch (name) {
+  'sent' => MessageStatus.sent,
+  'delivered' => MessageStatus.delivered,
+  'seen' => MessageStatus.seen,
+  _ => null,
+};
+
 class CoupleMessage {
   final String id;
   final String? senderId;
@@ -75,6 +107,13 @@ class CoupleMessage {
   /// silently vanishing.
   final bool failed;
 
+  /// What the server said about this message when we last fetched it. Null on
+  /// the partner's messages — you get ticks on what you sent, not on what you
+  /// received. Live updates arrive as cursor moves rather than as per-message
+  /// pushes, so this is a seed for [CoupleChatViewModel]'s cursors and not the
+  /// value the bubble reads.
+  final MessageStatus? serverStatus;
+
   const CoupleMessage({
     required this.id,
     required this.senderId,
@@ -88,6 +127,7 @@ class CoupleMessage {
     required this.createdAt,
     this.isPending = false,
     this.failed = false,
+    this.serverStatus,
   });
 
   factory CoupleMessage.fromJson(Map<String, dynamic> json) {
@@ -108,6 +148,7 @@ class CoupleMessage {
       createdAt:
           DateTime.tryParse(json['created_at'] as String? ?? '')?.toLocal() ??
           DateTime.now(),
+      serverStatus: _statusFromName(json['status'] as String?),
     );
   }
 
@@ -133,7 +174,11 @@ class CoupleMessage {
     );
   }
 
-  CoupleMessage copyWith({bool? isPending, bool? failed}) {
+  CoupleMessage copyWith({
+    bool? isPending,
+    bool? failed,
+    MessageStatus? serverStatus,
+  }) {
     return CoupleMessage(
       id: id,
       senderId: senderId,
@@ -147,6 +192,7 @@ class CoupleMessage {
       createdAt: createdAt,
       isPending: isPending ?? this.isPending,
       failed: failed ?? this.failed,
+      serverStatus: serverStatus ?? this.serverStatus,
     );
   }
 

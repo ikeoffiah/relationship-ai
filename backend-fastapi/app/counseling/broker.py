@@ -89,6 +89,13 @@ class JointSessionBroker:
     RECONNECT_MAX_ATTEMPTS = 5
     RECONNECT_BASE_DELAY = 0.5
 
+    # Presence keys expire rather than relying solely on a clean disconnect.
+    # A pod that is killed never runs `disconnect`, and without a TTL its users
+    # stay "online" forever — presence that can be wrong in the direction of
+    # claiming someone is there is worse than no presence at all. The client
+    # refreshes this on its keepalive, so the window is the only thing at risk.
+    PRESENCE_TTL_SECONDS = 90
+
     def __init__(self, redis_url: str):
         self.redis = redis.from_url(
             redis_url,
@@ -126,7 +133,11 @@ class JointSessionBroker:
         self.user_connections[(session_id, user_id)] = websocket
         
         # Register connection in Redis
-        await self.redis.set(f"ws_conn:{session_id}:{user_id}", self.pod_id)
+        await self.redis.set(
+            f"ws_conn:{session_id}:{user_id}",
+            self.pod_id,
+            ex=self.PRESENCE_TTL_SECONDS,
+        )
 
         logger.info(
             "websocket_connected",
@@ -158,6 +169,35 @@ class JointSessionBroker:
         
         # Remove Redis connection key
         await self.redis.delete(f"ws_conn:{session_id}:{user_id}")
+
+    async def touch_presence(self, session_id: str, user_id: str) -> None:
+        """Push the presence key's expiry out. Called on every keepalive.
+
+        Best-effort: a missed refresh costs at worst one stale-looking minute,
+        and must never take down a live socket.
+        """
+        try:
+            await self.redis.set(
+                f"ws_conn:{session_id}:{user_id}",
+                self.pod_id,
+                ex=self.PRESENCE_TTL_SECONDS,
+            )
+        except Exception as exc:  # pragma: no cover - network flake
+            logger.warning("presence_touch_failed", session_id=session_id, error=str(exc))
+
+    async def is_online(self, session_id: str, user_id: str) -> bool:
+        """Whether this user holds a live socket in this room, on any pod.
+
+        Answered from Redis rather than from local state so it stays correct
+        when the two partners land on different replicas — which, behind a load
+        balancer, is the normal case rather than the edge case.
+        """
+        try:
+            return bool(await self.redis.exists(f"ws_conn:{session_id}:{user_id}"))
+        except Exception:
+            # Unknown is reported as offline. Presence should fail towards
+            # "not here", never towards claiming someone is available.
+            return False
 
     async def broadcast_to_session(self, session_id: str, event: dict, exclude_user_id: Optional[str] = None):
         """

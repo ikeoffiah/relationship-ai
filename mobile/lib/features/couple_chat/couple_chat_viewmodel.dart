@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -49,6 +51,106 @@ class CoupleChatViewModel extends ChangeNotifier {
   bool _coachDefersToSupport = false;
   bool get coachDefersToSupport => _coachDefersToSupport;
 
+  // ── Delivery cursors ──────────────────────────────────────────────────────
+  // How far the *partner* has got. Two timestamps rather than a status stored
+  // on each message: a receipt moves one cursor, and every tick in the thread
+  // re-derives from it. The alternative — rewriting a status field on every
+  // affected message each time a receipt lands — is O(messages) work per event
+  // and gets the ordering wrong whenever two receipts race.
+
+  DateTime? _partnerDeliveredAt;
+  DateTime? _partnerReadAt;
+
+  DateTime? get partnerDeliveredAt => _partnerDeliveredAt;
+  DateTime? get partnerReadAt => _partnerReadAt;
+
+  /// The tick to draw next to [message], or null if it is not yours to track.
+  MessageStatus? statusFor(CoupleMessage message) {
+    if (!message.isMine(userId)) return null;
+    if (message.failed) return MessageStatus.failed;
+    if (message.isPending) return MessageStatus.sending;
+    if (_partnerReadAt != null && !message.createdAt.isAfter(_partnerReadAt!)) {
+      return MessageStatus.seen;
+    }
+    if (_partnerDeliveredAt != null &&
+        !message.createdAt.isAfter(_partnerDeliveredAt!)) {
+      return MessageStatus.delivered;
+    }
+    return MessageStatus.sent;
+  }
+
+  /// Rebuild the cursors from what the server said about each message.
+  ///
+  /// The history endpoint reports per-message status, not cursors, so we invert
+  /// it: the newest message the server calls "seen" is a lower bound on where
+  /// the partner's read cursor sits. Seeding this way means [statusFor] has one
+  /// mechanism to reason about instead of two, and a message that arrives over
+  /// the socket between fetches still gets the right tick.
+  void _seedCursorsFromMessages() {
+    for (final message in _messages) {
+      if (!message.isMine(userId) || message.serverStatus == null) continue;
+      final at = message.createdAt;
+      if (message.serverStatus == MessageStatus.seen) {
+        if (_partnerReadAt == null || at.isAfter(_partnerReadAt!)) {
+          _partnerReadAt = at;
+        }
+      }
+      if (message.serverStatus == MessageStatus.seen ||
+          message.serverStatus == MessageStatus.delivered) {
+        if (_partnerDeliveredAt == null || at.isAfter(_partnerDeliveredAt!)) {
+          _partnerDeliveredAt = at;
+        }
+      }
+    }
+  }
+
+  // ── Presence ──────────────────────────────────────────────────────────────
+  // Deliberately binary: here, or not here. There is no "last seen 02:14" in
+  // this product and there should not be — a timestamp of when someone was
+  // awake and did not answer is a different feature with a different cost,
+  // and it is the one people weaponise. Online/offline answers "can I expect a
+  // reply right now" without keeping a log of anyone's night.
+
+  bool _partnerOnline = false;
+  bool get partnerOnline => _partnerOnline;
+
+  void onPartnerPresence(bool online) {
+    if (_partnerOnline == online) return;
+    _partnerOnline = online;
+    notifyListeners();
+  }
+
+  /// The socket dropped, so we no longer know anything about them.
+  ///
+  /// Falls back to offline rather than holding the last known value: a stale
+  /// "Online" is a claim we cannot support, and it is the direction of error
+  /// that actually misleads someone waiting on a reply.
+  void onSocketLost() => onPartnerPresence(false);
+
+  /// A receipt arrived over the socket. Cursors only ever move forward — a
+  /// stale event overtaking a fresher one must not walk a blue tick back to a
+  /// grey one.
+  void onPartnerReceipt({DateTime? deliveredAt, DateTime? readAt}) {
+    var moved = false;
+    if (readAt != null &&
+        (_partnerReadAt == null || readAt.isAfter(_partnerReadAt!))) {
+      _partnerReadAt = readAt;
+      moved = true;
+    }
+    // Reading implies delivery; the server holds the same invariant, but the
+    // client must not depend on both fields being present in every event.
+    final effective = [
+      deliveredAt,
+      readAt,
+    ].whereType<DateTime>().fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
+    if (effective != null &&
+        (_partnerDeliveredAt == null || effective.isAfter(_partnerDeliveredAt!))) {
+      _partnerDeliveredAt = effective;
+      moved = true;
+    }
+    if (moved) notifyListeners();
+  }
+
   // ── History ───────────────────────────────────────────────────────────────
 
   Future<void> load() async {
@@ -63,6 +165,11 @@ class CoupleChatViewModel extends ChangeNotifier {
         ..addAll(page.messages.reversed);
       _hasMore = page.hasMore;
       _nextBefore = page.nextBefore;
+      _seedCursorsFromMessages();
+      // We hold the thread now, so tell them — this is what turns their single
+      // tick into a double one. Fire-and-forget: an ack that does not land is
+      // worth nothing more than a stale tick, and must never delay the thread.
+      unawaited(_api.markDelivered(relationshipId).catchError((_) {}));
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
     }
@@ -79,6 +186,7 @@ class CoupleChatViewModel extends ChangeNotifier {
       _messages.insertAll(0, page.messages.reversed);
       _hasMore = page.hasMore;
       _nextBefore = page.nextBefore;
+      _seedCursorsFromMessages();
     } catch (_) {
       // Older history failing is not worth an error banner over the thread.
     }
@@ -201,6 +309,12 @@ class CoupleChatViewModel extends ChangeNotifier {
     if (_messages.any((m) => m.id == message.id)) return;
     _messages.add(message);
     notifyListeners();
+    if (!message.isMine(userId)) {
+      // Their message is on this device now. Acknowledging it here — rather
+      // than only when the thread is opened — is what makes "delivered" mean
+      // delivered instead of quietly meaning read.
+      unawaited(_api.markDelivered(relationshipId).catchError((_) {}));
+    }
     if (!message.isMine(userId) && message.body.isNotEmpty) {
       _maybeCoach(message.body);
     }
