@@ -292,4 +292,45 @@ void main() {
       expect(vm.messages.map((m) => m.body), ['first', 'second']);
     });
   });
+
+  group('remote events', () {
+    test('a remote delete removes the message locally', () async {
+      api.historyResult = [_message(id: 'gone')];
+      await vm.load();
+
+      vm.onRemoteDelete('gone');
+
+      expect(vm.messages, isEmpty);
+    });
+
+    test('an unknown remote delete id is ignored', () async {
+      api.historyResult = [_message(id: 'kept')];
+      await vm.load();
+
+      vm.onRemoteDelete('does-not-exist');
+
+      expect(vm.messages.length, 1);
+    });
+
+    test('a remote reaction replaces the grouped set', () async {
+      api.historyResult = [_message(id: 'm1')];
+      await vm.load();
+
+      vm.onRemoteReaction('m1', [
+        {'emoji': '🔥', 'count': 2, 'user_ids': ['me', 'them']},
+      ]);
+
+      expect(vm.messages.single.reactions.single.emoji, '🔥');
+      expect(vm.messages.single.reactions.single.count, 2);
+    });
+
+    test('a malformed reaction payload is ignored rather than crashing', () async {
+      api.historyResult = [_message(id: 'm1')];
+      await vm.load();
+
+      vm.onRemoteReaction('m1', 'not a list');
+
+      expect(vm.messages.single.reactions, isEmpty);
+    });
+  });
 }

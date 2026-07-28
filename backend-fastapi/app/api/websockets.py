@@ -349,3 +349,84 @@ async def handle_websocket_session(
         logger.error("joint_session_error", session_id=session_id, user_id=user_id, error=str(e))
         await broker.disconnect(session_id, user_id, websocket)
 
+
+
+async def verify_couple_membership(relationship_id: str, user_id: str) -> bool:
+    """Is this user one of the two partners in this relationship?
+
+    The couple thread is keyed on the relationship itself, not a session, so it
+    cannot reuse verify_session_and_user (which looks the id up in the session
+    tables and would never find it). Fails closed: without a database we cannot
+    prove membership, so we refuse rather than assume.
+    """
+    if os.environ.get("WS_SKIP_PARTICIPANT_CHECK") == "1":
+        return True
+
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        return False
+
+    pool = None
+    try:
+        import asyncpg
+
+        pool = await asyncpg.create_pool(db_url)
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT partner_a_id, partner_b_id FROM relationships WHERE id = $1",
+                relationship_id,
+            )
+        if not row:
+            return False
+        return str(user_id) in (str(row["partner_a_id"]), str(row["partner_b_id"]))
+    except Exception as e:
+        # Unlike the session check, this one does NOT fall back to True. A
+        # couple's private thread is not something to open on a database error.
+        logger.warning("couple_membership_check_failed", error=str(e))
+        return False
+    finally:
+        if pool is not None:
+            await pool.close()
+
+
+@router.websocket("/ws/couple/{relationship_id}")
+async def couple_thread_websocket(
+    websocket: WebSocket, relationship_id: str, token: str = Query(...)
+):
+    """Live delivery for the couple's own thread.
+
+    Read-only from the client's side: messages are sent over HTTP so they are
+    persisted first, and this socket only carries what the server pushes back.
+    That keeps a dropped connection from ever losing a message — the worst
+    failure a chat can have.
+    """
+    try:
+        payload = decode_token(token)
+        user_id = str(payload.get("sub") or "")
+    except Exception:
+        await websocket.close(code=4001)
+        return
+
+    if not user_id:
+        await websocket.close(code=4001)
+        return
+
+    if not await verify_couple_membership(relationship_id, user_id):
+        await websocket.close(code=4003)
+        return
+
+    broker = websocket.app.state.broker
+    # Room id is the relationship, matching the channel Django publishes on.
+    await broker.connect(relationship_id, user_id, websocket)
+    logger.info("couple_thread_connected", relationship_id=relationship_id, user_id=user_id)
+
+    try:
+        await websocket.send_text(json.dumps({"type": "thread_ready"}))
+        while True:
+            # Keepalive only. Anything the client sends is ignored by design.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await broker.disconnect(relationship_id, user_id, websocket)
+    except Exception as e:
+        logger.error("couple_thread_error", relationship_id=relationship_id, error=str(e))
+        await broker.disconnect(relationship_id, user_id, websocket)

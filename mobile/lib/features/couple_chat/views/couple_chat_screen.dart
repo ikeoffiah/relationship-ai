@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_dimens.dart';
+import 'package:mobile/features/couple_chat/couple_chat_socket.dart';
 import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
 import 'package:mobile/features/couple_chat/models/couple_message.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
@@ -32,6 +33,7 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
   final _composer = TextEditingController();
   final _scroll = ScrollController();
   bool _sending = false;
+  CoupleChatSocket? _socket;
 
   @override
   void initState() {
@@ -42,11 +44,39 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
         vm.markRead();
         _jumpToLatest();
       });
+
+      // Live delivery. The thread still works without it — history is fetched
+      // over HTTP — so a failed socket degrades to "not instant", never to
+      // "broken".
+      _socket = CoupleChatSocket(
+        relationshipId: widget.relationshipId,
+        onEvent: (event) => _handleSocketEvent(vm, event),
+      )..connect();
     });
+  }
+
+  void _handleSocketEvent(CoupleChatViewModel vm, Map<String, dynamic> event) {
+    switch (event['type']) {
+      case 'couple_message':
+        final raw = event['message'];
+        if (raw is Map<String, dynamic>) {
+          vm.onIncoming(CoupleMessage.fromJson(raw));
+          _jumpToLatest();
+          vm.markRead();
+        }
+      case 'couple_message_deleted':
+        vm.onRemoteDelete(event['message_id'] as String? ?? '');
+      case 'couple_message_reaction':
+        vm.onRemoteReaction(
+          event['message_id'] as String? ?? '',
+          event['reactions'],
+        );
+    }
   }
 
   @override
   void dispose() {
+    _socket?.dispose();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();

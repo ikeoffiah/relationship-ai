@@ -220,6 +220,37 @@ class CoupleChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The partner deleted a message. Mirror it locally rather than refetching.
+  void onRemoteDelete(String messageId) {
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+    _messages.removeAt(index);
+    notifyListeners();
+  }
+
+  /// The partner reacted. The server sends the regrouped set, so we replace
+  /// rather than trying to reconcile counts locally.
+  void onRemoteReaction(String messageId, dynamic reactions) {
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index == -1 || reactions is! List) return;
+    final existing = _messages[index];
+    _messages[index] = CoupleMessage(
+      id: existing.id,
+      senderId: existing.senderId,
+      kind: existing.kind,
+      body: existing.body,
+      sticker: existing.sticker,
+      replyTo: existing.replyTo,
+      reactions: reactions
+          .map((r) => MessageReactionGroup.fromJson(r as Map<String, dynamic>))
+          .toList(),
+      clientId: existing.clientId,
+      isDeleted: existing.isDeleted,
+      createdAt: existing.createdAt,
+    );
+    notifyListeners();
+  }
+
   Future<void> markRead() async {
     try {
       await _api.markRead(relationshipId);
