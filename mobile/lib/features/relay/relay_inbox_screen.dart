@@ -44,7 +44,7 @@ class _RelayInboxScreenState extends State<RelayInboxScreen> {
     return Scaffold(
       backgroundColor: AppColors.creamWhite,
       appBar: AppBar(
-        title: const Text('Relay Inbox',
+        title: const Text('Say it better',
             style: TextStyle(color: AppColors.softCharcoal)),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -57,7 +57,7 @@ class _RelayInboxScreenState extends State<RelayInboxScreen> {
           MaterialPageRoute(builder: (_) => const RelayComposeScreen()),
         ),
         icon: const Icon(Icons.edit, color: Colors.white),
-        label: const Text('Compose', style: TextStyle(color: Colors.white)),
+        label: const Text('Write one', style: TextStyle(color: Colors.white)),
       ),
       body: RefreshIndicator(
         onRefresh: () async => _load(),
@@ -111,11 +111,11 @@ class _RelayCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Your partner sent you a message',
+            const Text('They sent you this',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             if (hasTranslation) ...[
-              const Text('AI-assisted version',
+              const Text("Bliss's version",
                   style: TextStyle(fontSize: 12, color: AppColors.calmTeal)),
               Text(relay.translatedContent!),
               const SizedBox(height: 8),

@@ -99,6 +99,9 @@ void main() {
 
     // Verify session content IS visible
     expect(find.byKey(const Key('chat_body')), findsOneWidget);
-    expect(find.textContaining('Private session'), findsOneWidget);
+    // The screen title is now "Private session" (it was the bare "Session",
+    // which said nothing about whose it was or what to expect), so this string
+    // legitimately appears in both the app bar and the body.
+    expect(find.textContaining('Private session'), findsWidgets);
   });
 }

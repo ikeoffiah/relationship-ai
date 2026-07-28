@@ -104,8 +104,7 @@ class _GamesListScreenState extends State<GamesListScreen> {
                 ]),
                 const SizedBox(height: 8),
                 const Text(
-                  'Spicy packs unlock only when both of you are age-verified and '
-                  'both turn them on. Either of you can turn them off anytime.',
+                  'Both of you turn these on. Either of you can turn them off, anytime.',
                   style: TextStyle(color: AppColors.softCharcoal),
                 ),
                 const SizedBox(height: 16),
@@ -128,17 +127,17 @@ class _GamesListScreenState extends State<GamesListScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     activeThumbColor: AppColors.warmCoral,
-                    title: const Text('Turn on spicy games for me'),
+                    title: const Text('Turn these on for me'),
                     value: c.you,
                     onChanged: (v) => m.toggleSpicy(v),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     c.unlocked
-                        ? 'Unlocked 🎉 — spicy packs are now in your list.'
+                        ? 'Done — these are in your list now.'
                         : c.partner
-                            ? 'Your partner is in. Turn it on to unlock.'
-                            : 'Waiting for your partner to turn it on too.',
+                            ? "They're in. Turn it on and these appear."
+                            : 'Waiting for them to turn it on too.',
                     style: TextStyle(
                         color: c.unlocked ? AppColors.warmCoral : AppColors.softCharcoal,
                         fontWeight: FontWeight.w600),

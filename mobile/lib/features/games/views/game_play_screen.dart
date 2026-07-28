@@ -178,7 +178,7 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
             _row(isAgreement ? 'Your pick' : 'Your answer', q, _self, AppColors.warmCoral),
             if (!isAgreement) ...[
               const SizedBox(height: 10),
-              _row('Guess $partner', q, _guess, AppColors.calmTeal),
+              _row('What would $partner say?', q, _guess, AppColors.calmTeal),
             ],
           ],
         ),

@@ -87,7 +87,7 @@ class _ChatScreenState extends State<ChatScreen> {
         elevation: 0,
         centerTitle: false,
         title: Text(
-          'Session',
+          'Private session',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: AppColors.softCharcoal,
               ),
@@ -97,7 +97,7 @@ class _ChatScreenState extends State<ChatScreen> {
           if (widget.isJointSession)
             TextButton(
               onPressed: () => _handleStepOut(),
-              child: const Text('Step out', style: TextStyle(color: Colors.orange)),
+              child: const Text('Leave session', style: TextStyle(color: Colors.orange)),
             ),
           // ConsentBadge always visible — Section 14.1
           Padding(

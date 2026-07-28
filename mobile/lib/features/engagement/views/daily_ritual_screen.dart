@@ -105,35 +105,28 @@ class _StreakHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: AppColors.goldGradient,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _stat('🔥', '${summary.currentStreak}', 'day streak'),
-          Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.4)),
-          _stat('⭐', '${summary.pointsBalance}', 'points'),
-          Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.4)),
-          _stat('🏆', '${summary.longestStreak}', 'best streak'),
-        ],
-      ),
+    // This was a full-width gold banner leading with a fire emoji, a
+    // consecutive-day count and a "best streak" to fall short of. In a
+    // relationship product that framing is a category error: it turns how
+    // often two people tap a phone into a proxy for how they are doing, and it
+    // hands them a number saying they broke something on a week one of them
+    // was ill.
+    //
+    // A rolling count instead, stated once and quietly. A missed day simply
+    // does not add to it — it cannot take away the days that happened.
+    if (summary.daysActive30 == 0) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        const Icon(Icons.favorite_rounded, size: 15, color: AppColors.warmCoral),
+        const SizedBox(width: 8),
+        Text(
+          'Together ${summary.daysActive30} of the last ${summary.windowDays} days',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
-
-  Widget _stat(String emoji, String value, String label) => Column(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 22)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
-        ],
-      );
 }
 
 // ── Reusable card shell ───────────────────────────────────────────────
@@ -218,7 +211,7 @@ class _DailyQuestionCard extends StatelessWidget {
           Expanded(
             child: Text(
               question.hasPartner
-                  ? 'Answered! Your answers unlock once ${question.partnerName ?? 'your partner'} answers too.'
+                  ? "You're in. You'll both see them once ${question.partnerName ?? 'your partner'} answers too."
                   : 'Answered! Invite your partner to compare answers.',
               style: const TextStyle(color: AppColors.softCharcoal),
             ),
@@ -338,7 +331,7 @@ class _CheckInCard extends StatelessWidget {
             const Row(children: [
               Icon(Icons.check_circle, color: AppColors.calmTeal, size: 18),
               SizedBox(width: 8),
-              Text('Checked in for today ✓', style: TextStyle(color: AppColors.softCharcoal)),
+              Text('Checked in today', style: TextStyle(color: AppColors.softCharcoal)),
             ])
           else
             Row(

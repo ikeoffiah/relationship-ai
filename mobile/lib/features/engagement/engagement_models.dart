@@ -77,6 +77,14 @@ class EngagementSummary {
   final int pointsBalance;
   final int currentStreak;
   final int longestStreak;
+
+  /// How many of the last [windowDays] this person did something on.
+  ///
+  /// This is what the app shows, in place of the streak. A rolling count, so a
+  /// quiet day simply does not add to it rather than wiping out the days that
+  /// came before.
+  final int daysActive30;
+  final int windowDays;
   final bool didQuestion;
   final bool didCheckIn;
   final bool didMicroAction;
@@ -86,6 +94,8 @@ class EngagementSummary {
     this.pointsBalance = 0,
     this.currentStreak = 0,
     this.longestStreak = 0,
+    this.daysActive30 = 0,
+    this.windowDays = 30,
     this.didQuestion = false,
     this.didCheckIn = false,
     this.didMicroAction = false,
@@ -98,6 +108,8 @@ class EngagementSummary {
       pointsBalance: json['points_balance'] as int? ?? 0,
       currentStreak: json['current_streak'] as int? ?? 0,
       longestStreak: json['longest_streak'] as int? ?? 0,
+      daysActive30: json['days_active_30'] as int? ?? 0,
+      windowDays: json['window_days'] as int? ?? 30,
       didQuestion: today['daily_question'] as bool? ?? false,
       didCheckIn: today['check_in'] as bool? ?? false,
       didMicroAction: today['micro_action'] as bool? ?? false,
