@@ -401,39 +401,45 @@ class LogoutView(views.APIView):
 
 
 class VerifyAgeView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    # The age gate runs during onboarding, before the account exists, so it must
+    # accept anonymous requests. When a user IS authenticated, the DOB and the
+    # verification outcome are persisted to their record.
+    permission_classes = [AllowAny]
 
     def post(self, request):
         dob_str = request.data.get("dob")
-        
+
         if not dob_str:
             return Response(
-                {"error": "Date of birth required"}, 
+                {"error": "Date of birth required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
+
         try:
             from datetime import date, datetime
             dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
             today = date.today()
             age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-            
-            # Save DOB to user
-            request.user.date_of_birth = dob
-            request.user.save()
+
+            authed = request.user.is_authenticated
+            if authed:
+                # Save DOB to user
+                request.user.date_of_birth = dob
+                request.user.save()
 
             if age < 13:
                 # Registration immediately blocked (COPPA)
-                from .services.age_verification import verify_user_age
-                verify_user_age(request.user, "id_verification", {
-                    "status": "blocked",
-                    "reason": "User is under 13 (COPPA)"
-                })
+                if authed:
+                    from .services.age_verification import verify_user_age
+                    verify_user_age(request.user, "id_verification", {
+                        "status": "blocked",
+                        "reason": "User is under 13 (COPPA)"
+                    })
                 return Response(
                     {"error": "minor_blocked", "message": "RelationshipAI is not available for users under 13 due to COPPA compliance."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             if age < 18:
                 # Minor (13-17) - requires guardian consent
                 return Response({
@@ -443,11 +449,12 @@ class VerifyAgeView(views.APIView):
                 })
 
             # Adult (18+) - Trigger verification (simulated)
-            from .services.age_verification import verify_user_age
-            verify_user_age(request.user, "card_check", {
-                "status": "verified",
-                "is_minor": False
-            })
+            if authed:
+                from .services.age_verification import verify_user_age
+                verify_user_age(request.user, "card_check", {
+                    "status": "verified",
+                    "is_minor": False
+                })
             
             return Response({
                 "status": "verified",
