@@ -242,3 +242,36 @@ class AssistNudge(models.Model):
 
     def __str__(self) -> str:
         return f"{self.kind} nudge for {self.user_id}"
+
+
+class ThreadSummary(models.Model):
+    """A rolling précis of the conversation so far.
+
+    The pre-send check reads the last handful of messages verbatim, which keeps
+    its cost flat however long a couple has been together — but it also means
+    it cannot see a pattern that spans weeks. This closes that gap without
+    reintroducing unbounded input: a few hundred tokens of recurring themes,
+    refreshed periodically, prepended to the verbatim window.
+
+    Refreshed **asynchronously**, never on the send path. Summarising costs a
+    whole extra model round-trip, and paying that while someone waits to send a
+    message would undo the latency work entirely.
+    """
+
+    relationship = models.OneToOneField(
+        Relationship, on_delete=models.CASCADE, related_name="thread_summary"
+    )
+    summary = models.TextField(blank=True, default="")
+    # Message count when this was written, so we know when it has drifted.
+    covered_message_count = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "couple_thread_summaries"
+
+    def __str__(self) -> str:
+        return f"Summary for {self.relationship_id} @ {self.covered_message_count} msgs"
+
+
+# Re-exported so background tasks can import everything from one place.
+Relationship = Relationship

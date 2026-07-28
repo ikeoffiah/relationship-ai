@@ -515,3 +515,41 @@ class RealtimePublisherTests(TestCase):
         rid = uuid.uuid4()
         # app/counseling/broker.py subscribes to f"joint_session:{room}".
         self.assertEqual(realtime.channel_for(rid), f"joint_session:{rid}")
+
+
+class RealtimeSerialisationTests(TestCase):
+    """A real message payload must survive json.dumps.
+
+    Regression: the serializer renders `relationship` as a UUID object, which
+    json.dumps refuses. publish() swallows its own errors, so the failure was
+    invisible — messages persisted correctly and simply never arrived live.
+    Every other realtime test mocks publish, so only an unmocked send caught it.
+    """
+
+    def setUp(self):
+        self.alex = User.objects.create_user(email="r1@t.local", password="pw12345!")
+        self.sam = User.objects.create_user(email="r2@t.local", password="pw12345!")
+        self.relationship = Relationship.objects.create(
+            partner_a=self.alex, partner_b=self.sam, status="active"
+        )
+
+    def test_a_real_message_payload_is_publishable(self):
+        from apps.chat import realtime
+        from apps.chat.serializers import CoupleMessageSerializer
+
+        message = CoupleMessage(relationship=self.relationship, sender=self.alex)
+        message.body = "hello"
+        message.save()
+        payload = CoupleMessageSerializer(message).data
+
+        with patch("redis.from_url") as from_url:
+            published = realtime.publish(
+                self.relationship.id, {"type": "couple_message", "message": payload}
+            )
+
+        self.assertTrue(published, "a real payload must serialize")
+        sent = from_url.return_value.publish.call_args[0][1]
+        import json as _json
+
+        decoded = _json.loads(sent)
+        self.assertEqual(decoded["event"]["message"]["body"], "hello")

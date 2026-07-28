@@ -457,3 +457,65 @@ class VerdictCacheTests(AssistTestCase):
             assist.check_before_send(self.relationship, self.alex, draft)
             assist.check_before_send(other, self.stranger, draft)
         self.assertEqual(complete.call_count, 2)
+
+
+class RollingSummaryTests(AssistTestCase):
+    """Long-arc context at a fixed token cost — and never on the send path."""
+
+    def test_summary_is_prepended_to_context(self):
+        from apps.chat.models import ThreadSummary
+
+        self.say(self.sam, "see you tonight")
+        ThreadSummary.objects.create(
+            relationship=self.relationship,
+            summary="Recurring tension about in-laws; both tired lately.",
+            covered_message_count=1,
+        )
+
+        context = assist._thread_context(self.relationship)
+
+        self.assertIn("Recurring tension about in-laws", context)
+        self.assertIn("see you tonight", context)
+        # Background first, then the verbatim tail.
+        self.assertLess(context.index("Recurring tension"), context.index("see you tonight"))
+
+    def test_context_works_without_a_summary(self):
+        self.say(self.sam, "just the tail")
+        self.assertEqual(assist._thread_context(self.relationship).count("\n"), 0)
+
+    def test_summarising_never_happens_on_the_send_path(self):
+        """The check reads an already-written summary; it must not generate one."""
+        from apps.chat.models import ThreadSummary
+
+        ThreadSummary.objects.create(
+            relationship=self.relationship, summary="background", covered_message_count=1
+        )
+        self.say(self.sam, "hi")
+
+        with patch("apps.chat.assist._complete", return_value="VERDICT: ok") as complete:
+            assist.check_before_send(self.relationship, self.alex, "you always do this")
+
+        # Exactly one call: the check itself. No summarisation round-trip.
+        self.assertEqual(complete.call_count, 1)
+
+    def test_staleness_triggers_only_after_enough_new_messages(self):
+        from apps.chat.tasks import REFRESH_EVERY_MESSAGES, summary_is_stale
+
+        self.say(self.sam, "one")
+        self.assertFalse(summary_is_stale(self.relationship))
+
+        for i in range(REFRESH_EVERY_MESSAGES):
+            self.say(self.sam, f"m{i}")
+        self.assertTrue(summary_is_stale(self.relationship))
+
+    def test_send_still_succeeds_when_the_broker_is_down(self):
+        with patch(
+            "apps.chat.tasks.refresh_thread_summary.delay", side_effect=Exception("no broker")
+        ):
+            with patch("apps.chat.tasks.summary_is_stale", return_value=True):
+                response = self.client.post(
+                    reverse("chat-send", args=[self.relationship.id]),
+                    {"body": "hello"},
+                    format="json",
+                )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
