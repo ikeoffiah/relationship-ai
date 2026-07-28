@@ -8,6 +8,8 @@ import 'package:mobile/features/auth/models/user_profile.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 import 'package:mobile/features/home/views/home_screen.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
+import 'package:mobile/features/engagement/engagement_viewmodel.dart';
+import 'package:mobile/features/home/views/today_hero.dart';
 
 class MockAuthViewModel extends Mock implements AuthViewModel {}
 
@@ -15,6 +17,16 @@ class MockRelationshipViewModel extends Mock implements RelationshipViewModel {}
 
 class MockNotificationViewModel extends Mock
     implements NotificationViewModel {}
+
+
+/// Home calls loadRitual() in initState. Against no API that future never
+/// completes, so pumpAndSettle hangs and nothing below it ever renders — which
+/// looks exactly like a broken screen. Stubbing the load keeps the widget test
+/// about the widget.
+class _StubEngagementViewModel extends EngagementViewModel {
+  @override
+  Future<void> loadRitual() async {}
+}
 
 void main() {
   late MockAuthViewModel mockAuthViewModel;
@@ -51,6 +63,9 @@ void main() {
   Widget createWidgetUnderTest() {
     return provider.MultiProvider(
       providers: [
+        provider.ChangeNotifierProvider<EngagementViewModel>(
+          create: (_) => _StubEngagementViewModel(),
+        ),
         provider.ChangeNotifierProvider<AuthViewModel>.value(
           value: mockAuthViewModel,
         ),
@@ -66,16 +81,18 @@ void main() {
   }
 
   testWidgets(
-    'HomeScreen renders private session card and partner invite banner when not connected',
+    'HomeScreen shows the day\'s hero and the partner invite when not connected',
     (WidgetTester tester) async {
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();
 
       expect(find.text('Good day,'), findsOneWidget);
       expect(find.text('John'), findsOneWidget);
-      expect(find.textContaining('Individual session'), findsOneWidget);
+      // Phase 3 moved the session cards to the Talk hub; phase 4 replaced the
+      // static card list with one state-aware hero. With no ritual loaded the
+      // resolver lands on "done", which is the honest empty state.
+      expect(find.byType(TodayHero), findsOneWidget);
       expect(find.textContaining('Connect with your partner'), findsOneWidget);
-      expect(find.text('Begin session'), findsOneWidget);
     },
   );
 }

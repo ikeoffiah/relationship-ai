@@ -16,6 +16,7 @@ import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/features/consent/viewmodels/consent_viewmodel.dart';
 import 'package:mobile/features/onboarding/onboarding_viewmodel.dart';
 import 'package:mobile/features/consent/models/consent_model.dart';
+import 'package:mobile/features/engagement/engagement_viewmodel.dart';
 
 class MockAuthViewModel extends Mock implements AuthViewModel {}
 
@@ -34,6 +35,16 @@ class MockSettingsViewModel extends Mock implements SettingsViewModel {}
 class MockOnboardingViewModel extends Mock implements OnboardingViewModel {}
 
 /// Auth flow testx
+
+/// Home calls loadRitual() in initState. Against no API that future never
+/// completes, so pumpAndSettle hangs and nothing below it ever renders — which
+/// looks exactly like a broken screen. Stubbing the load keeps the widget test
+/// about the widget.
+class _StubEngagementViewModel extends EngagementViewModel {
+  @override
+  Future<void> loadRitual() async {}
+}
+
 void main() {
   late MockAuthViewModel mockAuthViewModel;
   late MockRelationshipViewModel mockRelationshipViewModel;
@@ -128,6 +139,9 @@ void main() {
   Widget createWidgetUnderTest() {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<EngagementViewModel>(
+          create: (_) => _StubEngagementViewModel(),
+        ),
         ChangeNotifierProvider<AuthViewModel>.value(value: mockAuthViewModel),
         ChangeNotifierProvider<RelationshipViewModel>.value(
           value: mockRelationshipViewModel,
