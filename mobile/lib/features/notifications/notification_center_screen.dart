@@ -5,7 +5,7 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/notifications/models/notification_model.dart';
 import 'package:mobile/features/notifications/viewmodels/notification_viewmodel.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key});
@@ -54,6 +54,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         elevation: 0,
         centerTitle: false,
         actions: [
+          const SupportAction(),
           Consumer<NotificationViewModel>(
             builder: (context, vm, _) {
               if (vm.unreadCount == 0) return const SizedBox.shrink();
@@ -73,7 +74,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       ),
       body: Column(
         children: [
-          const GetHelpNowButton(),
           Expanded(
             child: Consumer<NotificationViewModel>(
               builder: (context, vm, _) {

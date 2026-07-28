@@ -229,10 +229,21 @@ async def node_1_safety_prescreen(state: SessionState):
 
     score = await SafetyPreScreener.screen(latest_msg, {"session_id": state.session_id})
 
+    # "critical" drives a full-screen, non-dismissible crisis interruption on
+    # the client, so it must mean one thing: this person may be in danger.
+    #
+    # LEGAL ("divorce lawyer", "custody case", "screenshot this") and
+    # MANIPULATION (prompt-injection attempts) used to raise "critical" too,
+    # which meant asking a legal question produced the identical blocking
+    # interruption as disclosing self-harm. Both still warrant a safety signal
+    # — they just get the lighter, dismissible treatment instead.
+    CRISIS_DISCLOSURES = (DisclosureType.MUTUAL_ABUSE,)
+    NON_CRISIS_DISCLOSURES = (DisclosureType.LEGAL, DisclosureType.MANIPULATION)
+
     level = "safe"
-    if score > 0.7 or dt in [DisclosureType.LEGAL, DisclosureType.MANIPULATION, DisclosureType.MUTUAL_ABUSE]:
+    if score > 0.7 or dt in CRISIS_DISCLOSURES:
         level = "critical"
-    elif score >= 0.3:
+    elif score >= 0.3 or dt in NON_CRISIS_DISCLOSURES:
         level = "elevated"
 
     return {

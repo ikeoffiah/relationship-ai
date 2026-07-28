@@ -16,7 +16,7 @@ def test_client():
 def test_read_main(test_client):
     response = test_client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "RelationshipAI FastAPI Service is running"}
+    assert response.json() == {"message": "Bliss FastAPI Service is running"}
 
 
 def test_health(test_client):

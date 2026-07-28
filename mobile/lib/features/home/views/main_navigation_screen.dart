@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/theme/app_dimens.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/consent/consent_dashboard_screen.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
@@ -53,7 +54,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ],
       ),
-      floatingActionButton: _selectedIndex == 2 ? null : _buildCrisisButton(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -91,35 +91,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget _buildAIDisclosureBanner() {
     return Container(
       width: double.infinity,
-      color: Colors.amber[50],
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      color: AppColors.noticeSurface,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl,
+        vertical: AppSpacing.md,
+      ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, size: 16, color: Colors.amber[900]),
-          const SizedBox(width: 12),
-          const Expanded(
+          const Icon(Icons.info_outline, size: 16, color: AppColors.noticeInk),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
             child: Text(
               'You are talking to an AI, not a licensed therapist.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.black87,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.softCharcoal,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCrisisButton() {
-    return FloatingActionButton.extended(
-      onPressed: () => _launchSafetyResources(),
-      backgroundColor: Colors.red[700],
-      icon: const Text('🆘', style: TextStyle(fontSize: 18)),
-      label: const Text(
-        'Get Help Now',
-        style: TextStyle(fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -152,7 +142,4 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  void _launchSafetyResources() {
-    Navigator.of(context).pushNamed('/safety');
-  }
 }

@@ -12,7 +12,7 @@ class AppLinks {
   static Uri feedbackMailto() => Uri(
         scheme: 'mailto',
         path: supportEmail,
-        query: 'subject=${Uri.encodeComponent('RelationshipAI feedback')}',
+        query: 'subject=${Uri.encodeComponent('Bliss feedback')}',
       );
 }
 

@@ -449,7 +449,7 @@ class AuthViewModel extends ChangeNotifier {
     if (age < 13) {
       _isMinor = true;
       _requiresGuardianConsent = false;
-      _setError('RelationshipAI is not available for users under 13 due to COPPA compliance.');
+      _setError('Bliss is not available for users under 13 due to COPPA compliance.');
       _setLoading(false);
       return false;
     }

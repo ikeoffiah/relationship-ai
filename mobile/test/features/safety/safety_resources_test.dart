@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/safety/safety_resources_screen.dart';
 import 'package:mobile/features/safety/safety_resources_data.dart';
-import 'package:mobile/shared/widgets/get_help_now_button.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 
 void main() {
   group('SafetyResourcesScreen Tests', () {
@@ -14,7 +14,7 @@ void main() {
       );
 
       // Verify the app bar title
-      expect(find.text('Get Help Now'), findsOneWidget);
+      expect(find.text('Support'), findsOneWidget);
 
       // Verify all resources are present
       for (final resource in safetyResources) {
@@ -43,13 +43,21 @@ void main() {
       expect(find.text(testMessage), findsOneWidget);
     });
 
-    testWidgets('GetHelpNowButton uses deep red color and triggers navigation', (WidgetTester tester) async {
+    // The safety-critical property is reachability, not loudness: support must
+    // still be exactly one tap away from anywhere it is offered. The previous
+    // version of this test asserted the button was #B71C1C — it locked in the
+    // alarm styling rather than the behaviour that actually matters.
+    testWidgets('SupportAction is one tap from the support resources', (
+      WidgetTester tester,
+    ) async {
       bool navigated = false;
 
       await tester.pumpWidget(
         MaterialApp(
           routes: {
-            '/': (context) => Scaffold(body: const GetHelpNowButton()),
+            '/': (context) => const Scaffold(
+              body: Center(child: SupportAction()),
+            ),
             '/safety': (context) {
               navigated = true;
               return const Scaffold(body: Text('Safety Screen'));
@@ -58,13 +66,14 @@ void main() {
         ),
       );
 
-      final containerFinder = find.byType(Container);
-      expect(containerFinder, findsOneWidget);
-      
-      final container = tester.widget<Container>(containerFinder);
-      expect(container.color, const Color(0xFFB71C1C));
+      // Discoverable by assistive tech even though it is icon-only.
+      expect(
+        find.byTooltip('Support'),
+        findsOneWidget,
+        reason: 'support must remain findable',
+      );
 
-      await tester.tap(find.text('Get Help Now'));
+      await tester.tap(find.byType(SupportAction));
       await tester.pumpAndSettle();
 
       expect(navigated, isTrue);

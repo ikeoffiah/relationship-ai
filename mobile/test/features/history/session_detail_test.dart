@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/shared/widgets/support_action.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/features/history/viewmodels/session_detail_viewmodel.dart';
 import 'package:mobile/features/history/models/session_history_model.dart';
@@ -186,12 +187,12 @@ void main() {
       expect(find.textContaining("Delete this session's memories"), findsNothing);
     });
 
-    testWidgets('GetHelpNowButton is always visible', (tester) async {
+    testWidgets('support is always reachable', (tester) async {
       final vm = _FakeSessionDetailViewModel(fakeDetail: _makeDetail());
       await tester.pumpWidget(_buildTestWidget(vm));
       await tester.pump();
 
-      expect(find.text('Get Help Now'), findsOneWidget);
+      expect(find.byType(SupportAction), findsOneWidget);
     });
 
     testWidgets('shows header metadata: turns and duration', (tester) async {
