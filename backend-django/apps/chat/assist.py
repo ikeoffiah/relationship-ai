@@ -31,7 +31,7 @@ from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 
-from .models import AssistNudge, ChatAssistSettings, CoupleMessage
+from .models import AssistNudge, ChatAssistSettings, CoupleMessage, ThreadSummary
 
 log = logging.getLogger(__name__)
 
@@ -115,6 +115,16 @@ def settings_for(relationship) -> ChatAssistSettings:
     return obj
 
 
+def _rolling_summary(relationship) -> str:
+    """The précis of everything older than the verbatim window.
+
+    A plain database read — the summary is written by a background task, never
+    generated here, so this adds no latency to a send.
+    """
+    row = ThreadSummary.objects.filter(relationship=relationship).only("summary").first()
+    return row.summary if row and row.summary else ""
+
+
 def _thread_context(relationship, limit: int = CONTEXT_MESSAGES) -> str:
     """The tail of the conversation, oldest first, labelled by speaker."""
     recent = list(
@@ -128,7 +138,14 @@ def _thread_context(relationship, limit: int = CONTEXT_MESSAGES) -> str:
         body = message.body
         if body:
             lines.append(f"{message.sender_id}: {body}")
-    return "\n".join(lines)
+    verbatim = "\n".join(lines)
+
+    # Summary first, then the verbatim tail. Longer-arc awareness at a fixed
+    # token cost: the summary does not grow as the relationship does.
+    summary = _rolling_summary(relationship)
+    if summary and verbatim:
+        return f"Background on this couple:\n{summary}\n\nMost recent messages:\n{verbatim}"
+    return verbatim or summary
 
 
 def _partner_notes(relationship, user) -> str:
