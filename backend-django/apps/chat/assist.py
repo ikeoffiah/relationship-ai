@@ -497,3 +497,82 @@ def _nudge_for(relationship, user, local_hour: int | None) -> AssistNudge | None
             )
 
     return None
+
+
+# ── 4. Reading something hard ───────────────────────────────────────────────
+#
+# The assist so far only helps you *send*. But escalation usually happens in the
+# reaction, not the opening message — what turns a sharp start into a fight is
+# how the other person answers. So this coaches the receiver, privately.
+#
+# Two rules make the difference between help and harm.
+#
+# It coaches you about *your own response* and never characterises your partner.
+# An assistant that privately tells one partner the other is "being
+# manipulative" has made itself an ally inside a two-person system — that is
+# triangulation, and it damages the relationship while feeling supportive.
+#
+# It defers to safety. If the incoming message carries genuine abuse signals,
+# "here is how to respond better" is the wrong answer entirely: it coaches
+# someone into accommodating abuse. That case routes to support instead.
+
+# Signals that this is not a communication problem to be smoothed over.
+_ABUSE_SIGNALS = (
+    "not allowed to", "won't let me", "wont let me", "if you leave",
+    "i'll hurt", "ill hurt", "you'll regret", "youll regret", "nobody will believe",
+    "no one will believe", "i'll take the kids", "ill take the kids",
+    "check your phone", "who were you with",
+)
+
+_READ_COACH_SYSTEM = (
+    "A partner has just received the message below and it may be hard to take. "
+    "Give them one or two sentences of private, practical guidance on how to "
+    "respond in a way that de-escalates and still lets them say what is true "
+    "for them.\n"
+    "Rules you must not break:\n"
+    "- Coach the reader about their own response. Never diagnose, label or "
+    "characterise the partner who sent it, and never take the reader's side.\n"
+    "- Do not tell them to ignore it, swallow it, or that they are overreacting.\n"
+    "- Plain, warm, specific. No therapy jargon.\n"
+    "If the message does not actually need any of this, reply with exactly NONE."
+)
+
+
+def coach_response(relationship, user, incoming: str) -> dict:
+    """Private guidance for the partner who just received a hard message.
+
+    Returns ``{"guidance": str|None, "defer_to_support": bool}``. Only the
+    receiver ever sees this; it is never surfaced to the sender.
+    """
+    blank = {"guidance": None, "defer_to_support": False}
+    if not incoming.strip():
+        return blank
+
+    try:
+        config = settings_for(relationship)
+        if not config.assist_enabled:
+            return blank
+
+        lowered = incoming.lower()
+        if any(signal in lowered for signal in _ABUSE_SIGNALS):
+            # Not a communication problem. Do not coach accommodation.
+            return {"guidance": None, "defer_to_support": True}
+
+        # Same local gate as the send path: if the message is not actually
+        # hard, there is nothing to coach and no call worth paying for.
+        if not _needs_model(incoming):
+            return blank
+
+        context = _thread_context(relationship, limit=6)
+        prompt = (
+            f"Recent conversation:\n{context}\n\nThe message they just received:\n{incoming}"
+            if context
+            else f"The message they just received:\n{incoming}"
+        )
+        raw = _complete(_READ_COACH_SYSTEM, prompt, CHECK_TIMEOUT_SECONDS)
+        if not raw or raw.strip().upper() == "NONE":
+            return blank
+        return {"guidance": raw.strip(), "defer_to_support": False}
+    except Exception as exc:
+        log.warning("chat_assist_read_coach_failed: %s", exc)
+        return blank

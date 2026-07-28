@@ -519,3 +519,95 @@ class RollingSummaryTests(AssistTestCase):
                     format="json",
                 )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
+class ReadCoachTests(AssistTestCase):
+    """Guidance for the partner receiving something hard.
+
+    The failure mode that matters here is not a bad suggestion — it is the
+    assistant taking a side. An AI that privately tells one partner the other
+    is the problem has made itself a third party inside a two-person system.
+    """
+
+    def url(self):
+        return reverse("chat-assist-read-coach", args=[self.relationship.id])
+
+    def test_guidance_is_returned_for_a_hard_message(self):
+        with patch(
+            "apps.chat.assist._complete",
+            return_value="Take a breath before answering — you can name the "
+            "part that stung without matching it.",
+        ):
+            response = self.client.post(
+                self.url(), {"message": "you never listen, you always do this"}, format="json"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("Take a breath", response.data["guidance"])
+        self.assertFalse(response.data["defer_to_support"])
+
+    def test_abuse_signals_defer_to_support_instead_of_coaching(self):
+        """Coaching someone to respond 'better' to coercive control would be
+        coaching them to accommodate it."""
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(),
+                {"message": "you're not allowed to see your friends this weekend"},
+                format="json",
+            )
+
+        self.assertTrue(response.data["defer_to_support"])
+        self.assertIsNone(response.data["guidance"])
+        # And crucially, no "here's how to respond" was ever generated.
+        complete.assert_not_called()
+
+    def test_threats_defer_to_support(self):
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(), {"message": "if you leave I'll take the kids"}, format="json"
+            )
+        self.assertTrue(response.data["defer_to_support"])
+        complete.assert_not_called()
+
+    def test_an_ordinary_message_gets_no_coaching(self):
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(), {"message": "can you grab milk on the way home?"}, format="json"
+            )
+        self.assertIsNone(response.data["guidance"])
+        complete.assert_not_called()
+
+    def test_model_saying_NONE_shows_nothing(self):
+        with patch("apps.chat.assist._complete", return_value="NONE"):
+            response = self.client.post(
+                self.url(), {"message": "you always do this"}, format="json"
+            )
+        self.assertIsNone(response.data["guidance"])
+
+    def test_coaching_fails_open_and_silent(self):
+        with patch("apps.chat.assist._complete", side_effect=Exception("down")):
+            response = self.client.post(
+                self.url(), {"message": "you always do this"}, format="json"
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["guidance"])
+
+    def test_disabled_assist_means_no_coaching(self):
+        ChatAssistSettings.objects.create(
+            relationship=self.relationship, assist_enabled=False
+        )
+        with patch("apps.chat.assist._complete") as complete:
+            result = assist.coach_response(self.relationship, self.alex, "you always do this")
+        complete.assert_not_called()
+        self.assertIsNone(result["guidance"])
+
+    def test_a_stranger_cannot_request_coaching_on_this_thread(self):
+        self.client.force_authenticate(user=self.stranger)
+        response = self.client.post(self.url(), {"message": "you always"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_the_prompt_forbids_characterising_the_partner(self):
+        """The instruction is the guardrail; pin it so it cannot be softened."""
+        system = assist._READ_COACH_SYSTEM.lower()
+        self.assertIn("never diagnose, label or characterise the partner", system)
+        self.assertIn("never take the reader's side", system)

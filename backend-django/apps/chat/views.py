@@ -393,3 +393,16 @@ def assist_settings(request, relationship_id):
             "night_nudge_enabled": config.night_nudge_enabled,
         }
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def assist_read_coach(request, relationship_id):
+    """Private guidance for the partner who just received a hard message.
+
+    Only the receiver sees this. It is never shown to, or recorded against, the
+    person who sent the message.
+    """
+    relationship = _thread_or_404(request.user, relationship_id)
+    incoming = (request.data.get("message") or "").strip()
+    return Response(assist.coach_response(relationship, request.user, incoming))
