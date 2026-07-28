@@ -64,7 +64,7 @@ def generate_session_summary_task(session_id):
 
         client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Using a reasonably fast/cheap model for MVP
+            model="gpt-4.1-nano",  # fast + cheap; see backend-fastapi model_config
             messages=[
                 {
                     "role": "user",
@@ -95,7 +95,7 @@ def extract_memories_task(session_id):
 
         # 1. Extract Insights
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-nano",
             messages=[
                 {
                     "role": "user",

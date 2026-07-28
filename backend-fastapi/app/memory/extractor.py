@@ -4,11 +4,11 @@ Memory Extraction Pipeline (REL-89)
 After every session, MemoryUpdateTask calls POST /internal/extract-memories
 which runs this pipeline. It uses the same provider switch as the rest of the
 app — OpenAI by default (Anthropic optional) — with a structured extraction
-prompt. The extraction model is cost-optimised (``gpt-4o-mini`` by default),
+prompt. The extraction model is cost-optimised (``gpt-4.1-nano`` by default),
 since this is bulk structured extraction rather than a counseling turn.
 
     LLM_PROVIDER             openai | anthropic            (default: openai)
-    OPENAI_API_KEY, OPENAI_EXTRACTION_MODEL                (default: gpt-4o-mini)
+    OPENAI_API_KEY, OPENAI_EXTRACTION_MODEL                (default: gpt-4.1-nano)
     ANTHROPIC_API_KEY, ANTHROPIC_EXTRACTION_MODEL          (default: model_config)
 """
 
@@ -134,7 +134,7 @@ class MemoryExtractor:
                 "ANTHROPIC_EXTRACTION_MODEL",
                 ANTHROPIC_MODEL_CONFIG["memory_extraction"]["model_id"],
             )
-        return os.environ.get("OPENAI_EXTRACTION_MODEL", "gpt-4o-mini")
+        return os.environ.get("OPENAI_EXTRACTION_MODEL", "gpt-4.1-nano")
 
     def _format_conversation(self, session_messages: list[dict]) -> str:
         """Format session messages into a readable conversation string."""

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from app.safety.layer1_rules import SignalCategory
 
-_CLASSIFIER_MODEL_DEFAULT = "gpt-4o-mini"
+_CLASSIFIER_MODEL_DEFAULT = "gpt-4.1-nano"
 
 _VALID_CATEGORIES = {c.value for c in SignalCategory}
 

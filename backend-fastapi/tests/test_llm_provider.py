@@ -6,6 +6,8 @@ import pytest
 
 from app.orchestration import llm_provider
 from app.orchestration.graph import build_system_prompt
+import types
+from app.orchestration.model_config import MODEL_CONFIG
 
 
 @pytest.mark.asyncio
@@ -151,3 +153,44 @@ async def test_node_3_passes_memories_through():
     )
     result = await node_3_memory_retrieval(state)
     assert result["retrieved_memories"][0]["note"] == "prefers space when upset"
+
+
+# ── Fast lane ───────────────────────────────────────────────────────────────
+# Inline assists (rephrase, mood read, suggestions) run while the user is still
+# typing, so they must not pay the counseling model's latency. Measured p50 was
+# 2.05s on the old shared default vs 0.86s on the fast model.
+
+@pytest.mark.asyncio
+async def test_fast_calls_use_the_low_latency_model(monkeypatch):
+    seen = {}
+
+    class _FakeCompletions:
+        async def create(self, **kwargs):
+            seen.update(kwargs)
+            msg = types.SimpleNamespace(content="ok")
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg)])
+
+    class _FakeClient:
+        def __init__(self, **_):
+            self.chat = types.SimpleNamespace(completions=_FakeCompletions())
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("OPENAI_FAST_MODEL", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    import openai
+    monkeypatch.setattr(openai, "AsyncOpenAI", _FakeClient, raising=False)
+
+    await llm_provider.generate_reply("sys", [{"role": "user", "content": "hi"}], fast=True)
+    assert seen["model"] == MODEL_CONFIG["fast_path"]["model_id"]
+    assert seen["max_tokens"] == llm_provider.MAX_FAST_TOKENS
+
+    seen.clear()
+    await llm_provider.generate_reply("sys", [{"role": "user", "content": "hi"}])
+    assert seen["model"] == MODEL_CONFIG["primary_counseling"]["model_id"]
+    assert seen["max_tokens"] == llm_provider.MAX_REPLY_TOKENS
+
+
+def test_fast_path_model_is_not_a_reasoning_model():
+    """gpt-5* reasoning models spend the token budget thinking and can return
+    an empty string — unusable for an inline assist."""
+    assert not MODEL_CONFIG["fast_path"]["model_id"].startswith("gpt-5")

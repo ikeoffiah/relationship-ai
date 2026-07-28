@@ -110,7 +110,7 @@ async def analyze_mood(text: str) -> dict:
     if not text:
         return dict(_MOOD_FALLBACK)
 
-    raw = await generate_reply(_MOOD_SYSTEM, [{"role": "user", "content": text}])
+    raw = await generate_reply(_MOOD_SYSTEM, [{"role": "user", "content": text}], fast=True)
     parsed = _extract_json(raw) or {}
     return {
         "mood": str(parsed.get("mood") or _MOOD_FALLBACK["mood"])[:40],
@@ -192,7 +192,7 @@ async def coach_reply(draft: str, partner_mood: Optional[str] = None) -> dict:
     if partner_mood:
         context = f"My partner seems to be feeling: {partner_mood}.\nMy draft: {draft}"
 
-    raw = await generate_reply(_COACH_SYSTEM, [{"role": "user", "content": context}])
+    raw = await generate_reply(_COACH_SYSTEM, [{"role": "user", "content": context}], fast=True)
     parsed = _extract_json(raw) or {}
     rewrites = parsed.get("rewrites")
     rewrites = [str(r)[:500] for r in rewrites][:3] if isinstance(rewrites, list) else []
@@ -227,7 +227,7 @@ async def suggest_replies(messages: List[Dict[str, str]]) -> List[str]:
         f"{'Me' if m.get('role') == 'me' else 'Partner'}: {m['content'].strip()}"
         for m in cleaned[-8:]  # only the recent tail matters
     )
-    raw = await generate_reply(_SUGGEST_SYSTEM, [{"role": "user", "content": transcript}])
+    raw = await generate_reply(_SUGGEST_SYSTEM, [{"role": "user", "content": transcript}], fast=True)
     parsed = _extract_json(raw) or {}
     suggestions = parsed.get("suggestions")
     if not isinstance(suggestions, list):
@@ -317,7 +317,7 @@ async def daily_vibe(messages: List[Dict[str, str]]) -> dict:
         f"{'Me' if m.get('role') == 'me' else 'Partner'}: {m['content'].strip()}"
         for m in cleaned[-40:]
     )
-    raw = await generate_reply(_VIBE_SYSTEM, [{"role": "user", "content": transcript}])
+    raw = await generate_reply(_VIBE_SYSTEM, [{"role": "user", "content": transcript}], fast=True)
     parsed = _extract_json(raw) or {}
     chosen = _VIBE_BY_LABEL.get(str(parsed.get("label", "")).strip().lower())
     if chosen:
