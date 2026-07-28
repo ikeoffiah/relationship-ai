@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/onboarding/onboarding_viewmodel.dart';
@@ -116,41 +117,9 @@ class RelationshipContextScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderThemeData(
-                      activeTrackColor: AppColors.warmCoral,
-                      inactiveTrackColor:
-                          AppColors.softRose.withValues(alpha: 0.3),
-                      thumbColor: AppColors.warmCoral,
-                      overlayColor: AppColors.warmCoral.withValues(alpha: 0.15),
-                      trackHeight: 4,
-                    ),
-                    child: Slider(
-                      min: 0,
-                      max: 240,
-                      divisions: 48,
-                      value:
-                          (vm.relationshipDurationMonths ?? 0).toDouble(),
-                      onChanged: (v) =>
-                          vm.setRelationshipDuration(v.round()),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 70,
-                  child: Text(
-                    _durationLabel(vm.relationshipDurationMonths ?? 0),
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.warmCoral,
-                        ),
-                  ),
-                ),
-              ],
+            _DurationSelector(
+              months: vm.relationshipDurationMonths ?? 0,
+              onChanged: vm.setRelationshipDuration,
             ),
             const SizedBox(height: 24),
 
@@ -254,14 +223,6 @@ class RelationshipContextScreen extends StatelessWidget {
       ),
     );
   }
-
-  String _durationLabel(int months) {
-    if (months < 12) return '$months mo';
-    final years = months ~/ 12;
-    final rem = months % 12;
-    if (rem == 0) return '$years yr';
-    return '$years yr $rem mo';
-  }
 }
 
 // ── Helper widgets ───────────────────────────────────────────────────────────
@@ -342,6 +303,153 @@ class _CounterButton extends StatelessWidget {
           color: onPressed != null
               ? AppColors.warmCoral
               : AppColors.softCharcoal.withValues(alpha: 0.3),
+        ),
+      ),
+    );
+  }
+}
+
+/// Duration control that keeps a slider and editable year/month fields in sync.
+///
+/// Typing in either field adjusts the value within the same [0, _maxMonths]
+/// range as the slider; moving the slider updates the fields. The fields are
+/// only re-synced from the slider when they are not being edited, so typing is
+/// never interrupted.
+class _DurationSelector extends StatefulWidget {
+  final int months;
+  final ValueChanged<int> onChanged;
+
+  const _DurationSelector({required this.months, required this.onChanged});
+
+  @override
+  State<_DurationSelector> createState() => _DurationSelectorState();
+}
+
+class _DurationSelectorState extends State<_DurationSelector> {
+  static const int _maxMonths = 240; // 20 years, matching the slider max.
+
+  late final TextEditingController _yrCtrl;
+  late final TextEditingController _moCtrl;
+  final FocusNode _yrFocus = FocusNode();
+  final FocusNode _moFocus = FocusNode();
+
+  bool get _editing => _yrFocus.hasFocus || _moFocus.hasFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _yrCtrl = TextEditingController(text: '${widget.months ~/ 12}');
+    _moCtrl = TextEditingController(text: '${widget.months % 12}');
+    _yrFocus.addListener(_onFocusChange);
+    _moFocus.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DurationSelector old) {
+    super.didUpdateWidget(old);
+    // Reflect slider-driven changes into the fields, but never mid-edit.
+    if (widget.months != old.months && !_editing) {
+      _syncFields(widget.months);
+    }
+  }
+
+  void _onFocusChange() {
+    // On blur, normalise the text to the canonical years/months split
+    // (e.g. "15" months typed → "1" yr "3" mo).
+    if (!_editing) _syncFields(widget.months);
+  }
+
+  void _syncFields(int months) {
+    final yr = '${months ~/ 12}';
+    final mo = '${months % 12}';
+    if (_yrCtrl.text != yr) _yrCtrl.text = yr;
+    if (_moCtrl.text != mo) _moCtrl.text = mo;
+  }
+
+  void _emitFromFields() {
+    final yr = int.tryParse(_yrCtrl.text.trim()) ?? 0;
+    final mo = int.tryParse(_moCtrl.text.trim()) ?? 0;
+    final total = (yr * 12 + mo).clamp(0, _maxMonths);
+    widget.onChanged(total);
+  }
+
+  @override
+  void dispose() {
+    _yrCtrl.dispose();
+    _moCtrl.dispose();
+    _yrFocus.dispose();
+    _moFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = widget.months.clamp(0, _maxMonths).toDouble();
+    return Column(
+      children: [
+        SliderTheme(
+          data: SliderThemeData(
+            activeTrackColor: AppColors.warmCoral,
+            inactiveTrackColor: AppColors.softRose.withValues(alpha: 0.3),
+            thumbColor: AppColors.warmCoral,
+            overlayColor: AppColors.warmCoral.withValues(alpha: 0.15),
+            trackHeight: 4,
+          ),
+          child: Slider(
+            min: 0,
+            max: _maxMonths.toDouble(),
+            divisions: 48,
+            value: value,
+            onChanged: (v) => widget.onChanged(v.round()),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _field(_yrCtrl, _yrFocus, 'yr'),
+            const SizedBox(width: 12),
+            _field(_moCtrl, _moFocus, 'mo'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _field(TextEditingController controller, FocusNode focus, String unit) {
+    return SizedBox(
+      width: 82,
+      child: TextField(
+        controller: controller,
+        focusNode: focus,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(3),
+        ],
+        onChanged: (_) => _emitFromFields(),
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.warmCoral,
+            ),
+        decoration: InputDecoration(
+          isDense: true,
+          suffixText: unit,
+          suffixStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.softCharcoal.withValues(alpha: 0.6),
+              ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                BorderSide(color: AppColors.softRose.withValues(alpha: 0.6)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.warmCoral, width: 1.5),
+          ),
         ),
       ),
     );
