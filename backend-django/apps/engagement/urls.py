@@ -41,6 +41,13 @@ urlpatterns = [
     path("bliss/items", bliss_views.items, name="engagement-bliss-items"),
     path("bliss/items/<uuid:item_id>/done", bliss_views.complete_item, name="engagement-bliss-done"),
     path("bliss/items/<uuid:item_id>/cancel", bliss_views.cancel_item, name="engagement-bliss-cancel"),
+    path(
+        "bliss/items/<uuid:item_id>/respond",
+        bliss_views.respond_to_invite,
+        name="engagement-bliss-respond",
+    ),
+    # The in-app calendar: dated items in a window, grouped by day.
+    path("bliss/calendar", bliss_views.calendar, name="engagement-bliss-calendar"),
     # Faith / spirituality (opt-in)
     path("faith/today", faith_views.faith_today, name="engagement-faith-today"),
     path(

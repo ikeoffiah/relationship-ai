@@ -322,6 +322,65 @@ async def run():
         "otherwise a private counseling session leaks to the partner",
     )
 
+    # ---- calendar invites -----------------------------------------------
+    print("\n== calendar invites ==")
+    from_ = "2026-01-01T00:00:00+00:00"
+    to_ = "2030-01-01T00:00:00+00:00"
+    cal = f"{DJANGO}/api/v1/engagement/bliss"
+
+    invited = requests.post(
+        f"{cal}/items",
+        headers=auth(a_token),
+        json={
+            "kind": "event",
+            "title": "dinner out",
+            "due_at": "2026-09-04T19:30:00+00:00",
+            "invite_partner": True,
+        },
+        timeout=20,
+    ).json()
+    check("tagging the partner leaves it pending", invited.get("partner_invite") == "pending")
+
+    def cal_items(token):
+        return requests.get(
+            f"{cal}/calendar", headers=auth(token), params={"from": from_, "to": to_}, timeout=20
+        ).json()
+
+    mine = cal_items(a_token)
+    theirs = cal_items(b_token)
+    row_a = next((r for r in mine["items"] if r["id"] == invited["id"]), None)
+    row_b = next((r for r in theirs["items"] if r["id"] == invited["id"]), None)
+    check("it appears on both calendars", row_a is not None and row_b is not None)
+    check(
+        "only the person asked is prompted to answer",
+        row_a is not None and row_b is not None
+        and row_a["awaiting_my_answer"] is False
+        and row_b["awaiting_my_answer"] is True,
+    )
+    check("the calendar groups by day", bool(mine.get("days")))
+
+    same = requests.post(
+        f"{cal}/items/{invited['id']}/respond", headers=auth(a_token),
+        json={"accept": True}, timeout=20,
+    )
+    check(
+        "the asker cannot accept on their partner's behalf",
+        same.status_code == 403,
+        f"got {same.status_code}",
+    )
+
+    answered = requests.post(
+        f"{cal}/items/{invited['id']}/respond", headers=auth(b_token),
+        json={"accept": True}, timeout=20,
+    ).json()
+    check("the partner can accept", answered.get("partner_invite") == "accepted")
+
+    declined = requests.post(
+        f"{cal}/items/{invited['id']}/respond", headers=auth(b_token),
+        json={"accept": False}, timeout=20,
+    ).json()
+    check("an answer can be changed", declined.get("partner_invite") == "declined")
+
     # ---- presence teardown ---------------------------------------------
     print("\n== presence teardown ==")
     a_events.clear()

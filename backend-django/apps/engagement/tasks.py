@@ -21,10 +21,17 @@ logger = logging.getLogger(__name__)
 
 
 def _recipients(item: BlissItem) -> list:
-    """Both partners (or just the creator when solo)."""
+    """Who gets the alarm.
+
+    The creator always. The partner only when they were not asked (a shared
+    plan) or said yes. A pending invite is not consent — silence is the most
+    common response to a notification, and treating it as agreement would make
+    tagging someone a way to put an alarm in their pocket for something they
+    never signed up to.
+    """
     ids = {item.created_by_id}
     rel = item.relationship
-    if rel is not None:
+    if rel is not None and item.reminds_partner():
         ids.add(rel.partner_a_id)
         ids.add(rel.partner_b_id)
     return [uid for uid in ids if uid is not None]

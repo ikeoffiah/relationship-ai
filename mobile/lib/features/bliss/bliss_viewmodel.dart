@@ -36,9 +36,17 @@ class BlissViewModel extends ChangeNotifier {
 
   /// Create a confirmed item and prepend it to the local list. Returns it, or
   /// null on failure.
-  Future<BlissItem?> create(BlissDraft draft, {String source = 'bliss'}) async {
+  Future<BlissItem?> create(
+    BlissDraft draft, {
+    String source = 'bliss',
+    bool invitePartner = false,
+  }) async {
     try {
-      final item = await _api.create(draft, source: source);
+      final item = await _api.create(
+        draft,
+        source: source,
+        invitePartner: invitePartner,
+      );
       _items = [item, ..._items];
       notifyListeners();
       return item;

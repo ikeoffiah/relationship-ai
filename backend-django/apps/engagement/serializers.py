@@ -22,10 +22,44 @@ class FaithReflectSerializer(serializers.Serializer):
 
 
 class BlissItemSerializer(serializers.ModelSerializer):
+    created_by_me = serializers.SerializerMethodField()
+    awaiting_my_answer = serializers.SerializerMethodField()
+
     class Meta:
         model = BlissItem
-        fields = ["id", "kind", "title", "due_at", "status", "source", "created_at"]
+        fields = [
+            "id",
+            "kind",
+            "title",
+            "due_at",
+            "status",
+            "source",
+            "partner_invite",
+            "partner_responded_at",
+            "created_by_me",
+            "awaiting_my_answer",
+            "created_at",
+        ]
         read_only_fields = fields
+
+    def get_created_by_me(self, obj) -> bool:
+        viewer = self.context.get("viewer_id")
+        return viewer is not None and obj.created_by_id == viewer
+
+    def get_awaiting_my_answer(self, obj) -> bool:
+        """Whether *this reader* is the one being asked.
+
+        Computed server-side rather than left to the client to work out from
+        partner_invite plus who created it. Getting it wrong in the other
+        direction would show the person who sent the invite an Accept button
+        for their own request.
+        """
+        viewer = self.context.get("viewer_id")
+        return (
+            viewer is not None
+            and obj.partner_invite == BlissItem.INVITE_PENDING
+            and obj.created_by_id != viewer
+        )
 
 
 class CreateBlissItemSerializer(serializers.Serializer):
@@ -39,6 +73,14 @@ class CreateBlissItemSerializer(serializers.Serializer):
     source = serializers.ChoiceField(
         choices=["bliss", "manual", "couple_chat"], default="bliss"
     )
+    # Tag the partner. Doing so does not put the item on their calendar as a
+    # commitment — it asks them, and the reminder only reaches them if they say
+    # yes.
+    invite_partner = serializers.BooleanField(default=False)
+
+
+class InviteResponseSerializer(serializers.Serializer):
+    accept = serializers.BooleanField()
 
 
 class CommitmentSerializer(serializers.ModelSerializer):
