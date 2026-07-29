@@ -692,3 +692,92 @@ class DeliveryStatusTests(ChatTestCase):
             reverse("chat-mark-delivered", args=[self.relationship.id])
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class BehaviourLearningTests(ChatTestCase):
+    """Turning ordinary sends into signals.
+
+    Everything here comes from timestamps and sender ids already on the row —
+    no model call — so the cost of learning is one indexed query per send.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from apps.personalization import behaviour
+        from apps.personalization.models import BehaviourProfile
+
+        self.behaviour = behaviour
+        self.BehaviourProfile = BehaviourProfile
+
+    def signals_of(self, user):
+        profile = self.BehaviourProfile.objects.filter(user=user).first()
+        return (profile.signals if profile else {}) or {}
+
+    def send(self, **payload):
+        payload.setdefault("body", "hello")
+        return self.client.post(self.send_url(), payload, format="json")
+
+    def test_a_repair_sticker_is_recorded_as_reaching_for_repair(self):
+        self.send(kind="sticker", sticker="repair.sorry", body="")
+        self.assertIn(self.behaviour.REPAIRS, self.signals_of(self.alex))
+
+    def test_an_ordinary_sticker_is_not(self):
+        self.send(kind="sticker", sticker="playful.wink", body="")
+        self.assertNotIn(self.behaviour.REPAIRS, self.signals_of(self.alex))
+
+    def test_a_run_of_unanswered_messages_reads_as_pursuit(self):
+        for i in range(self.behaviour.PURSUIT_UNANSWERED_RUN + 1):
+            self.send(body=f"are you there {i}")
+        self.assertIn(self.behaviour.PURSUES, self.signals_of(self.alex))
+
+    def test_two_messages_in_a_row_are_just_two_messages(self):
+        """A person adding a second thought is not protest behaviour, and
+        treating it as such would have Bliss coaching around a pattern that
+        does not exist."""
+        self.send(body="one")
+        self.send(body="two")
+        self.assertNotIn(self.behaviour.PURSUES, self.signals_of(self.alex))
+
+    def test_a_conversation_with_replies_is_not_pursuit(self):
+        self.make_message(sender=self.alex, body="hi")
+        self.make_message(sender=self.sam, body="hey")
+        self.send(body="how was your day")
+        self.assertNotIn(self.behaviour.PURSUES, self.signals_of(self.alex))
+
+    def test_a_long_gap_alone_is_not_withdrawal(self):
+        """The condition that keeps this honest. Everyone sleeps; calling a
+        night's gap 'withdrawal' would tell a partner to tiptoe around someone
+        who was simply asleep."""
+        old = self.make_message(sender=self.sam, body="what do you want for dinner")
+        CoupleMessage.objects.filter(id=old.id).update(
+            created_at=timezone.now() - timezone.timedelta(hours=12)
+        )
+        self.send(body="sorry, lasagne sounds good")
+        self.assertNotIn(self.behaviour.WITHDRAWS, self.signals_of(self.alex))
+
+    def test_a_long_gap_after_a_sharp_exchange_does_read_as_withdrawal(self):
+        old = self.make_message(
+            sender=self.sam, body="you never listen, you are being ridiculous"
+        )
+        CoupleMessage.objects.filter(id=old.id).update(
+            created_at=timezone.now() - timezone.timedelta(hours=12)
+        )
+        self.send(body="ok")
+        self.assertIn(self.behaviour.WITHDRAWS, self.signals_of(self.alex))
+
+    def test_learning_never_breaks_a_send(self):
+        """The guarantee that matters more than any signal: nothing in the
+        learning path may be the reason someone's message fails."""
+        with patch(
+            "apps.personalization.behaviour.observe", side_effect=RuntimeError("boom")
+        ):
+            response = self.send(body="this must still go")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(CoupleMessage.objects.filter(client_id="").exists())
+
+    def test_learning_records_nothing_about_the_partner(self):
+        """Alex sending only ever writes to Alex's profile. One partner's
+        behaviour must never end up filed under the other's name."""
+        for i in range(4):
+            self.send(body=f"hello {i}")
+        self.assertFalse(self.BehaviourProfile.objects.filter(user=self.sam).exists())

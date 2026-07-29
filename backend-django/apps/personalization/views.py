@@ -148,3 +148,40 @@ class QuestionnaireView(APIView):
             "stages": stages,
             "communication_quiz": communication_quiz
         })
+
+
+class BehaviourView(APIView):
+    """What Bliss has noticed about *you*, and only about you.
+
+    Deliberately scoped to ``request.user`` with no id parameter — not "checked
+    against" one, but with no way to name anyone else at all. Guidance derived
+    from a person's tendencies is allowed to shape how Bliss phrases something
+    to them; the tendencies themselves are theirs. An endpoint that let one
+    partner read the other's would turn a coaching aid into a dossier, and no
+    amount of permission checking makes that a good thing to have built.
+
+    Returns plain-language observations rather than scores. A number invites
+    comparison and a label invites argument; "you have tended to go quiet after
+    something sharp, lately" is the honest shape of what we actually know.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.personalization.behaviour import (
+            HALF_LIFE_DAYS,
+            MIN_OBSERVATIONS,
+            SELF_DESCRIPTION,
+            tendencies_for,
+        )
+
+        tendencies = tendencies_for(request.user.id)
+        return Response(
+            {
+                "observations": [
+                    SELF_DESCRIPTION[t] for t in tendencies if t in SELF_DESCRIPTION
+                ],
+                "half_life_days": HALF_LIFE_DAYS,
+                "min_observations": MIN_OBSERVATIONS,
+            }
+        )

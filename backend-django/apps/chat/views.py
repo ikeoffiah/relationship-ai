@@ -188,6 +188,9 @@ def send_message(request, relationship_id):
         {"type": "couple_message", "message": CoupleMessageSerializer(message).data},
         exclude_user_id=request.user.id,
     )
+    # Learn from the send. Costs one indexed query and no model call, and is
+    # guarded inside so it can never be why a message fails.
+    assist.note_send_pattern(relationship, request.user, message)
     _maybe_refresh_summary(relationship)
     return Response(
         CoupleMessageSerializer(
