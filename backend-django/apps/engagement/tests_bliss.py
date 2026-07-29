@@ -248,3 +248,185 @@ class BlissThreadAnnouncementTests(DjangoTestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.CoupleMessage.objects.count(), 0)
+
+
+class CalendarInviteTests(DjangoTestCase):
+    """Tagging a partner asks them; it does not schedule them.
+
+    Most of these are access-control tests, because the feature is only worth
+    anything if the person who sends an invite cannot answer it.
+    """
+
+    def setUp(self):
+        self.alex = User.objects.create_user(email="ci-a@t.local", password="pw12345!")
+        self.sam = User.objects.create_user(email="ci-b@t.local", password="pw12345!")
+        self.relationship = Relationship.objects.create(
+            partner_a=self.alex, partner_b=self.sam, status="active"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.alex)
+        self.partner = APIClient()
+        self.partner.force_authenticate(user=self.sam)
+
+    def create(self, invite=True, **kw):
+        payload = {
+            "kind": "event",
+            "title": "dinner out",
+            "due_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            "invite_partner": invite,
+        }
+        payload.update(kw)
+        return self.client.post(reverse("engagement-bliss-items"), payload, format="json")
+
+    def respond(self, item_id, accept, client=None):
+        return (client or self.partner).post(
+            reverse("engagement-bliss-respond", args=[item_id]),
+            {"accept": accept},
+            format="json",
+        )
+
+    # ── The invite ───────────────────────────────────────────────────────
+
+    def test_tagging_the_partner_leaves_it_waiting_on_them(self):
+        body = self.create().json()
+        self.assertEqual(body["partner_invite"], "pending")
+
+    def test_not_tagging_leaves_it_untagged(self):
+        self.assertEqual(self.create(invite=False).json()["partner_invite"], "none")
+
+    def test_the_partner_is_asked_rather_than_told(self):
+        self.create()
+        note = Notification.objects.filter(user_id=self.sam.id).latest("created_at")
+        self.assertEqual(note.type, "bliss_invite")
+        self.assertIn("yes or no", note.body)
+
+    def test_accepting_records_who_and_when(self):
+        item_id = self.create().json()["id"]
+        body = self.respond(item_id, True).json()
+        self.assertEqual(body["partner_invite"], "accepted")
+        self.assertIsNotNone(body["partner_responded_at"])
+
+    def test_declining_is_recorded_and_the_asker_is_told(self):
+        item_id = self.create().json()["id"]
+        self.respond(item_id, False)
+        self.assertEqual(
+            BlissItem.objects.get(id=item_id).partner_invite, "declined"
+        )
+        note = Notification.objects.filter(user_id=self.alex.id).latest("created_at")
+        self.assertIn("said no", note.body)
+
+    def test_an_answer_can_be_changed(self):
+        """Declining on Tuesday and accepting on Thursday should not need a
+        fresh invitation."""
+        item_id = self.create().json()["id"]
+        self.respond(item_id, False)
+        self.respond(item_id, True)
+        self.assertEqual(BlissItem.objects.get(id=item_id).partner_invite, "accepted")
+
+    # ── Who may answer ───────────────────────────────────────────────────
+
+    def test_you_cannot_accept_your_own_invitation(self):
+        """The whole feature rests on this. Without it, tagging your partner
+        and accepting for them is two API calls."""
+        item_id = self.create().json()["id"]
+        response = self.respond(item_id, True, client=self.client)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(BlissItem.objects.get(id=item_id).partner_invite, "pending")
+
+    def test_a_stranger_gets_a_404_not_a_403(self):
+        stranger = APIClient()
+        stranger.force_authenticate(
+            user=User.objects.create_user(email="ci-x@t.local", password="pw12345!")
+        )
+        item_id = self.create().json()["id"]
+        self.assertEqual(self.respond(item_id, True, client=stranger).status_code, 404)
+
+    def test_you_cannot_answer_something_you_were_not_asked_about(self):
+        item_id = self.create(invite=False).json()["id"]
+        self.assertEqual(self.respond(item_id, True).status_code, 400)
+
+    def test_only_the_asked_partner_sees_an_answer_prompt(self):
+        item_id = self.create().json()["id"]
+        mine = self.client.get(reverse("engagement-bliss-items")).json()["items"]
+        theirs = self.partner.get(reverse("engagement-bliss-items")).json()["items"]
+        self.assertFalse(next(i for i in mine if i["id"] == item_id)["awaiting_my_answer"])
+        self.assertTrue(next(i for i in theirs if i["id"] == item_id)["awaiting_my_answer"])
+
+    # ── The reminder gate ────────────────────────────────────────────────
+
+    def test_a_pending_invite_does_not_alarm_the_partner(self):
+        """Silence is the commonest response to a notification. Reading it as
+        a yes would make tagging someone a way to put an alarm in their pocket
+        for something they never agreed to."""
+        from apps.engagement.tasks import _recipients
+
+        item = BlissItem.objects.get(id=self.create().json()["id"])
+        self.assertEqual(_recipients(item), [self.alex.id])
+
+    def test_a_declined_invite_does_not_alarm_the_partner(self):
+        from apps.engagement.tasks import _recipients
+
+        item_id = self.create().json()["id"]
+        self.respond(item_id, False)
+        item = BlissItem.objects.get(id=item_id)
+        self.assertEqual(_recipients(item), [self.alex.id])
+
+    def test_an_accepted_invite_alarms_both(self):
+        from apps.engagement.tasks import _recipients
+
+        item_id = self.create().json()["id"]
+        self.respond(item_id, True)
+        item = BlissItem.objects.get(id=item_id)
+        self.assertCountEqual(_recipients(item), [self.alex.id, self.sam.id])
+
+    def test_an_untagged_item_still_reminds_both(self):
+        """Existing behaviour, deliberately preserved: not tagging someone is a
+        shared plan, not a request, and those already reminded both."""
+        from apps.engagement.tasks import _recipients
+
+        item = BlissItem.objects.get(id=self.create(invite=False).json()["id"])
+        self.assertCountEqual(_recipients(item), [self.alex.id, self.sam.id])
+
+    def test_a_solo_user_cannot_leave_an_item_waiting_forever(self):
+        solo = User.objects.create_user(email="ci-solo@t.local", password="pw12345!")
+        client = APIClient()
+        client.force_authenticate(user=solo)
+        body = client.post(
+            reverse("engagement-bliss-items"),
+            {"kind": "event", "title": "gym", "invite_partner": True},
+            format="json",
+        ).json()
+        self.assertEqual(body["partner_invite"], "none")
+
+    # ── The calendar feed ────────────────────────────────────────────────
+
+    def test_the_calendar_groups_by_day(self):
+        self.create(due_at=(timezone.now() + timedelta(days=1)).isoformat())
+        body = self.client.get(reverse("engagement-bliss-calendar")).json()
+        self.assertEqual(len(body["days"]), 1)
+        self.assertEqual(len(next(iter(body["days"].values()))), 1)
+
+    def test_the_calendar_respects_the_window(self):
+        self.create(due_at=(timezone.now() + timedelta(days=40)).isoformat())
+        url = reverse("engagement-bliss-calendar")
+        near = self.client.get(
+            url, {"to": (timezone.now() + timedelta(days=7)).isoformat()}
+        ).json()
+        self.assertEqual(near["items"], [])
+
+    def test_undated_items_stay_off_the_calendar(self):
+        """They belong on the plan list. A to-do with no time is not a day."""
+        self.create(due_at=None)
+        self.assertEqual(self.client.get(reverse("engagement-bliss-calendar")).json()["items"], [])
+
+    def test_cancelled_items_stay_off_the_calendar(self):
+        item_id = self.create().json()["id"]
+        self.client.post(reverse("engagement-bliss-cancel", args=[item_id]))
+        self.assertEqual(self.client.get(reverse("engagement-bliss-calendar")).json()["items"], [])
+
+    def test_the_calendar_is_scoped_to_your_own_couple(self):
+        self.create()
+        other = User.objects.create_user(email="ci-o@t.local", password="pw12345!")
+        client = APIClient()
+        client.force_authenticate(user=other)
+        self.assertEqual(client.get(reverse("engagement-bliss-calendar")).json()["items"], [])

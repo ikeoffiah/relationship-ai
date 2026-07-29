@@ -21,6 +21,13 @@ class UsScreen extends StatelessWidget {
       intro: 'Light things to do together. Nothing here is homework.',
       destinations: [
         HubDestination(
+          icon: Icons.calendar_month_outlined,
+          title: 'Calendar',
+          blurb: 'What you have coming up, and what they have asked you to.',
+          accent: AppColors.categoryPlum,
+          onTap: () => go('/engagement/calendar'),
+        ),
+        HubDestination(
           icon: Icons.videogame_asset_outlined,
           title: 'Games',
           blurb: 'Answer about yourself, then guess each other.',

@@ -23,6 +23,7 @@ class NotificationType(models.TextChoices):
     GAME_READY = "game_ready", "Couple Game Results Ready"
     BLISS_REMINDER = "bliss_reminder", "Bliss Reminder"
     BLISS_CREATED = "bliss_created", "Bliss Item Created"
+    BLISS_INVITE = "bliss_invite", "Bliss Calendar Invite"
     COMMITMENT_REMINDER = "commitment_reminder", "Commitment Reminder"
     COMMITMENT_CREATED = "commitment_created", "Commitment Created"
     FOCUS_PROPOSED = "focus_proposed", "Focus Session Proposed"

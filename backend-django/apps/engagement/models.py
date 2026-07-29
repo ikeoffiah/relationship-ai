@@ -801,10 +801,54 @@ class BlissItem(models.Model):
     # 'couple_chat' overflows by one character; SQLite ignores varchar limits,
     # so that only showed up against Postgres.
     source = models.CharField(max_length=20, default="bliss")
+    # Whether the partner was tagged on this, and what they said.
+    #
+    # One state machine rather than an `invited` boolean plus a response, so it
+    # cannot reach "not invited, but accepted". The four states are:
+    #
+    #   none      nobody was tagged. It still shows on both calendars and still
+    #             reminds both — a shared plan, not a request.
+    #   pending   they were tagged and have not answered.
+    #   accepted  they said yes.
+    #   declined  they said no.
+    #
+    # The gate that matters is in the reminder sweep: a pending or declined
+    # invite reminds only the person who created it. Without that, tagging a
+    # partner would be a way to put an alarm in their pocket for something they
+    # never agreed to, which is the difference between a shared calendar and one
+    # partner scheduling the other.
+    INVITE_NONE = "none"
+    INVITE_PENDING = "pending"
+    INVITE_ACCEPTED = "accepted"
+    INVITE_DECLINED = "declined"
+    INVITE_CHOICES = [
+        (INVITE_NONE, "Not tagged"),
+        (INVITE_PENDING, "Waiting on partner"),
+        (INVITE_ACCEPTED, "Accepted"),
+        (INVITE_DECLINED, "Declined"),
+    ]
+    partner_invite = models.CharField(
+        max_length=10, choices=INVITE_CHOICES, default=INVITE_NONE
+    )
+    partner_responded_at = models.DateTimeField(null=True, blank=True)
+
     # Set once the due-time reminder has been delivered, so the sweep never
     # fires the same reminder twice.
     reminded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def awaits_partner(self) -> bool:
+        return self.partner_invite == self.INVITE_PENDING
+
+    def reminds_partner(self) -> bool:
+        """Whether the partner should get the alarm.
+
+        Deliberately not `!= declined`: a pending invite is not consent either.
+        Silence is the most common response to a notification, and reading it
+        as a yes is exactly the failure this field exists to prevent.
+        """
+        return self.partner_invite in (self.INVITE_NONE, self.INVITE_ACCEPTED)
 
     class Meta:
         db_table = "bliss_items"

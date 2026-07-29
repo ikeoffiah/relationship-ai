@@ -47,6 +47,8 @@ import 'package:mobile/features/games/views/games_list_screen.dart';
 import 'package:mobile/features/faith/faith_viewmodel.dart';
 import 'package:mobile/features/faith/views/faith_screen.dart';
 import 'package:mobile/features/bliss/bliss_viewmodel.dart';
+import 'package:mobile/features/bliss/calendar_viewmodel.dart';
+import 'package:mobile/features/bliss/views/calendar_screen.dart';
 import 'package:mobile/features/bliss/views/bliss_plan_screen.dart';
 import 'package:mobile/features/two_truths/two_truths_viewmodel.dart';
 import 'package:mobile/features/two_truths/views/two_truths_screen.dart';
@@ -213,6 +215,12 @@ class _MyAppState extends State<MyApp> {
         '/engagement/games': (context) => const GamesListScreen(),
         '/engagement/faith': (context) => const FaithScreen(),
         '/engagement/bliss': (context) => const BlissPlanScreen(),
+        // The invite notification deep-links here, so this route has to exist
+        // before the first invitation is ever sent.
+        '/engagement/calendar': (context) => provider.ChangeNotifierProvider(
+          create: (_) => CalendarViewModel(),
+          child: const CalendarScreen(),
+        ),
         '/engagement/two-truths': (context) => const TwoTruthsScreen(),
         '/engagement/commitments': (context) => const CommitmentsScreen(),
         '/engagement/focus': (context) => const FocusScreen(),
