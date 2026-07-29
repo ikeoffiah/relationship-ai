@@ -33,6 +33,30 @@ def validate_pkce(
     return secrets.compare_digest(get_code_challenge(code_verifier), code_challenge)
 
 
+def key_fingerprint(secret: str | None = None) -> str:
+    """A short, publishable identifier for the JWT signing key.
+
+    An HMAC of a fixed public label under the key rather than a hash of the key
+    itself, so it is safe to log and compare. The FastAPI service computes the
+    same value over its own key (backend-fastapi/app/auth.py) and logs it at
+    startup; two different fingerprints in the two logs is the whole diagnosis.
+
+    Worth the machinery because the failure it catches is silent: the two
+    services keep their keys in separate .env files with nothing checking they
+    agree, and a mismatch surfaces as every WebSocket returning a bare HTTP 403
+    — indistinguishable, from the outside, from a permissions bug.
+    """
+    import hashlib
+    import hmac
+
+    secret = secret if secret is not None else (settings.SECRET_KEY or "")
+    if not secret:
+        return "unset"
+    return hmac.new(
+        secret.encode(), b"bliss-jwt-signing-key", hashlib.sha256
+    ).hexdigest()[:12]
+
+
 def generate_jwt(user, scopes, relationship_id=None):
     now = datetime.now(timezone.utc)
     payload = {

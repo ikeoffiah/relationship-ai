@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -46,6 +47,28 @@ structlog.configure(
 async def lifespan(app: FastAPI):
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     app.state.broker = JointSessionBroker(redis_url=redis_url)
+
+    # Announce which signing key this process will verify with. Django logs the
+    # same fingerprint for the key it signs with; if the two lines differ,
+    # every token this service sees will be rejected — and the symptom is a
+    # bare 403 that looks like a permissions problem rather than a config one.
+    from app.auth import key_fingerprint
+
+    fingerprint = key_fingerprint()
+    # Deliberately uvicorn's own logger rather than structlog. structlog here
+    # is wired through stdlib logging, whose root level under uvicorn drops
+    # INFO — so the line was emitted and never seen, which for a diagnostic
+    # whose entire job is to be visible at startup is the same as not having
+    # it. uvicorn.error is the channel that is actually configured.
+    startup_log = logging.getLogger("uvicorn.error")
+    if fingerprint == "unset":
+        startup_log.error(
+            "jwt_signing_key: SECRET_KEY is not set — every authenticated "
+            "request will fail"
+        )
+    else:
+        startup_log.info("jwt_signing_key fingerprint=%s", fingerprint)
+
     yield
     # Cleanup tasks could be added here if necessary
 

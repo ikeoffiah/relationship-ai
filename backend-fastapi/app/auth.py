@@ -14,6 +14,9 @@ This replaces two earlier placeholders:
 Neither is accepted any more — identity comes only from a signed token.
 """
 
+import hashlib
+import hmac
+import logging
 import os
 import secrets
 from dataclasses import dataclass
@@ -42,6 +45,29 @@ def _secret() -> str:
     return secret
 
 
+def key_fingerprint(secret: str | None = None) -> str:
+    """A short, publishable identifier for the signing key.
+
+    An HMAC of a fixed public label under the key, not a hash of the key
+    itself — so it can be logged and compared across services without being a
+    step towards recovering the secret.
+
+    This exists because the alternative failure mode is silent. Django signs
+    tokens with its SECRET_KEY and this service verifies with its own; the two
+    live in separate .env files with nothing checking that they agree. When
+    they diverged, every WebSocket rejected every token as a bare HTTP 403,
+    which reads as a permissions bug and sent a debugging session down entirely
+    the wrong path. Two matching fingerprints in two startup logs settle it in
+    seconds.
+    """
+    secret = secret if secret is not None else os.environ.get("SECRET_KEY") or ""
+    if not secret:
+        return "unset"
+    return hmac.new(
+        secret.encode(), b"bliss-jwt-signing-key", hashlib.sha256
+    ).hexdigest()[:12]
+
+
 def _unauthorized(detail: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -56,6 +82,19 @@ def decode_token(token: str) -> dict:
         return jwt.decode(token, _secret(), algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise _unauthorized("Token has expired")
+    except jwt.InvalidSignatureError:
+        # Separated from the generic invalid-token case on purpose. A signature
+        # that does not verify, when the token is otherwise well-formed, almost
+        # always means this service and Django are holding different keys —
+        # not that anyone forged anything. Saying so here is the difference
+        # between a five-minute fix and an afternoon spent on permissions.
+        logging.getLogger(__name__).error(
+            "jwt_signature_rejected key_fingerprint=%s — if Django is issuing "
+            "these tokens, its signing key does not match this service's. "
+            "Compare the fingerprint logged at startup by both.",
+            key_fingerprint(),
+        )
+        raise _unauthorized("Invalid token")
     except jwt.InvalidTokenError:
         raise _unauthorized("Invalid token")
 

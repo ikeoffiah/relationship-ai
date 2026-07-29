@@ -133,3 +133,63 @@ def test_missing_secret_fails_closed(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         decode_token(make_token(USER))
     assert exc.value.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# key fingerprints
+#
+# These exist to make one specific failure loud. Django signs tokens with its
+# SECRET_KEY and this service verifies with its own; nothing checks they agree,
+# and when they diverged every WebSocket rejected every token as a bare HTTP
+# 403 that read as a permissions bug. A fingerprint each service can log makes
+# the diagnosis a two-second comparison.
+# ---------------------------------------------------------------------------
+
+
+class TestKeyFingerprint:
+    def test_the_same_key_gives_the_same_fingerprint(self):
+        from app.auth import key_fingerprint
+
+        assert key_fingerprint("shared-key") == key_fingerprint("shared-key")
+
+    def test_different_keys_give_different_fingerprints(self):
+        """The whole point. If this ever collided, two mismatched services
+        would report agreement and the check would be worse than nothing."""
+        from app.auth import key_fingerprint
+
+        assert key_fingerprint("django-key") != key_fingerprint("fastapi-key")
+
+    def test_a_missing_key_says_so_rather_than_hashing_the_empty_string(self):
+        from app.auth import key_fingerprint
+
+        assert key_fingerprint("") == "unset"
+
+    def test_the_fingerprint_does_not_contain_the_key(self):
+        """It gets logged and pasted into issues, so it must not be a step
+        towards recovering the secret. An HMAC of a fixed public label under
+        the key, never a hash of the key itself."""
+        from app.auth import key_fingerprint
+
+        secret = "correct-horse-battery-staple"
+        assert secret not in key_fingerprint(secret)
+
+    def test_it_is_short_enough_to_compare_by_eye(self):
+        from app.auth import key_fingerprint
+
+        assert len(key_fingerprint("anything")) == 12
+
+    def test_a_wrongly_signed_token_is_reported_as_a_signature_failure(self, caplog):
+        """The log line that turns an afternoon into five minutes: a valid,
+        unexpired token whose signature does not verify almost always means the
+        two services hold different keys, not that anyone forged anything."""
+        import logging
+
+        forged = jwt.encode(
+            {"sub": USER, "exp": 9999999999}, "some-other-key", algorithm=ALGORITHM
+        )
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(HTTPException):
+                decode_token(forged)
+
+        assert any("jwt_signature_rejected" in r.message for r in caplog.records)
+        assert any("signing key does not match" in r.getMessage() for r in caplog.records)
