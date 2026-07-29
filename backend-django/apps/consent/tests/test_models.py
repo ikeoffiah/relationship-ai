@@ -3,6 +3,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, InternalError, connection, transaction
 from apps.consent.models import UserConsent, ConsentChangeLog
 
+from apps.testing import requires_postgres
+
 
 @pytest.mark.django_db(transaction=True)
 class TestConsentSystem:
@@ -45,6 +47,7 @@ class TestConsentSystem:
         assert audit_logs[1].old_value == "False"
         assert audit_logs[1].new_value == "True"
 
+    @requires_postgres
     def test_audit_log_is_immutable_at_db_level(self, django_user_model):
         user = django_user_model.objects.create_user(
             email="log@example.com", password="pw"
@@ -68,6 +71,7 @@ class TestConsentSystem:
                         "DELETE FROM consent_change_log WHERE id=%s", [str(entry.id)]
                     )
 
+    @requires_postgres
     def test_consent_choice_values_are_enforced(self, django_user_model):
         """
         Consent dimensions only accept their declared choice values.

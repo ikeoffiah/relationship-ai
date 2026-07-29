@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 import environ
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -158,6 +159,24 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
 # Use a dedicated test database name to avoid session conflicts
 DATABASES["default"]["TEST"] = {"NAME": "test_postgres_consent_v2"}
+
+# Write audit events on the calling thread while testing.
+#
+# AuditLogger spawns a thread per event so it never adds latency to a request.
+# Under the test runner that thread races the transaction the test itself is
+# holding, and on SQLite the loser gets "database is locked" — which surfaced
+# as an unrelated rate-limiting test failing only when the full suite ran, and
+# passing whenever anyone tried to reproduce it alone.
+#
+# Synchronous is also simply the right mode for tests: an assertion about an
+# audit trail should not depend on whether a daemon thread got there first.
+# Detected via sys.modules, not PYTEST_CURRENT_TEST: that variable is set per
+# test, and settings are imported once before any test runs, so reading it here
+# is always False. (Same shape of mistake as passing a function to skipUnless —
+# a check evaluated at the wrong moment silently does nothing.)
+TESTING = "pytest" in sys.modules or "test" in sys.argv
+if TESTING:
+    AUDIT_LOG_SYNCHRONOUS = True
 
 # Redis / Caching / Sessions
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")

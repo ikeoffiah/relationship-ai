@@ -14,6 +14,15 @@ logger = logging.getLogger("audit")
 fallback_logger = logging.getLogger("audit.fallback")
 
 
+def _as_text(value):
+    """Coerce an identifier to a string for raw-SQL binding, keeping None.
+
+    None has to stay None — these columns are nullable, and "None" as a string
+    would be a perfectly valid-looking user id that belongs to nobody.
+    """
+    return None if value is None else str(value)
+
+
 class AuditLogger:
     """
     MVP implementation: writes audit events directly to PostgreSQL.
@@ -73,6 +82,21 @@ class AuditLogger:
     ):
         timestamp = datetime.now(timezone.utc).isoformat()
         try:
+            # Bind identifiers as text, not as UUID objects.
+            #
+            # This is raw SQL, so whether a UUID can be bound at all is a
+            # property of the database driver rather than of Django. psycopg
+            # adapts UUID natively; sqlite3 refuses it outright with "type
+            # 'UUID' is not supported". Because every failure in here is caught
+            # below and diverted to a fallback file, that difference did not
+            # surface as an error — it surfaced as an audit trail that quietly
+            # recorded nothing, which is the worst way for an audit trail to
+            # fail. The columns are uuid/char, and both drivers accept a string
+            # for those.
+            user_id = _as_text(user_id)
+            relationship_id = _as_text(relationship_id)
+            session_id = _as_text(session_id)
+
             prev_hash = self._get_last_hash(event_type)
             hash_value = hashlib.sha256(
                 f"{prev_hash}{event_id}{timestamp}".encode()
