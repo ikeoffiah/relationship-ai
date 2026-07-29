@@ -16,6 +16,8 @@ from apps.counseling.tasks import (
 from apps.memory.models import Memory, MemoryVector
 from apps.relationships.models import Relationship
 
+from apps.testing import requires_postgres
+
 User = get_user_model()
 
 
@@ -179,8 +181,12 @@ class CounselingTaskTests(TestCase):
         memory = Memory.objects.first()
         self.assertEqual(memory.decrypted_content, "New insight")
 
+    @requires_postgres
     @patch("openai.OpenAI")
     def test_extract_memories_task_reinforcement(self, mock_openai):
+        # Reinforcement is decided by a pgvector similarity search, so unlike
+        # the other two extraction tests this one cannot fall back to "store it
+        # anyway" — the behaviour under test *is* the vector query.
         # Setup existing memory
         existing_memory = Memory.objects.create(
             user=self.user, content="Existing fact", reinforcement_count=1

@@ -83,6 +83,38 @@ def generate_session_summary_task(session_id):
         logger.exception(f"Error generating summary for session {session_id}: {e}")
 
 
+def _nearest_memory(user_id, embedding):
+    """The closest stored memory for this user, or None if we cannot tell.
+
+    Semantic dedup needs pgvector, so this is the one step in memory extraction
+    that is genuinely Postgres-only — on any other backend the `<=>` operator is
+    a syntax error.
+
+    It fails soft, and that is the point. This lookup used to sit inside the
+    task's single try/except, so when it raised, the exception unwound past the
+    memory creation below it and nothing was written at all: a deduplication
+    step destroying the thing it was meant to deduplicate. A duplicate memory is
+    a small, recoverable harm; a lost one is silent and permanent.
+
+    Returning None means "no similar memory found", which routes to creating a
+    new one — the correct behaviour when we have no evidence of a duplicate.
+    """
+    try:
+        from pgvector.django import CosineDistance
+
+        return (
+            MemoryVector.objects.filter(user_id=user_id)
+            .annotate(distance=CosineDistance("embedding", embedding))
+            .order_by("distance")
+            .first()
+        )
+    except Exception as exc:
+        logger.warning(
+            "Similarity lookup unavailable, storing without dedup: %s", exc
+        )
+        return None
+
+
 @shared_task(name="counseling.tasks.extract_memories_task")
 def extract_memories_task(session_id):
     """Extracts insights and performs semantic deduplication before indexing."""
@@ -129,14 +161,7 @@ def extract_memories_task(session_id):
             # Query pgvector for existing similar memories
             # We filter by user to ensure privacy
             # We use the MemoryVector model
-            from pgvector.django import CosineDistance
-
-            similar_vector = (
-                MemoryVector.objects.filter(user_id=user.id)
-                .annotate(distance=CosineDistance("embedding", new_embedding))
-                .order_by("distance")
-                .first()
-            )
+            similar_vector = _nearest_memory(user.id, new_embedding)
 
             if similar_vector:
                 similarity = 1 - similar_vector.distance
