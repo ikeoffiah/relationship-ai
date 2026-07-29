@@ -43,3 +43,32 @@ class UserProfile(models.Model):
         
     def __str__(self):
         return f"Personalization Profile for {self.user.email}"
+
+
+class BehaviourProfile(models.Model):
+    """Observed tendencies, kept beside the self-report rather than over it.
+
+    One row per user, holding ``{signal: {score, count, updated_at}}``. A JSON
+    blob rather than a table of observations on purpose: we never need to query
+    an individual observation, only the running total, and keeping one row per
+    person means this cannot grow into a per-message log of someone's
+    behaviour — which is a thing that would then exist, and be subpoenable, and
+    be a much larger promise to keep than the feature is worth.
+
+    Decay is applied on read and on write (see behaviour.py), so the stored
+    score is always "as of updated_at" and never needs a sweep job.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="behaviour_profile",
+    )
+    signals = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "behaviour_profiles"
+
+    def __str__(self):
+        return f"Behaviour profile for {self.user_id}"

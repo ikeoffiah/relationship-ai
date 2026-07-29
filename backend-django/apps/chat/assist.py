@@ -176,6 +176,19 @@ def _partner_notes(relationship, user) -> str:
         notes.append(f"attachment style: {profile.attachment_style}")
     if getattr(profile, "communication_style_preference", ""):
         notes.append(f"prefers {profile.communication_style_preference} communication")
+
+    # What they actually do, alongside what they said about themselves. This
+    # qualifies the self-report rather than replacing it: the RSQ answer stays
+    # exactly as they gave it, and this sits next to it. Phrased as tone
+    # instructions, never as a label — "tends to go quiet when things get
+    # sharp", not "avoidant", because the observable is evidence and the label
+    # is a leap.
+    try:
+        from apps.personalization.behaviour import guidance_for
+
+        notes.extend(guidance_for(partner_id))
+    except Exception:
+        pass
     return "; ".join(notes)
 
 
@@ -444,6 +457,13 @@ def check_before_send(relationship, user, draft: str) -> dict:
             return blank
         verdict = _parse_check(raw)
         cache.set(cache_key, verdict, VERDICT_CACHE_SECONDS)
+        if verdict.get("verdict") == "caution":
+            # An observation, not a judgement, and free: the model call already
+            # happened for another reason. Nothing about this may affect
+            # whether the message goes.
+            from apps.personalization import behaviour
+
+            behaviour.note_caution(user)
         return verdict
     except Exception as exc:
         log.warning("chat_assist_check_failed_open: %s", exc)
@@ -486,28 +506,47 @@ def _recent_nudge(relationship, user, kind: str) -> bool:
     ).exists()
 
 
-def _had_sharp_exchange(relationship) -> bool:
-    """Cheap, local check for a rupture in the last few hours.
+_SHARP_MARKERS = (
+    "you always",
+    "you never",
+    "whatever",
+    "forget it",
+    "i'm done",
+    "im done",
+    "don't care",
+    "dont care",
+)
 
-    Deliberately keyword-based rather than a model call: this runs on an open,
-    and paying for a completion to discover that nothing happened is the wrong
-    trade.
+
+def _sharp_before(relationship, before, window: timedelta) -> bool:
+    """Was the exchange ending at `before` a sharp one?
+
+    Cheap and keyword-based rather than a model call: this runs on an open and
+    on every send, and paying for a completion to discover that nothing
+    happened is the wrong trade.
+
+    Anchored on a timestamp rather than on "now" because the two callers ask
+    different questions. The nudge asks whether things went badly *recently*;
+    the withdrawal signal asks whether the thing someone went quiet after was
+    sharp, and that exchange is by definition older than the silence being
+    measured. An implementation anchored only on now made the withdrawal check
+    unsatisfiable — the gap had to exceed six hours and the sharpness had to
+    fall inside the last six, so it could never fire.
     """
-    since = timezone.now() - timedelta(hours=6)
     recent = CoupleMessage.objects.filter(
-        relationship=relationship, created_at__gte=since, deleted_at__isnull=True
+        relationship=relationship,
+        created_at__gte=before - window,
+        created_at__lte=before,
+        deleted_at__isnull=True,
     ).order_by("-created_at")[:20]
-    markers = (
-        "you always",
-        "you never",
-        "whatever",
-        "forget it",
-        "i'm done",
-        "im done",
-        "don't care",
-        "dont care",
+    return any(
+        any(m in (msg.body or "").lower() for m in _SHARP_MARKERS) for msg in recent
     )
-    return any(any(m in (msg.body or "").lower() for m in markers) for msg in recent)
+
+
+def _had_sharp_exchange(relationship) -> bool:
+    """Was there a rupture in the last few hours?"""
+    return _sharp_before(relationship, timezone.now(), timedelta(hours=6))
 
 
 def nudge_for(relationship, user, local_hour: int | None = None) -> AssistNudge | None:
@@ -658,3 +697,65 @@ def coach_response(relationship, user, incoming: str) -> dict:
     except Exception as exc:
         log.warning("chat_assist_read_coach_failed: %s", exc)
         return blank
+
+
+# ── 4. Learning from what actually happens ──────────────────────────────────
+
+
+def note_send_pattern(relationship, user, message) -> None:
+    """Read one send for the two halves of the demand–withdraw pattern.
+
+    Both signals come from timestamps and sender ids that are already in the
+    row we just wrote — no model call, no extra latency, nothing the couple
+    pays for. Called after the message is persisted and wrapped so it can never
+    be the reason a send fails.
+
+    The thresholds are deliberately generous. Calling a busy afternoon
+    "withdrawal" produces guidance telling someone to tiptoe around a partner
+    who was only in a meeting, and that is a worse error than noticing nothing.
+    """
+    try:
+        from apps.personalization import behaviour
+
+        previous = list(
+            CoupleMessage.objects.filter(
+                relationship=relationship, deleted_at__isnull=True
+            )
+            .exclude(id=message.id)
+            .exclude(kind=CoupleMessage.KIND_SYSTEM)
+            .order_by("-created_at")[: behaviour.PURSUIT_UNANSWERED_RUN]
+        )
+
+        # A repair sticker is the least ambiguous signal in the product: it is a
+        # gesture whose only meaning is repair.
+        if message.kind == CoupleMessage.KIND_STICKER and message.sticker.startswith(
+            "repair."
+        ):
+            behaviour.note_repair(user)
+
+        if not previous:
+            return
+
+        # Pursuit: a run of messages with nothing back in between. Two is a
+        # person adding a thought; a run is the protest behaviour the pattern
+        # is named for.
+        if len(previous) >= behaviour.PURSUIT_UNANSWERED_RUN - 1 and all(
+            m.sender_id == user.id for m in previous
+        ):
+            behaviour.observe(user, behaviour.PURSUES)
+            return
+
+        # Withdrawal: coming back to the thread long after the partner spoke,
+        # and only when the exchange before it was actually sharp. Without that
+        # second condition this would fire on every good night's sleep.
+        last = previous[0]
+        if last.sender_id and last.sender_id != user.id:
+            gap = message.created_at - last.created_at
+            # Sharpness is judged around the partner's last message, not
+            # around now — that exchange is necessarily older than the silence.
+            if gap >= behaviour.WITHDRAWAL_SILENCE and _sharp_before(
+                relationship, last.created_at, timedelta(hours=6)
+            ):
+                behaviour.observe(user, behaviour.WITHDRAWS)
+    except Exception:  # pragma: no cover - exercised by the failure test
+        log.warning("behaviour_note_send_pattern_failed", exc_info=True)
