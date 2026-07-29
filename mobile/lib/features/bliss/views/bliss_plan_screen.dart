@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../bliss_format.dart';
 import '../bliss_models.dart';
 import '../bliss_viewmodel.dart';
@@ -82,10 +83,9 @@ class _BlissTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.read<BlissViewModel>();
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    return AppCard(
+      // ListTile brings its own padding; AppCard's default would double it.
+      padding: EdgeInsets.zero,
       child: ListTile(
         leading: Text(item.isEvent ? '🗓️' : '⏰', style: const TextStyle(fontSize: 22)),
         title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),

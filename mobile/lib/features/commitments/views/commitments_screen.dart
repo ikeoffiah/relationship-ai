@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../commitment_models.dart';
 import '../commitment_viewmodel.dart';
 
@@ -117,12 +119,15 @@ class _CommitmentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final vm = context.read<CommitmentViewModel>();
     final reminder = _reminderLabel();
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: ListTile(
+    return Padding(
+      // Card carried this as `margin`, which AppCard has no equivalent for —
+      // deliberately, since a card that spaces itself cannot be composed into
+      // a layout that wants different spacing.
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: AppCard(
+        // ListTile brings its own padding; AppCard's default would double it.
+        padding: EdgeInsets.zero,
+        child: ListTile(
         title: Text(item.text),
         subtitle: reminder == null
             ? null
@@ -145,6 +150,7 @@ class _CommitmentTile extends StatelessWidget {
               onPressed: () => vm.cancel(item.id),
             ),
           ],
+        ),
         ),
       ),
     );
