@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../two_truths_models.dart';
 import '../two_truths_viewmodel.dart';
 
@@ -159,7 +160,10 @@ class _AuthorFormState extends State<_AuthorForm> {
             'Then mark the lie.',
             style: TextStyle(color: AppColors.softCharcoal)),
         const SizedBox(height: 16),
-        for (var i = 0; i < 3; i++) _statementField(i),
+        for (var i = 0; i < 3; i++) ...[
+          _statementField(i),
+          const SizedBox(height: 12),
+        ],
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -184,15 +188,9 @@ class _AuthorFormState extends State<_AuthorForm> {
 
   Widget _statementField(int i) {
     final isLie = _lie == i;
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-            color: (isLie ? AppColors.warmCoral : AppColors.softCharcoal.withValues(alpha: 0.08))),
-      ),
+    return AppCard(
+      borderColor: (isLie ? AppColors.warmCoral : AppColors.softCharcoal.withValues(alpha: 0.08)),
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -263,18 +261,11 @@ class _GuessViewState extends State<_GuessView> {
         Text('$partner wrote three statements. Which one is the lie? 🕵️',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 16),
-        for (var i = 0; i < statements.length; i++)
-          Card(
-            elevation: 0,
+        for (var i = 0; i < statements.length; i++) ...[
+          AppCard(
             color: _guess == i ? AppColors.warmCoral.withValues(alpha: 0.12) : Colors.white,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                  color: _guess == i
-                      ? AppColors.warmCoral
-                      : AppColors.softCharcoal.withValues(alpha: 0.08)),
-            ),
+            borderColor: _guess == i ? AppColors.warmCoral : AppColors.softCharcoal.withValues(alpha: 0.08),
+            padding: EdgeInsets.zero,
             child: ListTile(
               title: Text(statements[i]),
               leading: Icon(
@@ -283,6 +274,8 @@ class _GuessViewState extends State<_GuessView> {
               onTap: () => setState(() => _guess = i),
             ),
           ),
+          const SizedBox(height: 12),
+        ],
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -363,10 +356,8 @@ class _RevealView extends StatelessWidget {
   }
 
   Widget _block(String title, List<String> statements, int lieIndex, {int? guess}) {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

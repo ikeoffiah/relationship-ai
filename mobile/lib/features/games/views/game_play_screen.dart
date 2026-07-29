@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../games_models.dart';
 import '../games_viewmodel.dart';
 
@@ -126,8 +127,10 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              for (var i = 0; i < detail.questions.length; i++)
+              for (var i = 0; i < detail.questions.length; i++) ...[
                 _questionCard(detail.questions[i], i + 1, partner, isAgreement),
+                const SizedBox(height: 14),
+              ],
               const SizedBox(height: 8),
             ],
           ),
@@ -159,14 +162,8 @@ class _GamePlayScreenState extends State<GamePlayScreen> {
   }
 
   Widget _questionCard(GameQuestionView q, int number, String partner, bool isAgreement) {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 14),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
-      ),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -265,7 +262,10 @@ class _RevealView extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        for (final item in reveal.questions) _revealCard(item, partner),
+        for (final item in reveal.questions) ...[
+          _revealCard(item, partner),
+          const SizedBox(height: 12),
+        ],
       ],
     );
   }
@@ -280,16 +280,9 @@ class _RevealView extends StatelessWidget {
 
   Widget _revealCard(RevealItem item, String partner) {
     final hit = item.iGuessedThem;
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: (hit ? AppColors.calmTeal : AppColors.warmCoral).withValues(alpha: 0.25),
-        ),
-      ),
+    return AppCard(
+      borderColor: (hit ? AppColors.calmTeal : AppColors.warmCoral).withValues(alpha: 0.25),
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -372,7 +365,10 @@ class _RevealView extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        for (final item in reveal.questions) _agreementCard(item, partner),
+        for (final item in reveal.questions) ...[
+          _agreementCard(item, partner),
+          const SizedBox(height: 12),
+        ],
       ],
     );
   }
@@ -380,14 +376,9 @@ class _RevealView extends StatelessWidget {
   Widget _agreementCard(RevealItem item, String partner) {
     final matched = item.matched;
     final accent = matched ? AppColors.calmTeal : AppColors.warmCoral;
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: accent.withValues(alpha: 0.25)),
-      ),
+    return AppCard(
+      borderColor: accent.withValues(alpha: 0.25),
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

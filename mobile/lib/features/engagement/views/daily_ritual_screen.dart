@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../engagement_viewmodel.dart';
 import '../engagement_models.dart';
 
@@ -136,15 +137,7 @@ class _RitualCard extends StatelessWidget {
   const _RitualCard({required this.child});
 
   @override
-  Widget build(BuildContext context) => Card(
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
-        ),
-        child: Padding(padding: const EdgeInsets.all(20), child: child),
-      );
+  Widget build(BuildContext context) => AppCard(child: child);
 }
 
 // ── Daily question ────────────────────────────────────────────────────

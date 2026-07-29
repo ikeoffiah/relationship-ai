@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../engagement_models.dart';
 import '../engagement_viewmodel.dart';
 
@@ -195,16 +196,8 @@ class _GoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDone = goal.status == 'completed';
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+    return AppCard(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
@@ -249,7 +242,6 @@ class _GoalCard extends StatelessWidget {
               ),
             ],
           ],
-        ),
       ),
     );
   }

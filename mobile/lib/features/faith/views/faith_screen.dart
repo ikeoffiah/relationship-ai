@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../faith_models.dart';
 import '../faith_viewmodel.dart';
 
@@ -81,10 +82,8 @@ class _ReadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -164,10 +163,9 @@ class _ReflectionCardState extends State<_ReflectionCard> {
   @override
   Widget build(BuildContext context) {
     if (widget.reflected) {
-      return Card(
-        elevation: 0,
+      return AppCard(
         color: AppColors.sageGreen.withValues(alpha: 0.18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        padding: EdgeInsets.zero,
         child: const Padding(
           padding: EdgeInsets.all(16),
           child: Row(
@@ -180,10 +178,8 @@ class _ReflectionCardState extends State<_ReflectionCard> {
         ),
       );
     }
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -234,10 +230,8 @@ class _PracticesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
