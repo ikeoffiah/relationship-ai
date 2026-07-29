@@ -71,6 +71,9 @@ def items(request):
         source=serializer.validated_data.get("source", "bliss"),
     )
 
+    if item.source == "couple_chat" and relationship is not None:
+        _announce_in_thread(relationship, item)
+
     # Let the partner know Bliss added something to their shared plan.
     partner = _partner_of(relationship, request.user)
     if partner is not None:
@@ -106,6 +109,51 @@ def _set_status(request, item_id, new_status):
     item.status = new_status
     item.save(update_fields=["status"])
     return Response(BlissItemSerializer(item).data)
+
+
+def _announce_in_thread(relationship, item) -> None:
+    """Drop a system line into the couple's thread.
+
+    Written server-side rather than by the client on purpose. The send endpoint
+    refuses ``kind=system`` precisely so that a message attributed to Bliss
+    cannot be forged by whoever is holding the phone; the same guarantee would
+    be worthless if there were a client-callable way to write one.
+
+    Best-effort. An announcement that fails is a missing line in a thread; a
+    reminder that fails to save is a promise broken.
+    """
+    try:
+        from apps.chat import realtime
+        from apps.chat.models import CoupleMessage
+        from apps.chat.serializers import CoupleMessageSerializer
+
+        when = ""
+        if item.due_at is not None:
+            # Deliberately plain and absolute. "in 3 hours" drifts the moment
+            # anyone scrolls back to it.
+            when = item.due_at.strftime(" — %a %-d %b, %-I:%M%p").replace("AM", "am").replace("PM", "pm")
+
+        verb = "will remind you both about" if item.kind == "reminder" else "put this in your plan:"
+        message = CoupleMessage(
+            relationship=relationship,
+            sender=None,
+            kind=CoupleMessage.KIND_SYSTEM,
+        )
+        message.body = f"Bliss {verb} {item.title}{when}"
+        message.save()
+        realtime.publish(
+            relationship.id,
+            {
+                "type": "couple_message",
+                "message": CoupleMessageSerializer(message).data,
+            },
+        )
+    except Exception:  # pragma: no cover - exercised via the failure test
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "bliss_thread_announcement_failed item=%s", item.id, exc_info=True
+        )
 
 
 def _short(text: str, n: int = 60) -> str:

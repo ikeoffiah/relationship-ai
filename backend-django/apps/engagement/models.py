@@ -795,8 +795,12 @@ class BlissItem(models.Model):
     # parser couldn't find a time (an undated to-do).
     due_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
-    # 'bliss' (parsed from a chat tag) or 'manual' (created from a form).
-    source = models.CharField(max_length=10, default="bliss")
+    # Where the item came from: 'bliss' (a tag in a counseling chat), 'manual'
+    # (a form), or 'couple_chat' (a tag in the couple's own thread — the only
+    # one that announces itself in that thread). Widened from 10, which
+    # 'couple_chat' overflows by one character; SQLite ignores varchar limits,
+    # so that only showed up against Postgres.
+    source = models.CharField(max_length=20, default="bliss")
     # Set once the due-time reminder has been delivered, so the sweep never
     # fires the same reminder twice.
     reminded_at = models.DateTimeField(null=True, blank=True)
