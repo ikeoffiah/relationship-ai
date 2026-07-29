@@ -369,7 +369,7 @@ class _SessionCard extends StatelessWidget {
       case SessionType.joint:
         return AppColors.calmTeal;
       case SessionType.relay:
-        return const Color(0xFF8B5CF6); // purple
+        return AppColors.categoryPlum;
       case SessionType.unknown:
         return AppColors.softCharcoal;
     }

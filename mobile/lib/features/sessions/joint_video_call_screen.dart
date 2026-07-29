@@ -180,7 +180,7 @@ class _JointVideoCallScreenState extends State<JointVideoCallScreen> {
           child: remote != null
               ? VideoTrackRenderer(remote, fit: VideoViewFit.cover)
               : Container(
-                  color: const Color(0xFF1A1A1A),
+                  color: AppColors.videoChrome,
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -208,7 +208,7 @@ class _JointVideoCallScreenState extends State<JointVideoCallScreen> {
               child: (local != null && _camOn)
                   ? VideoTrackRenderer(local, fit: VideoViewFit.cover)
                   : Container(
-                      color: const Color(0xFF2A2A2A),
+                      color: AppColors.videoSurface,
                       child: const Center(
                         child: Icon(Icons.videocam_off, color: Colors.white54),
                       ),

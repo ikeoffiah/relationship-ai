@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/shared/widgets/app_card.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 import 'package:mobile/features/home/home_notifier.dart';
@@ -184,61 +185,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final partnerName =
         relVM.currentRelationship?['partner_name'] as String? ?? 'your partner';
 
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.warmCoral.withValues(alpha: 0.35)),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => provider.ChangeNotifierProvider(
-              create: (_) => CoupleChatViewModel(
-                relationshipId: relationshipId,
-                userId: userId,
-              ),
-              child: CoupleChatScreen(
-                relationshipId: relationshipId,
-                userId: userId,
-                partnerName: partnerName,
-              ),
+    return AppCard(
+      borderColor: AppColors.warmCoral.withValues(alpha: 0.35),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => provider.ChangeNotifierProvider(
+            create: (_) => CoupleChatViewModel(
+              relationshipId: relationshipId,
+              userId: userId,
+            ),
+            child: CoupleChatScreen(
+              relationshipId: relationshipId,
+              userId: userId,
+              partnerName: partnerName,
             ),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.chat_bubble_outline_rounded,
-                color: AppColors.warmCoral,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Chat with $partnerName',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Your conversation, with Bliss alongside.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.softCharcoal.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.softCharcoal),
-            ],
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.chat_bubble_outline_rounded,
+            color: AppColors.warmCoral,
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chat with $partnerName',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Your conversation, with Bliss alongside.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.softCharcoal.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: AppColors.softCharcoal),
+        ],
       ),
     );
   }
@@ -249,48 +239,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return const SizedBox.shrink();
     }
 
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: AppColors.softCharcoal.withValues(alpha: 0.05)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.mail_outline_rounded, color: AppColors.goldMedium),
-                SizedBox(width: 8),
-                Text(
-                  '📨 Async relay',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text('${homeState.pendingRelayMessageCount} message waiting'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/relay/inbox');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.goldMedium,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.mail_outline_rounded, color: AppColors.goldMedium),
+              SizedBox(width: 8),
+              // The copy pass renamed this surface to "Say it better" but
+              // missed its entry point here, so home still called it the
+              // relay — our word for our plumbing, in the one place a user
+              // meets it first.
+              Text(
+                'Something waiting for you',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              child: const Text(
-                'View relay inbox',
-                style: TextStyle(color: Colors.white),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            homeState.pendingRelayMessageCount == 1
+                ? 'They wrote you one message.'
+                : 'They wrote you '
+                      '${homeState.pendingRelayMessageCount} messages.',
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pushNamed('/relay/inbox');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.goldMedium,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-          ],
-        ),
+            child: const Text('Read it', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

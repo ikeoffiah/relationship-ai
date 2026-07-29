@@ -362,7 +362,7 @@ class _NotificationCard extends StatelessWidget {
       case NotificationType.therapistConnected:
         return AppColors.calmTeal;
       case NotificationType.relayReceived:
-        return const Color(0xFF8B5CF6); // purple
+        return AppColors.categoryPlum;
       case NotificationType.insightDetected:
         return AppColors.sageGreen;
       case NotificationType.safetyFollowup:

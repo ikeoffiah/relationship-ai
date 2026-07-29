@@ -12,17 +12,17 @@ extension MemoryTypeColor on MemoryType {
   Color get badgeColor {
     switch (this) {
       case MemoryType.communicationStyle:
-        return const Color(0xFF6366F1); // indigo
+        return AppColors.categoryTeal;
       case MemoryType.trigger:
-        return const Color(0xFFEF4444); // red
+        return AppColors.categoryRust;
       case MemoryType.conflictPattern:
-        return const Color(0xFFF97316); // orange
+        return AppColors.categoryAmber;
       case MemoryType.repairEvent:
-        return const Color(0xFF22C55E); // green
+        return AppColors.categorySage;
       case MemoryType.statedNeed:
-        return const Color(0xFF3B82F6); // blue
+        return AppColors.categoryPlum;
       case MemoryType.unknown:
-        return const Color(0xFF9CA3AF); // gray
+        return AppColors.categoryStone;
     }
   }
 }
