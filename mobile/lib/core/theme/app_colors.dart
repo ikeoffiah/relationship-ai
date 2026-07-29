@@ -54,6 +54,58 @@ class AppColors {
   /// as three different hardcoded values (#B71C1C, red[700], red[400]).
   static const Color crisis = Color(0xFFB71C1C);
 
+  // ── Category inks ─────────────────────────────────────────────────────────
+  // For badges that distinguish a *kind* of thing: what sort of memory this is,
+  // what sort of session that was. They replace ten hardcoded values that were
+  // Tailwind's defaults (#6366F1, #EF4444, #F97316, #22C55E, #3B82F6, #8B5CF6)
+  // — a different design system's palette, dropped into screens where every
+  // neighbouring case already used this one.
+  //
+  // Two constraints they have to meet, and one they deliberately do not.
+  //
+  // They are rendered as 10px bold text on a 10%-alpha wash of themselves, so
+  // each clears 4.5:1 against [creamWhite] — which is why they are deepened
+  // rather than taken raw from the pastel brand hues, the same move as
+  // [seenTick]. Swapping one for a pastel will look right in a mock and be
+  // unreadable on a phone.
+  //
+  // They sit at deliberately *similar* luminance, so no category shouts louder
+  // than another; a memory about a trigger is not more urgent than one about a
+  // stated need. They are told apart by hue.
+  //
+  // And they are not the only carrier of meaning — every badge using them also
+  // carries its label as text, which is what actually makes this legible to
+  // someone who cannot separate the hues.
+
+  /// How this person communicates.
+  static const Color categoryTeal = Color(0xFF2F7D72);
+
+  /// Something that sets them off. Distinct from [crisis], which is reserved.
+  static const Color categoryRust = Color(0xFFB4462F);
+
+  /// A recurring pattern in how conflict goes.
+  static const Color categoryAmber = Color(0xFF8A6A22);
+
+  /// A repair that landed.
+  static const Color categorySage = Color(0xFF3F7A50);
+
+  /// Something they have asked for out loud; also the relay session type.
+  static const Color categoryPlum = Color(0xFF6B4B7A);
+
+  /// Uncategorised. Quiet on purpose — an unknown should not draw the eye.
+  static const Color categoryStone = Color(0xFF6E6A66);
+
+  // ── Video chrome ──────────────────────────────────────────────────────────
+  // A call goes dark so the faces carry the frame, which is a deliberate
+  // departure from the cream everywhere else rather than an oversight. Named
+  // so it reads as a decision instead of two magic hex values.
+
+  /// The backdrop behind a video call.
+  static const Color videoChrome = Color(0xFF1A1A1A);
+
+  /// Tiles and controls sitting on [videoChrome].
+  static const Color videoSurface = Color(0xFF2A2A2A);
+
   // Gradient definitions
   static const LinearGradient splashGradient = LinearGradient(
     begin: Alignment.topCenter,

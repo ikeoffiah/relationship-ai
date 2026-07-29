@@ -220,7 +220,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   Widget _buildMemoriesSection(SessionDetailViewModel vm) {
     return _sectionCard(
       icon: Icons.psychology_outlined,
-      iconColor: const Color(0xFF8B5CF6),
+      iconColor: AppColors.categoryPlum,
       title: 'Memories stored from this session',
       child: vm.memories.isEmpty
           ? Text(
@@ -385,7 +385,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       case SessionType.joint:
         return AppColors.calmTeal;
       case SessionType.relay:
-        return const Color(0xFF8B5CF6);
+        return AppColors.categoryPlum;
       case SessionType.unknown:
         return AppColors.softCharcoal;
     }
