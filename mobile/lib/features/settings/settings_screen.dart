@@ -7,6 +7,9 @@ import 'package:mobile/features/settings/viewmodels/settings_viewmodel.dart';
 import 'package:mobile/features/settings/profile_edit_screen.dart';
 import 'package:mobile/features/settings/security_settings_screen.dart';
 import 'package:mobile/features/settings/about_screen.dart';
+import 'package:mobile/features/settings/change_password_screen.dart';
+import 'package:mobile/features/settings/legal_document_screen.dart';
+import 'package:mobile/features/settings/legal_documents.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
 
 /// Main Settings screen — account management hub (bottom-nav tab 4).
@@ -81,15 +84,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSettingsTile(
                 icon: Icons.lock_outline_rounded,
                 title: 'Change password',
-                onTap: () {
-                  // Re-use existing forgot-password flow
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('A password reset email will be sent.'),
-                    ),
-                  );
-                  authVM.sendPasswordResetEmail();
-                },
+                // This reused the forgot-password flow: it toasted "a password
+                // reset email will be sent" and sent one. That is the flow for
+                // someone who cannot sign in — using it on someone who already
+                // has sends them out to their inbox for something they were
+                // holding the credential for, and lets anyone with an unlocked
+                // phone send mail to the owner's address.
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen(),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -196,15 +201,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   MaterialPageRoute(builder: (_) => const AboutScreen()),
                 ),
               ),
+              // Held in the app rather than opened in a browser: these used to
+              // launch relationshipai.com, which is the project's code name and
+              // not a site anyone can reach.
               _buildSettingsTile(
                 icon: Icons.description_outlined,
                 title: 'Terms of Service',
-                onTap: () => openUrl(context, AppLinks.terms),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const LegalDocumentScreen(document: termsOfService),
+                  ),
+                ),
               ),
               _buildSettingsTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy Policy',
-                onTap: () => openUrl(context, AppLinks.privacy),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const LegalDocumentScreen(document: privacyPolicy),
+                  ),
+                ),
               ),
               _buildSettingsTile(
                 icon: Icons.feedback_outlined,

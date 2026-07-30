@@ -4,9 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 /// Canonical external links for the app's legal / support surfaces, plus a
 /// small helper to open them. Centralized so the URLs live in one place.
 class AppLinks {
-  static const terms = 'https://relationshipai.com/terms';
-  static const privacy = 'https://relationshipai.com/privacy';
-  static const supportEmail = 'support@relationshipai.com';
+  // The legal documents live in the app now (see settings/legal_documents.dart)
+  // rather than behind these links, which pointed at relationshipai.com — the
+  // project's code name, never the company. Bliss is a product of owjar.co.
+  static const supportEmail = 'support@owjar.co';
 
   /// A pre-filled feedback email.
   static Uri feedbackMailto() => Uri(

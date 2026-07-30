@@ -338,6 +338,14 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="resend")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = True
+# Resend, over SMTP. EMAIL_HOST_PASSWORD is where the Resend API key goes —
+# Resend's SMTP transport takes the API key as the password and the literal
+# string "resend" as the username, so no extra dependency is needed for this.
+#
+# The default sender is resend.dev's shared sandbox address, which only delivers
+# to the account owner. Set DEFAULT_FROM_EMAIL to a verified owjar.co sender
+# before anyone else needs to receive mail — an unverified From is the usual
+# reason a verification code silently never arrives.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="onboarding@resend.dev")
 
 # Social Auth Configuration

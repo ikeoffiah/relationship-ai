@@ -1,5 +1,10 @@
+import hashlib
 import uuid
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
@@ -28,6 +33,18 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
+
+    # Proven readable by whoever holds the account.
+    #
+    # This is what makes the address usable for anything that matters — a
+    # partner invitation goes to an email address, and an unverified one means
+    # an invitation can be sent to somebody who never signed up. Once true, the
+    # address is fixed: it is the identifier other people were invited by, and
+    # letting it move afterwards turns a verified account into an unverified one
+    # without anything looking different.
+    email_verified = models.BooleanField(default=False)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+
     full_name = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
@@ -144,3 +161,62 @@ class AgeVerification(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.status}"
+
+
+class EmailVerification(models.Model):
+    """A one-time code proving someone can read the address on their account.
+
+    A six-digit code typed back into the app, rather than a link. A link needs a
+    web endpoint and a deep-link handler to land anywhere useful, and this
+    product has no web app — a link would open a browser page that does not
+    exist. A code works in the one place the user already is.
+
+    The code is stored as a SHA-256 hash. It is short-lived and low-entropy by
+    nature, so the hash is not doing much work against a determined attacker
+    with the database; what it does mean is that a support engineer reading a
+    row, or a log that captured one, cannot use it. The real protection is the
+    fifteen-minute expiry and the attempt limit.
+    """
+
+    MAX_ATTEMPTS = 5
+    TTL = timedelta(minutes=15)
+
+    #: Minimum gap between sends, so the endpoint cannot be used to mailbomb an
+    #: address the requester does not own.
+    RESEND_COOLDOWN = timedelta(seconds=60)
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verifications",
+    )
+    # The address this code was sent to, recorded separately from user.email:
+    # someone can change their address while a code is outstanding, and a code
+    # sent to the old one must not verify the new one.
+    email = models.EmailField()
+    code_hash = models.CharField(max_length=64)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "email_verifications"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "-created_at"])]
+
+    @staticmethod
+    def hash_code(code: str) -> str:
+        return hashlib.sha256(code.encode()).hexdigest()
+
+    @property
+    def is_usable(self) -> bool:
+        return (
+            self.used_at is None
+            and self.attempts < self.MAX_ATTEMPTS
+            and self.expires_at > timezone.now()
+        )
+
+    def __str__(self) -> str:
+        return f"verification for {self.user_id}"
