@@ -24,7 +24,11 @@ class MediaCache extends BaseApiService {
     : _directoryProvider = directoryProvider,
       super(receiveTimeout: const Duration(minutes: 2));
 
-  static final MediaCache instance = MediaCache();
+  /// The app-wide cache. Mutable so a test can swap in one backed by a fake
+  /// Dio and a temp directory — the widgets that render media reach for this
+  /// singleton rather than taking it as a parameter, and threading it through
+  /// every bubble would be a worse trade than one replaceable field.
+  static MediaCache instance = MediaCache();
 
   /// Where the cache lives. Injectable because the default goes through
   /// path_provider, which is a platform channel with no implementation under

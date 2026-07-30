@@ -295,6 +295,11 @@ class VoiceBubble extends StatefulWidget {
   final bool mine;
   final VoidCallback? onRetry;
 
+  /// How playback is created. Injectable because `AudioPlayer` reaches a
+  /// platform channel, so without this the play, pause, seek and speed paths
+  /// can only be exercised on a device.
+  final AudioPlayer Function()? playerFactory;
+
   /// Asks the server for a transcript that may have arrived since. Called on
   /// expand rather than on build, so a thread of voice notes is not a burst of
   /// requests.
@@ -306,6 +311,7 @@ class VoiceBubble extends StatefulWidget {
     required this.mine,
     this.onRetry,
     this.onRequestTranscript,
+    this.playerFactory,
   });
 
   @override
@@ -338,7 +344,7 @@ class _VoiceBubbleState extends State<VoiceBubble> {
         final file = media.localPath != null
             ? File(media.localPath!)
             : await MediaCache.instance.file(media.url);
-        final player = AudioPlayer();
+        final player = (widget.playerFactory ?? AudioPlayer.new)();
         await player.setFilePath(file.path);
         player.positionStream.listen((p) {
           if (mounted) setState(() => _position = p);
