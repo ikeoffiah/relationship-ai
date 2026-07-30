@@ -19,7 +19,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.relationships.models import Relationship
-from utils.encryption import decrypt, encrypt
+from utils.encryption import decrypted_or_empty, encrypt
 
 
 class MessageMedia(models.Model):
@@ -101,10 +101,7 @@ class MessageMedia(models.Model):
     def transcript(self) -> str:
         if self.deleted_at is not None or not self.transcript_ciphertext:
             return ""
-        try:
-            return decrypt(self.transcript_ciphertext, str(self.relationship_id))
-        except Exception:
-            return ""
+        return decrypted_or_empty(self.transcript_ciphertext, str(self.relationship_id))
 
     @transcript.setter
     def transcript(self, value: str) -> None:
@@ -275,11 +272,11 @@ class CoupleMessage(models.Model):
     def body(self) -> str:
         if self.deleted_at is not None or not self.ciphertext:
             return ""
-        try:
-            return decrypt(self.ciphertext, str(self.relationship_id))
-        except Exception:
-            # A body we cannot decrypt must not take down the whole thread.
-            return ""
+        # A body we cannot decrypt reads as empty. `decrypt` does not raise —
+        # it hands back a sentinel string — so forwarding its result untouched
+        # would put "[ENCRYPTION_ERROR]" in the thread as if a partner had
+        # typed it.
+        return decrypted_or_empty(self.ciphertext, str(self.relationship_id))
 
     @body.setter
     def body(self, value: str) -> None:

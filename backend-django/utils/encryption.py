@@ -35,8 +35,19 @@ def encrypt(plaintext: str, user_id: str) -> str:
     return base64.b64encode(nonce + ct).decode()
 
 
+#: What :func:`decrypt` returns when it cannot. A sentinel rather than an
+#: exception, which callers have to check for — it is a *string*, so anything
+#: that forwards the result without looking will happily render it to a user.
+DECRYPTION_FAILED = "[ENCRYPTION_ERROR]"
+
+
 def decrypt(ciphertext_b64: str, user_id: str) -> str:
-    """Decrypt ciphertext using derived user key."""
+    """Decrypt ciphertext using derived user key.
+
+    Never raises: returns :data:`DECRYPTION_FAILED` instead. Callers that show
+    the result to someone must compare against it — see
+    :func:`decrypted_or_empty`.
+    """
     if not ciphertext_b64:
         return ciphertext_b64
 
@@ -47,7 +58,20 @@ def decrypt(ciphertext_b64: str, user_id: str) -> str:
         nonce, ct = raw[:12], raw[12:]
         return aesgcm.decrypt(nonce, ct, None).decode()
     except Exception:
-        return "[ENCRYPTION_ERROR]"
+        return DECRYPTION_FAILED
+
+
+def decrypted_or_empty(ciphertext_b64: str, scope: str) -> str:
+    """Decrypt, treating an unreadable value as absent.
+
+    The sentinel is a plain string, so a caller that forwards it untouched puts
+    "[ENCRYPTION_ERROR]" in front of a person as though one of them had typed
+    it. For anything user-facing, a row we cannot read should read as empty:
+    the message renders blank and the thread carries on, rather than showing an
+    internal error string in the middle of a conversation.
+    """
+    value = decrypt(ciphertext_b64, scope)
+    return "" if value == DECRYPTION_FAILED else value
 
 
 # ── Binary payloads ─────────────────────────────────────────────────────────

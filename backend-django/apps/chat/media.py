@@ -106,9 +106,11 @@ def process_image(blob: bytes) -> tuple[bytes, bytes, int, int]:
         # now means the tag can be dropped without the photo arriving sideways.
         image = ImageOps.exif_transpose(opened) or opened
         image = image.convert("RGB")
-    except MediaRejected:
-        raise
     except Exception as exc:
+        # No `except MediaRejected: raise` guard here: the sniff happens above
+        # this block, so nothing inside it can raise one. A re-raise clause for
+        # an exception that cannot occur reads as though it can, which is worse
+        # than not having it.
         raise MediaRejected("That photo could not be read.") from exc
 
     image.thumbnail((IMAGE_MAX_EDGE, IMAGE_MAX_EDGE), Image.Resampling.LANCZOS)
