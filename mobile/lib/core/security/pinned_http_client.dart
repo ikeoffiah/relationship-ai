@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -11,9 +12,16 @@ import 'certificate_config.dart';
 ///
 /// * **Minimum TLS 1.3** — rejects any handshake that negotiates TLS 1.2 or
 ///   below (handled by the OS/Dart's [SecurityContext]).
-/// * **SPKI certificate pinning** (release builds only) — validates that the
-///   server's public-key SHA-256 fingerprint matches one of the hashes in
-///   [CertConfig] for the connecting host.
+/// * **A pin check on otherwise-rejected certificates** (release builds only) —
+///   wired as a `badCertificateCallback`, which the platform invokes *only when
+///   chain validation has already failed*. So this is not pinning in the usual
+///   sense: a certificate the OS trusts never reaches it, and is accepted
+///   without its fingerprint being compared to anything. What this does provide
+///   is that a certificate the OS distrusts is refused unless it matches a pin.
+///   True pinning — checking the fingerprint on *every* handshake — needs the
+///   comparison to run on the success path too, which the Dart SDK does not
+///   expose; it wants a native plugin. Worth doing before this is relied on as
+///   a control.
 ///
 /// In **debug / profile** builds, pinning is deliberately bypassed so
 /// developers can run against local API stacks with self-signed certificates.
@@ -61,33 +69,47 @@ class PinnedHttpClient {
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
-  /// Returns a `badCertificateCallback` that:
-  /// 1. Accepts only hosts listed in [CertConfig].
-  /// 2. Accepts the connection only when the server's SPKI SHA-256 hash
-  ///    matches one of the pinned hashes for that host.
+  /// The decision itself, separated out so it can be tested without a TLS
+  /// handshake. Returns true only if this certificate should be accepted.
   ///
-  /// Any host not in [CertConfig] is rejected unconditionally.
+  /// Read the sense of this carefully: it runs as a `badCertificateCallback`,
+  /// which the platform invokes **only when chain validation has already
+  /// failed**. So every call is about a certificate the operating system has
+  /// decided not to trust, and returning true overrides that judgement.
+  @visibleForTesting
+  static bool shouldAccept({
+    required List<String>? pinnedHashes,
+    required String certHash,
+  }) {
+    if (pinnedHashes == null) {
+      // A host we do not have pins for. Nothing to check it against.
+      return false;
+    }
+
+    // Placeholders mean we do not know what this host's certificate should
+    // look like — so we cannot vouch for one the OS has already rejected.
+    //
+    // This used to return true. Combined with debugPrint, which produces no
+    // output in a release build, that meant a release shipped with unfilled
+    // placeholders would silently accept certificates the platform distrusted,
+    // for exactly the two hosts carrying every message and every session. Not
+    // "pinning disabled" — a straightforward interception hole, in the file
+    // whose docstring promises pinning is enforced.
+    //
+    // Failing closed cannot break a working install: with a certificate the OS
+    // trusts, this callback is never invoked at all. All it changes is that a
+    // bad certificate is now refused instead of waved through.
+    if (pinnedHashes.any((h) => h.startsWith('REPLACE_WITH'))) {
+      return false;
+    }
+
+    return pinnedHashes.contains(certHash);
+  }
+
   static bool Function(X509Certificate cert, String host, int port)
       _buildPinningCallback() {
     return (X509Certificate cert, String host, int port) {
       final List<String>? pinnedHashes = _hashesForHost(host);
-
-      if (pinnedHashes == null) {
-        // Unknown host — reject.
-        debugPrint('[PinnedHttpClient] Rejecting unknown host: $host');
-        return false;
-      }
-
-      // ── Safety: skip pinning if hashes are placeholders ────────────────────
-      final bool hasPlaceholders =
-          pinnedHashes.any((h) => h.startsWith('REPLACE_WITH'));
-      if (hasPlaceholders) {
-        debugPrint(
-          '⚠️  [PinnedHttpClient] Skipping pinning for $host: placeholders detected. '
-          'Update CertConfig with real SHA-256 SPKI fingerprints.',
-        );
-        return true; // Accept connection since we are in dev/placeholder mode.
-      }
 
       // Derive the DER-encoded SubjectPublicKeyInfo SHA-256 fingerprint.
       // cert.der contains the full DER-encoded X.509 certificate; we use it
@@ -97,15 +119,14 @@ class PinnedHttpClient {
       // NOTE: For production, update the hashes in CertConfig to match the
       // output of full-cert SHA-256, or switch to a native plugin that
       // provides true SPKI extraction if that level of precision is required.
-      final certDer = cert.der;
-      final certHash = _sha256Base64(certDer);
+      final certHash = _sha256Base64(cert.der);
 
-      final bool accepted = pinnedHashes.contains(certHash);
+      final accepted = shouldAccept(
+        pinnedHashes: pinnedHashes,
+        certHash: certHash,
+      );
       if (!accepted) {
-        debugPrint(
-          '[PinnedHttpClient] PIN MISMATCH for $host — '
-          'got: $certHash',
-        );
+        debugPrint('[PinnedHttpClient] Rejected certificate for $host');
       }
       return accepted;
     };
@@ -117,38 +138,17 @@ class PinnedHttpClient {
     return null;
   }
 
-  /// Computes SHA-256 over [bytes] and returns a Base64-encoded string,
-  /// matching the format produced by the `openssl` extraction commands in
-  /// [CertConfig] documentation.
-  static String _sha256Base64(List<int> bytes) {
-    // Using dart:convert + dart:typed_data for a zero-dependency implementation.
-    // ignore: avoid_relative_lib_imports
-    return _base64Encode(_sha256(bytes));
-  }
-
-  // ── Minimal SHA-256 & Base64 (avoids adding crypto package dependency) ─────
-  // Production teams may replace these with `package:crypto` if already in
-  // the dependency graph.
-
-  static List<int> _sha256(List<int> data) {
-    return sha256.convert(data).bytes;
-  }
-
-  static String _base64Encode(List<int> bytes) {
-    // ignore: unnecessary_import
-    final chars =
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    final buf = StringBuffer();
-    for (var i = 0; i < bytes.length; i += 3) {
-      final b0 = bytes[i];
-      final b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-      final b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-      buf.write(chars[(b0 >> 2) & 0x3F]);
-      buf.write(chars[((b0 & 0x3) << 4) | ((b1 >> 4) & 0xF)]);
-      buf.write(
-          i + 1 < bytes.length ? chars[((b1 & 0xF) << 2) | ((b2 >> 6) & 0x3)] : '=');
-      buf.write(i + 2 < bytes.length ? chars[b2 & 0x3F] : '=');
-    }
-    return buf.toString();
-  }
+  /// SHA-256 over [bytes], Base64-encoded — the format the `openssl`
+  /// extraction commands in [CertConfig]'s docs produce.
+  ///
+  /// Both halves come from the SDK and package:crypto, which this file already
+  /// imports for sha256. What was here before was a hand-written base64 loop
+  /// with a comment explaining it avoided adding a crypto dependency — a
+  /// dependency three lines above it. Hand-rolling an encoder is not free: it
+  /// is thirty lines of index arithmetic on the path that decides whether to
+  /// trust a certificate, where a wrong answer means either refusing every
+  /// connection or accepting the wrong one, and where the SDK's version is
+  /// exhaustively tested and this one is not tested at all.
+  static String _sha256Base64(List<int> bytes) =>
+      base64Encode(sha256.convert(bytes).bytes);
 }

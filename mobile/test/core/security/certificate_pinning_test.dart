@@ -40,25 +40,80 @@ void main() {
       expect(CertConfig.fastapiHost, isNot(contains('localhost')));
     });
 
-    test('no hash contains an unset placeholder for a pin that starts with REPLACE', () {
-      // This test acts as a pre-release gate: it will fail until real hashes
-      // are substituted, alerting the team that pinning is not yet active.
+    test('placeholder pins cause a certificate to be REJECTED', () {
+      // The behaviour, not the config value. This used to be a test that
+      // printed a warning and passed — so the one thing standing between an
+      // unfilled placeholder and a shipped build was a line of stdout inside a
+      // 300-test run. It gated nothing.
       //
-      // In a CI environment that has real certs, EXPECT this to pass.
-      // In development it will fail — which is intentional and expected.
-      final allHashes = [
+      // What matters is the direction of the failure. shouldAccept runs as a
+      // badCertificateCallback, which fires only for certificates the OS has
+      // already refused; returning true overrides that. With placeholders we
+      // have no idea what the real certificate looks like, so the only safe
+      // answer is no.
+      expect(
+        PinnedHttpClient.shouldAccept(
+          pinnedHashes: const ['REPLACE_WITH_API_PRIMARY_CERT_SPKI_SHA256_BASE64=='],
+          certHash: 'anything-at-all',
+        ),
+        isFalse,
+        reason: 'placeholders must fail closed, never open',
+      );
+    });
+
+    test('a single placeholder among real pins still fails closed', () {
+      // Half-finished rotation is the likeliest way this state occurs.
+      expect(
+        PinnedHttpClient.shouldAccept(
+          pinnedHashes: const ['a-real-looking-hash=', 'REPLACE_WITH_BACKUP=='],
+          certHash: 'a-real-looking-hash=',
+        ),
+        isFalse,
+      );
+    });
+
+    test('an unknown host is rejected', () {
+      expect(
+        PinnedHttpClient.shouldAccept(pinnedHashes: null, certHash: 'x'),
+        isFalse,
+      );
+    });
+
+    test('a matching pin is accepted and a mismatch is not', () {
+      const pins = ['aaa=', 'bbb='];
+      expect(
+        PinnedHttpClient.shouldAccept(pinnedHashes: pins, certHash: 'bbb='),
+        isTrue,
+      );
+      expect(
+        PinnedHttpClient.shouldAccept(pinnedHashes: pins, certHash: 'ccc='),
+        isFalse,
+      );
+    });
+
+    test('an empty pin list is rejected, not treated as "no constraint"', () {
+      expect(
+        PinnedHttpClient.shouldAccept(pinnedHashes: const [], certHash: 'x'),
+        isFalse,
+      );
+    });
+
+    test('the config still carries placeholders — a release blocker', () {
+      // Deliberately informational rather than a hard failure: the code now
+      // fails closed, so shipping with placeholders degrades security rather
+      // than breaking the app, and blocking every local run on it would just
+      // get the test deleted. Recorded here so the state is visible.
+      final placeholders = [
         ...CertConfig.djangoApiHashes,
         ...CertConfig.fastapiHashes,
-      ];
-      final hasPlaceholders =
-          allHashes.any((h) => h.startsWith('REPLACE_WITH'));
-
-      // We warn rather than hard-fail so CI is not blocked during development.
-      if (hasPlaceholders) {
+      ].where((h) => h.startsWith('REPLACE_WITH')).length;
+      if (placeholders > 0) {
         // ignore: avoid_print
         print(
-          'WARNING: Certificate pinning hashes contain placeholder values. '
-          'Replace them with real SPKI SHA-256 fingerprints before shipping.',
+          'RELEASE BLOCKER: $placeholders of 4 certificate pins are still '
+          'placeholders. Certificates the OS rejects will now be refused '
+          '(correct), but no pin is actually being enforced. Fill these in '
+          'before shipping.',
         );
       }
     });
