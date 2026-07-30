@@ -11,6 +11,7 @@ import 'package:mobile/features/bliss/widgets/bliss_confirm_sheet.dart';
 import 'package:mobile/features/couple_chat/models/couple_message.dart';
 import 'package:mobile/features/couple_chat/models/sticker_catalogue.dart';
 import 'package:mobile/features/couple_chat/views/media_bubbles.dart';
+import 'package:mobile/features/couple_chat/views/message_actions_sheet.dart';
 import 'package:mobile/features/couple_chat/views/sticker_picker_sheet.dart';
 import 'package:mobile/features/couple_chat/views/voice_recorder.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
@@ -410,62 +411,13 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
 
   Future<void> _showReactions(CoupleMessage message) async {
     final vm = context.read<CoupleChatViewModel>();
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => Container(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: const BoxDecoration(
-          color: AppColors.creamWhite,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadii.lg),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Wrap(
-              spacing: AppSpacing.md,
-              children: [
-                for (final emoji in kCoupleReactions)
-                  InkWell(
-                    key: Key('reaction_$emoji'),
-                    borderRadius: BorderRadius.circular(AppRadii.pill),
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      vm.toggleReaction(message, emoji);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      child: Text(
-                        emoji,
-                        style: const TextStyle(fontSize: 30),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const Divider(height: AppSpacing.xxl),
-            ListTile(
-              leading: const Icon(Icons.reply_rounded, size: 20),
-              title: const Text('Reply'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                vm.startReply(message);
-              },
-            ),
-            if (message.isMine(widget.userId))
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, size: 20),
-                title: const Text('Delete'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  vm.deleteMessage(message);
-                },
-              ),
-          ],
-        ),
-      ),
+    await MessageActionsSheet.show(
+      context,
+      message: message,
+      mine: message.isMine(widget.userId),
+      onReact: (emoji) => vm.toggleReaction(message, emoji),
+      onReply: () => vm.startReply(message),
+      onDelete: () => vm.deleteMessage(message),
     );
   }
 
