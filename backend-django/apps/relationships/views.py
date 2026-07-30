@@ -184,7 +184,21 @@ class RelationshipMeView(views.APIView):
     def get(self, request):
         """
         GET /api/v1/relationships/me
-        Get the current user's active relationship.
+
+        Always 200. "Do I have a partner?" is a question with three ordinary
+        answers, and "no" is one of them — the commonest one on a new account.
+
+        This used to 404 when there was no active relationship, which meant the
+        Journey Together screen threw a raw Dio exception on every visit: the
+        screen you open precisely *because* you have no partner called an
+        endpoint that failed precisely because you have no partner. The client
+        recovered — it defaults to notConnected on error — and then rendered the
+        exception text at the user.
+
+        It also only looked at active relationships, so a pending invite was
+        indistinguishable from none. The client has always had a `pending`
+        branch and a "Waiting for … to accept" screen behind it, which could not
+        be reached because the state it needed was never sent.
         """
         user = request.user
         relationship = Relationship.objects.filter(
@@ -192,18 +206,39 @@ class RelationshipMeView(views.APIView):
             status='active'
         ).first()
 
-        if not relationship:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Serialize simply
-        partner = relationship.partner_b if relationship.partner_a == user else relationship.partner_a
-        
-        return Response({
-            "id": str(relationship.id),
-            "status": relationship.status,
-            "created_at": relationship.created_at.isoformat(),
-            "partner": {
-                "id": str(partner.id),
-                "email": partner.email,
-            }
-        }, status=status.HTTP_200_OK)
+        if relationship is not None:
+            partner = (
+                relationship.partner_b
+                if relationship.partner_a == user
+                else relationship.partner_a
+            )
+            return Response({
+                "id": str(relationship.id),
+                "status": relationship.status,
+                "created_at": relationship.created_at.isoformat(),
+                # Null in a solo relationship, which is a supported state — the
+                # old code would have raised on partner.id here.
+                "partner": {
+                    "id": str(partner.id),
+                    "email": partner.email,
+                } if partner is not None else None,
+            }, status=status.HTTP_200_OK)
+
+        # An invite this user sent that has not been answered yet. Deliberately
+        # only their own: an invite sent *to* them is theirs to accept from the
+        # link, and surfacing it here would tell someone they had been invited
+        # before they chose to open it.
+        pending = RelationshipInvite.objects.filter(
+            inviter=user,
+            status='pending',
+            expires_at__gt=timezone.now(),
+        ).order_by('-created_at').first()
+
+        if pending is not None:
+            return Response({
+                "status": "pending",
+                "invitee_email": pending.invitee_email,
+                "expires_at": pending.expires_at.isoformat(),
+            }, status=status.HTTP_200_OK)
+
+        return Response({"status": "not_connected"}, status=status.HTTP_200_OK)

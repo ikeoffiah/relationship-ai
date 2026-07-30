@@ -31,3 +31,6 @@ class AuditEventType:
 
     # GDPR
     GDPR_EXPORT_REQUESTED = "gdpr_export_requested"
+
+    # Credentials
+    PASSWORD_CHANGED = "password_changed"
