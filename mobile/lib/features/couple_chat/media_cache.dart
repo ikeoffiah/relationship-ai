@@ -20,9 +20,17 @@ import 'package:mobile/core/api_services/base_api_service.dart';
 import 'package:path_provider/path_provider.dart';
 
 class MediaCache extends BaseApiService {
-  MediaCache({super.injectedDio}) : super(receiveTimeout: const Duration(minutes: 2));
+  MediaCache({super.injectedDio, Future<Directory> Function()? directoryProvider})
+    : _directoryProvider = directoryProvider,
+      super(receiveTimeout: const Duration(minutes: 2));
 
   static final MediaCache instance = MediaCache();
+
+  /// Where the cache lives. Injectable because the default goes through
+  /// path_provider, which is a platform channel with no implementation under
+  /// `flutter test` — an unmocked call there never returns, so a test hangs
+  /// instead of failing.
+  final Future<Directory> Function()? _directoryProvider;
 
   Directory? _root;
 
@@ -34,7 +42,7 @@ class MediaCache extends BaseApiService {
     if (_root != null) return _root!;
     // Cache, not documents: the OS may reclaim it under pressure, which is the
     // correct trade for something re-fetchable that we would rather not keep.
-    final base = await getTemporaryDirectory();
+    final base = await (_directoryProvider ?? getTemporaryDirectory)();
     final dir = Directory('${base.path}/chat_media');
     if (!dir.existsSync()) dir.createSync(recursive: true);
     _root = dir;
@@ -73,8 +81,8 @@ class MediaCache extends BaseApiService {
     // Written to a sibling first and then renamed, so a fetch interrupted
     // halfway can never leave a truncated file that later reads as a cache hit.
     final temp = File('${target.path}.part');
-    await temp.writeAsBytes(bytes, flush: true);
-    await temp.rename(target.path);
+    temp.writeAsBytesSync(bytes, flush: true);
+    temp.renameSync(target.path);
     return target;
   }
 
@@ -88,7 +96,7 @@ class MediaCache extends BaseApiService {
     try {
       final dir = await _directory();
       if (dir.existsSync()) {
-        await dir.delete(recursive: true);
+        dir.deleteSync(recursive: true);
       }
       _root = null;
     } catch (e) {
