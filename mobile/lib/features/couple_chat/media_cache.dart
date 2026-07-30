@@ -58,7 +58,14 @@ class MediaCache extends BaseApiService {
     final existing = _inFlight[remotePath];
     if (existing != null) return existing;
 
-    final future = _fetch(remotePath).whenComplete(() => _inFlight.remove(remotePath));
+    // The braces matter. `Map.remove` returns the value it removed — which
+    // here is this very Future — and `whenComplete` waits on any Future its
+    // callback hands back. As an expression body it therefore awaited itself,
+    // and nothing that went through this method ever completed: no photo and
+    // no voice note would load, for ever, with no error to show for it.
+    final future = _fetch(remotePath).whenComplete(() {
+      _inFlight.remove(remotePath);
+    });
     _inFlight[remotePath] = future;
     return future;
   }
