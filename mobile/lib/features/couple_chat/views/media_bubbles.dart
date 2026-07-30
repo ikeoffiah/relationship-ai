@@ -242,6 +242,33 @@ class ImageViewer extends StatefulWidget {
 class _ImageViewerState extends State<ImageViewer> {
   double _dragOffset = 0;
 
+  /// Watched so panning can be turned off until the photo is actually zoomed.
+  ///
+  /// InteractiveViewer claims the pan gesture whenever `panEnabled` is true,
+  /// even at scale 1 where there is nowhere to pan to — which swallowed the
+  /// swipe-down-to-dismiss entirely. Enabling pan only once zoomed gives both
+  /// gestures the moment they are each useful.
+  final _transform = TransformationController();
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _transform.addListener(_onTransform);
+  }
+
+  @override
+  void dispose() {
+    _transform.removeListener(_onTransform);
+    _transform.dispose();
+    super.dispose();
+  }
+
+  void _onTransform() {
+    final zoomed = _transform.value.getMaxScaleOnAxis() > 1.01;
+    if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Fades out as the sheet is dragged away, so the gesture feels like it is
@@ -256,12 +283,29 @@ class _ImageViewerState extends State<ImageViewer> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       extendBodyBehindAppBar: true,
-      body: GestureDetector(
-        onVerticalDragUpdate: (d) => setState(() => _dragOffset += d.delta.dy),
-        onVerticalDragEnd: (_) {
+      // The drag is driven from InteractiveViewer's own callbacks rather than
+      // an enclosing GestureDetector. Its scale recogniser claims
+      // single-pointer drags even with `panEnabled: false`, so a competing
+      // vertical-drag detector simply never fires and swipe-to-dismiss does
+      // nothing at all.
+      // A raw Listener rather than a GestureDetector: InteractiveViewer's scale
+      // recogniser claims single-pointer drags, so anything competing in the
+      // gesture arena never fires. Pointer events are not arbitrated, so this
+      // sees the drag whatever the viewer decides to do with it.
+      body: Listener(
+        // Opaque so the black surround takes pointers too. Deferring to the
+        // child means only the photo itself is draggable, and a swipe that
+        // starts just outside it does nothing.
+        behavior: HitTestBehavior.opaque,
+        onPointerMove: (event) {
+          if (_zoomed) return;
+          setState(() => _dragOffset += event.delta.dy);
+        },
+        onPointerUp: (_) {
+          if (_zoomed) return;
           if (_dragOffset.abs() > 120) {
             Navigator.of(context).pop();
-          } else {
+          } else if (_dragOffset != 0) {
             setState(() => _dragOffset = 0);
           }
         },
@@ -275,8 +319,12 @@ class _ImageViewerState extends State<ImageViewer> {
                 remotePath: widget.media.url,
                 placeholder: const CircularProgressIndicator(color: Colors.white),
                 builder: (_, file) => InteractiveViewer(
+                  transformationController: _transform,
                   minScale: 1,
                   maxScale: 4,
+                  // Panning belongs to the zoomed photo; dragging belongs to
+                  // the dismiss gesture. They cannot both own it.
+                  panEnabled: _zoomed,
                   child: Image.file(file, fit: BoxFit.contain),
                 ),
               ),
@@ -414,6 +462,12 @@ class _VoiceBubbleState extends State<VoiceBubble> {
             const SizedBox(width: AppSpacing.md),
             Flexible(
               child: GestureDetector(
+                key: const Key('voice_waveform'),
+                // Opaque, not the default deferToChild. The bars are separated
+                // by a couple of pixels of padding, and deferring means a drag
+                // that happens to start in one of those gaps hits nothing —
+                // the bar is the control, so the whole strip has to take it.
+                behavior: HitTestBehavior.opaque,
                 // Drag anywhere on the waveform to seek. A separate thumb
                 // would be a 6px target on a bar that is already the control.
                 onHorizontalDragUpdate: (details) {
