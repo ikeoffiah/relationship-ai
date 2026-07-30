@@ -26,10 +26,26 @@ class CoupleChatScreen extends StatefulWidget {
   final String userId;
   final String partnerName;
 
+  /// Builds the live socket. Injectable so the event routing below — which
+  /// decides whether an incoming message, a receipt or a presence change
+  /// reaches the view model — can be driven without a server.
+  final CoupleChatSocket Function({
+    required String relationshipId,
+    required void Function(Map<String, dynamic>) onEvent,
+    required VoidCallback onConnectionLost,
+  })?
+  socketFactory;
+
+  /// Where photos come from. Injectable because `ImagePicker` is a platform
+  /// channel, so the pick-compress-send path is otherwise device-only.
+  final ImagePicker? imagePicker;
+
   const CoupleChatScreen({
     required this.relationshipId,
     required this.userId,
     this.partnerName = 'your partner',
+    this.socketFactory,
+    this.imagePicker,
     super.key,
   });
 
@@ -41,7 +57,7 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
   final _composer = TextEditingController();
   final _scroll = ScrollController();
   final _recorder = GlobalKey<VoiceRecorderBarState>();
-  final _picker = ImagePicker();
+  late final ImagePicker _picker = widget.imagePicker ?? ImagePicker();
   bool _sending = false;
   bool _recording = false;
 
@@ -65,13 +81,24 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
       // Live delivery. The thread still works without it — history is fetched
       // over HTTP — so a failed socket degrades to "not instant", never to
       // "broken".
-      _socket = CoupleChatSocket(
+      final build = widget.socketFactory ?? _defaultSocket;
+      _socket = build(
         relationshipId: widget.relationshipId,
         onEvent: (event) => _handleSocketEvent(vm, event),
         onConnectionLost: vm.onSocketLost,
       )..connect();
     });
   }
+
+  static CoupleChatSocket _defaultSocket({
+    required String relationshipId,
+    required void Function(Map<String, dynamic>) onEvent,
+    required VoidCallback onConnectionLost,
+  }) => CoupleChatSocket(
+    relationshipId: relationshipId,
+    onEvent: onEvent,
+    onConnectionLost: onConnectionLost,
+  );
 
   void _handleSocketEvent(CoupleChatViewModel vm, Map<String, dynamic> event) {
     switch (event['type']) {
