@@ -22,6 +22,7 @@ processes.
 """
 
 import asyncio
+import io
 import json
 import pathlib
 import subprocess
@@ -69,6 +70,41 @@ def register(email):
 
 def auth(token):
     return {"Authorization": f"Bearer {token}"}
+
+
+def jpeg_with_gps() -> bytes:
+    """A photo carrying GPS, as a phone camera produces one.
+
+    The fixture matters: uploading a clean JPEG would prove nothing about the
+    metadata strip, and a shared album quietly becoming a location history is
+    the likeliest real harm in the whole feature.
+    """
+    from PIL import Image
+
+    image = Image.new("RGB", (2400, 1800), (180, 90, 70))
+    exif = image.getexif()
+    exif[0x010F] = "TestPhone"  # Make
+    gps = exif.get_ifd(0x8825)
+    gps[1], gps[2] = "N", (51.0, 30.0, 0.0)
+    gps[3], gps[4] = "W", (0.0, 7.0, 0.0)
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", exif=exif, quality=95)
+    return buffer.getvalue()
+
+
+def has_exif(blob: bytes) -> bool:
+    from PIL import Image
+
+    try:
+        return bool(Image.open(io.BytesIO(blob)).getexif())
+    except Exception:
+        return False
+
+
+def m4a_bytes(payload=4096) -> bytes:
+    """Enough of an MP4 container header to pass the server's sniff."""
+    return b"\x00\x00\x00\x20ftypM4A " + b"\x00" * payload
 
 
 def ms(t0):
@@ -380,6 +416,168 @@ async def run():
         json={"accept": False}, timeout=20,
     ).json()
     check("an answer can be changed", declined.get("partner_invite") == "declined")
+
+    # ---- media ---------------------------------------------------------
+    # The whole point of doing this here rather than in a unit test: the unit
+    # suite runs against an in-memory storage backend with mocked HTTP, so it
+    # proves the logic and nothing about whether a photo actually survives the
+    # round trip through encryption, a real vendor, and back out of the proxy.
+    print("\n== photos ==")
+
+    photo = jpeg_with_gps()
+    t0 = time.perf_counter()
+    up = requests.post(
+        f"{base}/media",
+        headers=auth(a_token),
+        files={"file": ("photo.jpg", photo, "image/jpeg")},
+        data={"kind": "image"},
+        timeout=60,
+    )
+    check("A uploads a photo", up.status_code == 201, f"{up.status_code} in {ms(t0)}")
+    latencies["photo upload"] = (time.perf_counter() - t0) * 1000
+    media = up.json() if up.status_code == 201 else {}
+    check("the upload reports its dimensions", bool(media.get("width")), str(media.get("width")))
+
+    # Round trip through storage. If Cloudinary is configured this really did
+    # leave the building, get encrypted, and come back.
+    t0 = time.perf_counter()
+    blob = requests.get(f"{DJANGO}{media.get('url', '')}", headers=auth(b_token), timeout=60)
+    check(
+        "B can read the photo A sent",
+        blob.status_code == 200 and blob.content.startswith(b"\xff\xd8\xff"),
+        f"{blob.status_code}, {len(blob.content)}B in {ms(t0)}",
+    )
+    latencies["photo download"] = (time.perf_counter() - t0) * 1000
+
+    check(
+        "the decrypted photo is never cacheable",
+        blob.headers.get("Cache-Control") == "private, no-store",
+        blob.headers.get("Cache-Control", "missing"),
+    )
+    check("GPS did not survive the upload", not has_exif(blob.content))
+
+    thumb = requests.get(f"{DJANGO}{media.get('thumb_url', '')}", headers=auth(b_token), timeout=60)
+    check(
+        "the thumbnail is smaller than the photo",
+        thumb.status_code == 200 and 0 < len(thumb.content) < len(blob.content),
+        f"{len(thumb.content)}B vs {len(blob.content)}B",
+    )
+
+    stranger = register(f"e2e-x-{stamp}@test.local")
+    denied = requests.get(f"{DJANGO}{media.get('url', '')}", headers=auth(stranger), timeout=20)
+    check(
+        "a stranger cannot read the photo",
+        denied.status_code == 404,
+        f"got {denied.status_code}",
+    )
+
+    anon = requests.get(f"{DJANGO}{media.get('url', '')}", timeout=20)
+    check(
+        "an unauthenticated request cannot read it either",
+        anon.status_code in (401, 403),
+        f"got {anon.status_code}",
+    )
+
+    b_events.clear()
+    sent = requests.post(
+        f"{base}/messages/send",
+        headers=auth(a_token),
+        json={"kind": "image", "media": media.get("id"), "body": "us, last summer",
+              "client_id": f"photo-{stamp}"},
+        timeout=20,
+    )
+    check("the photo sends as a message", sent.status_code == 201, str(sent.status_code))
+    photo_message = sent.json() if sent.status_code == 201 else {}
+    check("the caption rides along", photo_message.get("body") == "us, last summer")
+
+    event, took = await wait_for(
+        b_events,
+        lambda e: e.get("type") == "couple_message"
+        and (e.get("message") or {}).get("kind") == "image",
+    )
+    check("the photo reaches B's socket", event is not None, f"{took:.0f}ms")
+    latencies["photo delivery"] = took
+
+    reused = requests.post(
+        f"{base}/messages/send",
+        headers=auth(a_token),
+        json={"kind": "image", "media": media.get("id"), "client_id": f"photo-2-{stamp}"},
+        timeout=20,
+    )
+    check(
+        "the same upload cannot be sent twice",
+        reused.status_code == 400,
+        f"got {reused.status_code}",
+    )
+
+    quote = requests.post(
+        f"{base}/messages/send",
+        headers=auth(b_token),
+        json={"body": "I love that one", "reply_to": photo_message.get("id"),
+              "client_id": f"quote-{stamp}"},
+        timeout=20,
+    ).json()
+    check(
+        "a reply quoting a photo carries its thumbnail",
+        bool((quote.get("reply_to") or {}).get("thumb_url")),
+    )
+
+    print("\n== voice notes ==")
+    voice_up = requests.post(
+        f"{base}/media",
+        headers=auth(b_token),
+        files={"file": ("note.m4a", m4a_bytes(), "audio/mp4")},
+        data={"kind": "voice", "duration_ms": 4200, "waveform": json.dumps([10, 60, 90, 40])},
+        timeout=60,
+    )
+    check("B uploads a voice note", voice_up.status_code == 201, str(voice_up.status_code))
+    voice = voice_up.json() if voice_up.status_code == 201 else {}
+    check("its duration survives", voice.get("duration_ms") == 4200)
+    check("its waveform survives", voice.get("waveform") == [10, 60, 90, 40])
+    check("a voice note has no thumbnail", voice.get("thumb_url") is None)
+
+    voice_sent = requests.post(
+        f"{base}/messages/send",
+        headers=auth(b_token),
+        json={"kind": "voice", "media": voice.get("id"), "client_id": f"voice-{stamp}"},
+        timeout=20,
+    )
+    check("the voice note sends", voice_sent.status_code == 201, str(voice_sent.status_code))
+
+    audio = requests.get(f"{DJANGO}{voice.get('url', '')}", headers=auth(a_token), timeout=60)
+    check(
+        "A can play what B recorded",
+        audio.status_code == 200 and audio.content[4:8] == b"ftyp",
+        f"{audio.status_code}, {len(audio.content)}B",
+    )
+
+    mismatched = requests.post(
+        f"{base}/media",
+        headers=auth(a_token),
+        files={"file": ("fake.jpg", b"MZ\x90\x00 not a photo at all", "image/jpeg")},
+        data={"kind": "image"},
+        timeout=30,
+    )
+    check(
+        "a file that is not what it claims is refused",
+        mismatched.status_code == 400,
+        f"got {mismatched.status_code}",
+    )
+
+    print("\n== deletion reaches the bytes ==")
+    gone = requests.delete(
+        f"{DJANGO}/api/v1/chat/messages/{photo_message.get('id')}",
+        headers=auth(a_token), timeout=30,
+    )
+    check("A deletes the photo message", gone.status_code == 200, str(gone.status_code))
+    check("the message no longer carries media", (gone.json() or {}).get("media") is None)
+
+    after = requests.get(f"{DJANGO}{media.get('url', '')}", headers=auth(b_token), timeout=30)
+    check(
+        "the photo is unreadable after deletion",
+        after.status_code == 404,
+        f"got {after.status_code}",
+    )
 
     # ---- presence teardown ---------------------------------------------
     print("\n== presence teardown ==")
