@@ -12,7 +12,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
@@ -63,6 +63,16 @@ def m4a_bytes(payload_size=2048) -> bytes:
     return b"\x00\x00\x00\x20ftypM4A " + b"\x00" * payload_size
 
 
+@override_settings(
+    # Not an optimisation — a safety catch. Once real credentials are in
+    # .env.local, `storage.configured()` is true and every test in this file
+    # would upload to the live account and delete from it. Blanking them here
+    # pins the whole suite to the in-memory backend, which exercises the same
+    # code path without a network call.
+    CLOUDINARY_CLOUD_NAME=None,
+    CLOUDINARY_API_KEY=None,
+    CLOUDINARY_API_SECRET=None,
+)
 class MediaTestCase(TestCase):
     def setUp(self):
         self.alex = User.objects.create_user(email="alex@test.local", password="pw12345!")

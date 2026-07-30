@@ -117,6 +117,14 @@ class CloudinaryBackend:
             raise StorageError(f"upload failed for {key}") from exc
 
     def get(self, key: str) -> bytes:
+        """Fetch through the signed delivery URL, which is CDN-backed.
+
+        Caching at the edge is wanted here: keys are random and a blob is never
+        rewritten, so a cached copy is always the right copy. The one surprise
+        is that a *destroyed* asset keeps being served from the edge for a
+        while after ``delete`` — see the note there. Nothing in the app can hit
+        that, because destroying media clears the keys that would ask for it.
+        """
         import cloudinary.utils
 
         url, _ = cloudinary.utils.cloudinary_url(
@@ -133,6 +141,21 @@ class CloudinaryBackend:
         return response.content
 
     def delete(self, key: str) -> None:
+        """Destroy the stored asset.
+
+        ``type="authenticated"`` is not optional here. Uploads are stored under
+        that delivery type, and ``destroy`` without it addresses a different
+        asset entirely: it returns ``{"result": "not found"}`` and reports
+        success while the real blob stays exactly where it was. That is the one
+        failure this module must never have, so the type is passed explicitly
+        and a "not found" is only ever accepted as *already gone*.
+
+        ``invalidate`` asks for a CDN purge, which is asynchronous: for a short
+        window after this returns, the signed delivery URL can still serve the
+        bytes from an edge cache even though the asset itself is gone (the
+        Admin API 404s immediately). That is survivable because destroying
+        media clears the keys, so nothing will ask for it again.
+        """
         import cloudinary.uploader
 
         try:
