@@ -45,17 +45,29 @@ class CoupleChatSocket {
   static const _maxBackoff = Duration(seconds: 30);
   Duration _backoff = _initialBackoff;
 
+  /// How the socket is opened. Injectable because `WebSocket.connect` is a
+  /// static that reaches the network, so without this the reconnect, backoff
+  /// and heartbeat below can only be exercised against a real server.
+  final Future<WebSocket> Function(String url)? connector;
+
+  /// Where the bearer token comes from. Injectable for the same reason: the
+  /// default goes through secure storage, which is a platform channel with no
+  /// implementation under `flutter test`.
+  final Future<String?> Function()? tokenProvider;
+
   CoupleChatSocket({
     required this.relationshipId,
     required this.onEvent,
     this.onConnectionLost,
+    this.connector,
+    this.tokenProvider,
   });
 
   bool get isConnected => _socket != null;
 
   Future<void> connect() async {
     if (_disposed) return;
-    final token = await StorageService.getToken();
+    final token = await (tokenProvider ?? StorageService.getToken)();
     if (token == null) return;
 
     // ws:// against a local http backend, wss:// against production.
@@ -64,7 +76,7 @@ class CoupleChatSocket {
         '$scheme://${CertConfig.fastapiHost}/ws/couple/$relationshipId?token=$token';
 
     try {
-      final socket = await WebSocket.connect(url);
+      final socket = await (connector ?? WebSocket.connect)(url);
       if (_disposed) {
         await socket.close();
         return;
