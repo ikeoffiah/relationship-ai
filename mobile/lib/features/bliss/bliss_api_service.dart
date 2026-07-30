@@ -65,7 +65,7 @@ class BlissApiService extends BaseApiService {
   /// Range-scoped rather than "everything": a calendar is scrolled by month,
   /// and fetching a year to draw a week is how a calendar screen becomes the
   /// slowest thing in an app.
-  Future<Map<DateTime, List<BlissItem>>> calendar({
+  Future<({Map<DateTime, List<BlissItem>> days, bool hasPartner})> calendar({
     required DateTime from,
     required DateTime to,
   }) async {
@@ -78,12 +78,15 @@ class BlissApiService extends BaseApiService {
         },
       );
       final days = (res.data['days'] as Map?) ?? const {};
-      return {
-        for (final entry in days.entries)
-          DateTime.parse(entry.key as String): (entry.value as List)
-              .map((j) => BlissItem.fromJson(j as Map<String, dynamic>))
-              .toList(),
-      };
+      return (
+        days: {
+          for (final entry in days.entries)
+            DateTime.parse(entry.key as String): (entry.value as List)
+                .map((j) => BlissItem.fromJson(j as Map<String, dynamic>))
+                .toList(),
+        },
+        hasPartner: res.data['has_partner'] as bool? ?? false,
+      );
     } catch (e) {
       throw handleError(e);
     }

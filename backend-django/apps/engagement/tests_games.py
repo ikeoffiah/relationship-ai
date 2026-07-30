@@ -2,7 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from apps.engagement.models import GamePack, GameQuestion, GamePlay, PointsLedger
 from apps.notifications.notification_models import Notification
@@ -207,3 +207,46 @@ class ConversationDeckTests(APITestCase):
         self.client.force_authenticate(a)
         r = self.client.get(f"/api/v1/engagement/games/{pack.key}")
         self.assertFalse(r.data["is_scored"])
+
+
+class SoloSpicyConsentTests(APITestCase):
+    """Reading the consent state without a partner.
+
+    A GET here is a question — "is intimate content unlocked for me?" — and for
+    someone with no partner it has a plain answer. It used to 409, which turned
+    an ordinary state into an exception at the client: a stack trace in the
+    console every time a solo user opened games or the couple thread, and
+    callers left to infer "locked" from a failure, which also made a genuine
+    network problem indistinguishable from being single.
+    """
+
+    def setUp(self):
+        self.solo = User.objects.create_user(email="solo-sc@t.local", password="pw12345!")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.solo)
+        self.url = "/api/v1/engagement/games/spicy-consent"
+
+    def test_reading_it_solo_answers_rather_than_erroring(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "you": False,
+                "partner": False,
+                "both_age_verified": False,
+                "unlocked": False,
+            },
+        )
+
+    def test_it_reads_as_locked_not_as_unknown(self):
+        """The direction that matters. An absent partner must never resolve to
+        unlocked — there is nobody to have consented."""
+        self.assertFalse(self.client.get(self.url).json()["unlocked"])
+
+    def test_setting_it_solo_is_still_refused(self):
+        """You cannot record half of a mutual consent when there is no other
+        half. The write keeps its gate."""
+        response = self.client.post(self.url, {"enabled": True}, format="json")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "no_active_relationship")

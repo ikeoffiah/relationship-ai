@@ -30,8 +30,36 @@ class _RelationshipPortraitScreenState extends State<RelationshipPortraitScreen>
 
   @override
   Widget build(BuildContext context) {
+    // This screen serves two callers, and only onboarding's assumptions were
+    // coded. Onboarding arrives via pushNamedAndRemoveUntil, clearing the
+    // stack, so there is genuinely nowhere back to and no back button belongs.
+    // The You hub pushes it normally — and got the same chrome, which left it
+    // with no way out at all.
+    //
+    // canPop is the literal question rather than a heuristic for it: is there
+    // somewhere to go back to?
+    final revisiting = Navigator.of(context).canPop();
+
+    // The forward action means different things in the two places. In
+    // onboarding it advances to the completion step. Revisiting from You it has
+    // to just close — before this it pushed the onboarding completion screen
+    // and wiped the stack, so reading your own portrait dropped you back into
+    // a flow you finished weeks ago.
+    void onDone() => revisiting ? Navigator.of(context).pop() : _continue();
+    final label = revisiting ? 'Done' : 'This is me — continue';
+
     return Scaffold(
       backgroundColor: AppColors.creamWhite,
+      appBar: revisiting
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: Text(
+                'Your portrait',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            )
+          : null,
       body: SafeArea(
         child: FutureBuilder<RelationshipPortrait>(
           future: _future,
@@ -41,9 +69,13 @@ class _RelationshipPortraitScreenState extends State<RelationshipPortraitScreen>
             }
             final portrait = snap.data;
             if (snap.hasError || portrait == null || !portrait.ready) {
-              return _Fallback(onContinue: _continue);
+              return _Fallback(onContinue: onDone, label: label);
             }
-            return _PortraitBody(portrait: portrait, onContinue: _continue);
+            return _PortraitBody(
+              portrait: portrait,
+              onContinue: onDone,
+              label: label,
+            );
           },
         ),
       ),
@@ -69,7 +101,8 @@ class _Loading extends StatelessWidget {
 
 class _Fallback extends StatelessWidget {
   final VoidCallback onContinue;
-  const _Fallback({required this.onContinue});
+  final String label;
+  const _Fallback({required this.onContinue, required this.label});
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -90,7 +123,7 @@ class _Fallback extends StatelessWidget {
               style: TextStyle(color: AppColors.softCharcoal),
             ),
             const SizedBox(height: 32),
-            _ContinueButton(onPressed: onContinue, label: 'Continue'),
+            _ContinueButton(onPressed: onContinue, label: label),
           ],
         ),
       );
@@ -99,7 +132,12 @@ class _Fallback extends StatelessWidget {
 class _PortraitBody extends StatelessWidget {
   final RelationshipPortrait portrait;
   final VoidCallback onContinue;
-  const _PortraitBody({required this.portrait, required this.onContinue});
+  final String label;
+  const _PortraitBody({
+    required this.portrait,
+    required this.onContinue,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +217,7 @@ class _PortraitBody extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
-          child: _ContinueButton(onPressed: onContinue, label: 'This is me — continue'),
+          child: _ContinueButton(onPressed: onContinue, label: label),
         ),
       ],
     );

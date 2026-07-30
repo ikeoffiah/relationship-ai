@@ -142,6 +142,14 @@ class _TodayHeroState extends State<TodayHero> {
 
       case TodayState.waiting:
         return Column(
+          // Column defaults to CrossAxisAlignment.center, which sizes children
+          // to their intrinsic width and centres them — so these two states
+          // rendered as a narrow card floating in the middle while every other
+          // card on Home ran full width. The reveal and unanswered states
+          // return an AppCard directly, which is why only these two were
+          // affected and why it read as one card being wrong rather than a
+          // layout rule being wrong.
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppCard(
               key: const Key('today_waiting'),
@@ -159,6 +167,7 @@ class _TodayHeroState extends State<TodayHero> {
 
       case TodayState.done:
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppCard(
               key: const Key('today_done'),
