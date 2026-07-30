@@ -6,12 +6,20 @@ extra round-trip, so it happens after the fact, on a worker.
 """
 
 import logging
+from datetime import timedelta
 
 from celery import shared_task
+from django.utils import timezone
 
-from .models import CoupleMessage, Relationship, ThreadSummary
+from .models import CoupleMessage, MessageMedia, Relationship, ThreadSummary
 
 log = logging.getLogger(__name__)
+
+# How long an uploaded file may sit without a message referencing it. Long
+# enough to survive a user who picks a photo, gets distracted, and sends it
+# twenty minutes later; short enough that abandoned uploads are not storage we
+# pay for and would have to enumerate at erasure time.
+ORPHAN_TTL_HOURS = 24
 
 # Refresh once the thread has moved on by this many messages. Low enough that
 # the summary stays current, high enough that a chatty evening does not queue a
@@ -37,6 +45,47 @@ def summary_is_stale(relationship) -> bool:
     summary = ThreadSummary.objects.filter(relationship=relationship).first()
     covered = summary.covered_message_count if summary else 0
     return total - covered >= REFRESH_EVERY_MESSAGES
+
+
+@shared_task(name="chat.sweep_orphan_media")
+def sweep_orphan_media() -> int:
+    """Delete media that no message points at.
+
+    Two ways a blob ends up unreferenced, and this collects both:
+
+    * **Never sent.** The cost of the two-step upload in views.upload_media —
+      a client uploads a photo and then does not send it, because the app was
+      killed or the user changed their mind.
+    * **Sent, then deleted while storage was unavailable.** delete_message
+      detaches the media and asks for the bytes; if that call fails, the row is
+      left behind with nothing referencing it.
+
+    Filtering on "no message references this" rather than on ``attached_at``
+    is what catches the second case. An attached row whose message let go of it
+    is exactly as unreachable as one that was never sent, and keying off
+    ``attached_at`` alone would leave those blobs live for ever with nothing
+    able to find them again.
+
+    One row at a time, and a failure on one does not abandon the rest: storage
+    can refuse a single delete, and the next run retries that row because it is
+    still unreferenced.
+    """
+    cutoff = timezone.now() - timedelta(hours=ORPHAN_TTL_HOURS)
+    orphans = MessageMedia.objects.filter(
+        messages__isnull=True, deleted_at__isnull=True, created_at__lt=cutoff
+    )
+
+    swept = 0
+    for media in orphans.iterator():
+        try:
+            media.destroy()
+            swept += 1
+        except Exception:
+            log.exception("orphan_media_sweep_failed media=%s", media.id)
+
+    if swept:
+        log.info("orphan_media_swept count=%s", swept)
+    return swept
 
 
 @shared_task(name="chat.refresh_thread_summary")

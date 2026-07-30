@@ -59,6 +59,21 @@ urlpatterns = [
         name="chat-assist-feedback",
     ),
     path(
+        "<uuid:relationship_id>/media",
+        views.upload_media,
+        name="chat-media-upload",
+    ),
+    path(
+        "media/<uuid:media_id>",
+        views.media_blob,
+        name="chat-media-blob",
+    ),
+    path(
+        "media/<uuid:media_id>/thumb",
+        views.media_thumb,
+        name="chat-media-thumb",
+    ),
+    path(
         "messages/<uuid:message_id>",
         views.delete_message,
         name="chat-delete",

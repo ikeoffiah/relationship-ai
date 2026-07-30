@@ -22,3 +22,5 @@ argon2-cffi
 google-auth
 firebase-admin
 requests
+pillow
+cloudinary

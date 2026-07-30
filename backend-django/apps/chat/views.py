@@ -6,25 +6,39 @@ in. It returns 404 rather than 403 on purpose — a stranger probing ids should
 not be able to learn which relationships exist.
 """
 
+import logging
 from datetime import UTC, datetime
 
 from django.db import IntegrityError, transaction
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.relationships.models import Relationship
+from utils.encryption import DecryptionError, decrypt_bytes, encrypt_bytes
 
-from . import assist, realtime
-from .models import AssistNudge, CoupleMessage, MessageReaction, ReadReceipt
+from . import assist, media as media_processing, realtime, storage
+from .models import (
+    AssistNudge,
+    CoupleMessage,
+    MessageMedia,
+    MessageReaction,
+    ReadReceipt,
+)
 from .serializers import (
     CoupleMessageSerializer,
+    MessageMediaSerializer,
     ReactionSerializer,
     SendMessageSerializer,
+    UploadMediaSerializer,
 )
+
+log = logging.getLogger(__name__)
 
 # History page size. Generous enough that opening the thread rarely needs a
 # second round trip, small enough to stay comfortably inside a mobile payload.
@@ -49,9 +63,9 @@ def _thread_or_404(user, relationship_id) -> Relationship:
 
 
 def _with_relations(queryset):
-    return queryset.select_related("sender", "reply_to", "reply_to__sender").prefetch_related(
-        "reactions"
-    )
+    return queryset.select_related(
+        "sender", "reply_to", "reply_to__sender", "media", "reply_to__media"
+    ).prefetch_related("reactions")
 
 
 def _partner_id(relationship, user):
@@ -152,11 +166,40 @@ def send_message(request, relationship_id):
                 status=status.HTTP_200_OK,
             )
 
+    kind = data.get("kind", CoupleMessage.KIND_TEXT)
+    media = None
+    if kind in CoupleMessage.MEDIA_KINDS:
+        # Scoped to this relationship, so a stolen media id from another
+        # couple's thread cannot be attached here — the same reasoning as the
+        # reply_to check above, and the same 400 rather than a leaky 404.
+        media = MessageMedia.objects.filter(
+            id=data["media"], relationship=relationship, deleted_at__isnull=True
+        ).first()
+        if media is None:
+            return Response(
+                {"error": "That upload is not available."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if media.kind != kind:
+            return Response(
+                {"error": f"That upload is a {media.kind}, not a {kind}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if media.is_attached:
+            # One upload, one message. Without this the same photo could be
+            # re-sent by id forever, and deleting either copy would strand the
+            # other pointing at destroyed bytes.
+            return Response(
+                {"error": "That upload has already been sent."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
     message = CoupleMessage(
         relationship=relationship,
         sender=request.user,
-        kind=data.get("kind", CoupleMessage.KIND_TEXT),
+        kind=kind,
         sticker=(data.get("sticker") or "").strip(),
+        media=media,
         reply_to=reply_to,
         client_id=client_id,
     )
@@ -165,6 +208,9 @@ def send_message(request, relationship_id):
     try:
         with transaction.atomic():
             message.save()
+            if media is not None:
+                media.attached_at = timezone.now()
+                media.save(update_fields=["attached_at"])
     except IntegrityError:
         # Two retries raced; the winner is already stored.
         existing = CoupleMessage.objects.filter(
@@ -218,6 +264,148 @@ def _maybe_refresh_summary(relationship) -> None:
         logging.getLogger(__name__).info("summary_refresh_not_queued: %s", exc)
 
 
+# ── Media ───────────────────────────────────────────────────────────────────
+# Upload and send are two steps on purpose. The client uploads first, gets an
+# id, then sends a message referencing it — which is what lets a photo appear
+# in the thread with a progress ring rather than after the round trip. The cost
+# is that a row can exist with no message attached; tasks.sweep_orphan_media
+# collects those.
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_media(request, relationship_id):
+    """Accept a photo or voice note, normalise it, encrypt it, store it."""
+    relationship = _thread_or_404(request.user, relationship_id)
+
+    serializer = UploadMediaSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    upload = request.FILES.get("file")
+    if upload is None:
+        return Response(
+            {"error": "No file was uploaded."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Check the declared size before reading the body into memory. Django has
+    # already spooled it, but this is what keeps an 80 MB upload from becoming
+    # an 80 MB Pillow decode.
+    ceiling = (
+        media_processing.MAX_IMAGE_BYTES
+        if data["kind"] == MessageMedia.KIND_IMAGE
+        else media_processing.MAX_VOICE_BYTES
+    )
+    if upload.size > ceiling:
+        return Response(
+            {"error": "That file is too large."}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+        )
+
+    blob = upload.read()
+    scope = str(relationship.id)
+
+    try:
+        if data["kind"] == MessageMedia.KIND_IMAGE:
+            full, thumb, width, height = media_processing.process_image(blob)
+            mime, duration_ms, waveform = media_processing.IMAGE_MIME, None, []
+        else:
+            full, mime = media_processing.process_voice(blob, data.get("duration_ms", 0))
+            thumb, width, height = b"", None, None
+            duration_ms = data["duration_ms"]
+            waveform = media_processing.normalise_waveform(data.get("waveform"))
+    except media_processing.MediaRejected as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    storage_key = storage.key_for(relationship.id)
+    thumb_key = storage.key_for(relationship.id, suffix="-thumb") if thumb else ""
+
+    try:
+        storage.put(storage_key, encrypt_bytes(full, scope))
+        if thumb:
+            storage.put(thumb_key, encrypt_bytes(thumb, scope))
+    except storage.StorageError:
+        log.exception("media_upload_failed relationship=%s", relationship.id)
+        # Best effort tidy-up so a half-written pair does not linger unreferenced.
+        for key in (storage_key, thumb_key):
+            if key:
+                try:
+                    storage.delete(key)
+                except storage.StorageError:
+                    pass
+        return Response(
+            {"error": "Could not store that file. Try again."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    record = MessageMedia.objects.create(
+        relationship=relationship,
+        uploader=request.user,
+        kind=data["kind"],
+        storage_key=storage_key,
+        thumb_key=thumb_key,
+        mime=mime,
+        byte_size=len(full),
+        sha256=storage.checksum(full),
+        duration_ms=duration_ms,
+        waveform=waveform,
+        width=width,
+        height=height,
+    )
+    return Response(MessageMediaSerializer(record).data, status=status.HTTP_201_CREATED)
+
+
+def _media_or_404(user, media_id) -> MessageMedia:
+    """A media row the caller is entitled to, or 404.
+
+    Same 404-not-403 convention as the thread: someone probing ids should not
+    learn that a photo exists, only that this one is not theirs to see.
+    """
+    record = get_object_or_404(MessageMedia, id=media_id, deleted_at__isnull=True)
+    _thread_or_404(user, record.relationship_id)
+    return record
+
+
+def _serve_blob(record: MessageMedia, key: str, content_type: str) -> HttpResponse:
+    """Fetch, decrypt and hand back one blob.
+
+    ``no-store`` because this response is plaintext: no proxy, CDN or browser
+    cache should hold a decrypted photo. The app keeps its own cache under file
+    protection instead — see docs/chat-media.md §4.4.
+    """
+    try:
+        blob = decrypt_bytes(storage.get(key), str(record.relationship_id))
+    except storage.MissingBlob:
+        # The row outlived its bytes. A missing photo is an unavailable bubble,
+        # not a 500 — the same posture as a body that will not decrypt.
+        log.warning("media_blob_missing media=%s key=%s", record.id, key)
+        raise Http404 from None
+    except (storage.StorageError, DecryptionError):
+        log.exception("media_unreadable media=%s key=%s", record.id, key)
+        raise Http404 from None
+
+    response = HttpResponse(blob, content_type=content_type)
+    response["Cache-Control"] = "private, no-store"
+    response["Content-Length"] = str(len(blob))
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def media_blob(request, media_id):
+    record = _media_or_404(request.user, media_id)
+    return _serve_blob(record, record.storage_key, record.mime)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def media_thumb(request, media_id):
+    record = _media_or_404(request.user, media_id)
+    if not record.thumb_key:
+        raise Http404
+    return _serve_blob(record, record.thumb_key, media_processing.IMAGE_MIME)
+
+
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def delete_message(request, message_id):
@@ -237,7 +425,26 @@ def delete_message(request, message_id):
         # readable in the database just because the row survives for replies.
         message.ciphertext = ""
         message.sticker = ""
-        message.save(update_fields=["deleted_at", "ciphertext", "sticker"])
+        attached_media = message.media
+        # The tombstone survives so replies still render, but the bytes do not.
+        # A photo that is still sitting in a bucket has not been deleted in any
+        # sense the person who deleted it would recognise.
+        message.media = None
+        message.save(update_fields=["deleted_at", "ciphertext", "sticker", "media"])
+        if attached_media is not None:
+            try:
+                attached_media.destroy()
+            except storage.StorageError:
+                # Storage is down. The message is already a tombstone, so
+                # failing the request now would tell the user their delete did
+                # not work when the part they can see plainly did. The row is
+                # left unreferenced, which is precisely what the orphan sweep
+                # looks for, so the bytes still go — just later.
+                log.exception(
+                    "media_destroy_deferred message=%s media=%s",
+                    message.id,
+                    attached_media.id,
+                )
         realtime.publish(
             message.relationship_id,
             {"type": "couple_message_deleted", "message_id": str(message.id)},

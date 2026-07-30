@@ -16,9 +16,145 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from apps.relationships.models import Relationship
 from utils.encryption import decrypt, encrypt
+
+
+class MessageMedia(models.Model):
+    """An encrypted photo or voice note, and everything needed to render it.
+
+    Its own model rather than columns on :class:`CoupleMessage` because upload
+    and send are two steps: the client uploads, gets an id back, and only then
+    sends a message referencing it. That is what lets the bubble appear with a
+    progress ring instead of after the network. It also means a row can exist
+    without a message — see ``attached_at`` and the orphan sweep in tasks.py.
+
+    Blobs live in :mod:`apps.chat.storage`; only keys are here. The keys are
+    random and reveal nothing, so they are stored in the clear — encrypting
+    them would break the enumeration that erasure depends on.
+    """
+
+    KIND_IMAGE = "image"
+    KIND_VOICE = "voice"
+    KIND_CHOICES = [(KIND_IMAGE, "Image"), (KIND_VOICE, "Voice")]
+
+    TRANSCRIPT_SKIPPED = "skipped"
+    TRANSCRIPT_PENDING = "pending"
+    TRANSCRIPT_OK = "ok"
+    TRANSCRIPT_FAILED = "failed"
+    TRANSCRIPT_CHOICES = [
+        (TRANSCRIPT_SKIPPED, "Skipped"),
+        (TRANSCRIPT_PENDING, "Pending"),
+        (TRANSCRIPT_OK, "Ok"),
+        (TRANSCRIPT_FAILED, "Failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        Relationship, on_delete=models.CASCADE, related_name="media"
+    )
+    uploader = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="uploaded_media"
+    )
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+
+    storage_key = models.CharField(max_length=255)
+    thumb_key = models.CharField(max_length=255, blank=True, default="")
+    mime = models.CharField(max_length=64)
+    byte_size = models.PositiveIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, blank=True, default="")
+
+    # Voice.
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    waveform = models.JSONField(default=list, blank=True)
+
+    # Image.
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+
+    # Voice transcript. Encrypted exactly like a message body and on the same
+    # relationship scope — never read this column, use the `transcript`
+    # property. Populated by a background task; see docs/chat-media.md §5.
+    transcript_ciphertext = models.TextField(blank=True, default="")
+    transcript_status = models.CharField(
+        max_length=16, choices=TRANSCRIPT_CHOICES, default=TRANSCRIPT_SKIPPED
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Set when a message references this row. Null means an upload whose send
+    # never happened, which the sweep collects.
+    attached_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "couple_message_media"
+        indexes = [
+            # The orphan sweep: unattached rows, oldest first.
+            models.Index(fields=["attached_at", "created_at"]),
+            # Erasure: everything belonging to one relationship.
+            models.Index(fields=["relationship"]),
+        ]
+
+    @property
+    def transcript(self) -> str:
+        if self.deleted_at is not None or not self.transcript_ciphertext:
+            return ""
+        try:
+            return decrypt(self.transcript_ciphertext, str(self.relationship_id))
+        except Exception:
+            return ""
+
+    @transcript.setter
+    def transcript(self, value: str) -> None:
+        self.transcript_ciphertext = (
+            encrypt(value or "", str(self.relationship_id)) if value else ""
+        )
+
+    @property
+    def is_attached(self) -> bool:
+        return self.attached_at is not None
+
+    def storage_keys(self) -> list[str]:
+        """Every blob this row owns, for deletion."""
+        return [key for key in (self.storage_key, self.thumb_key) if key]
+
+    def destroy(self) -> None:
+        """Erase the bytes, then the row's readable contents.
+
+        The single deletion path — message delete, the orphan sweep, and
+        account erasure all land here, so there is one place that has to be
+        right about ordering. Blobs go first: a row that survives a failed
+        blob delete is a retryable leak, whereas a row deleted before its blob
+        is a leak nobody can find again.
+
+        The transcript is cleared with the audio. A voice note whose text
+        survives its recording is the same lie as a photo still sitting in a
+        bucket.
+        """
+        from . import storage
+
+        for key in self.storage_keys():
+            storage.delete(key)
+
+        self.storage_key = ""
+        self.thumb_key = ""
+        self.transcript_ciphertext = ""
+        self.transcript_status = self.TRANSCRIPT_SKIPPED
+        self.deleted_at = timezone.now()
+        self.save(
+            update_fields=[
+                "storage_key",
+                "thumb_key",
+                "transcript_ciphertext",
+                "transcript_status",
+                "deleted_at",
+            ]
+        )
+
+    def __str__(self) -> str:
+        return f"{self.kind} media {self.id}"
 
 
 class CoupleMessage(models.Model):
@@ -27,13 +163,22 @@ class CoupleMessage(models.Model):
     KIND_TEXT = "text"
     KIND_STICKER = "sticker"
     KIND_SYSTEM = "system"
+    KIND_IMAGE = "image"
+    KIND_VOICE = "voice"
     KIND_CHOICES = [
         (KIND_TEXT, "Text"),
         (KIND_STICKER, "Sticker"),
         # System messages narrate something that happened (a call ended, Bliss
         # scheduled something) and are authored by no one.
         (KIND_SYSTEM, "System"),
+        # Media kinds carry their payload on `media`; an image message with a
+        # non-empty body is a captioned photo.
+        (KIND_IMAGE, "Image"),
+        (KIND_VOICE, "Voice"),
     ]
+
+    #: Kinds whose content lives in :class:`MessageMedia`.
+    MEDIA_KINDS = (KIND_IMAGE, KIND_VOICE)
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     relationship = models.ForeignKey(
@@ -63,6 +208,17 @@ class CoupleMessage(models.Model):
         null=True,
         blank=True,
         related_name="replies",
+    )
+
+    # The photo or voice note, when kind is one of MEDIA_KINDS. SET_NULL rather
+    # than CASCADE: hard-deleting the bytes must leave the bubble standing as a
+    # tombstone, the same way a soft-deleted text message does.
+    media = models.ForeignKey(
+        MessageMedia,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="messages",
     )
 
     # Client-generated id, so a retried send after a dropped connection updates

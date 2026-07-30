@@ -2,7 +2,46 @@
 
 from rest_framework import serializers
 
-from .models import CoupleMessage
+from .models import CoupleMessage, MessageMedia
+
+
+class MessageMediaSerializer(serializers.ModelSerializer):
+    """A photo or voice note as the client needs it.
+
+    The URLs point at our own proxy endpoints, never at the storage vendor.
+    They have to: the blob is encrypted with a key derived from the master
+    secret, so only Django can turn it back into a photo.
+    """
+
+    url = serializers.SerializerMethodField()
+    thumb_url = serializers.SerializerMethodField()
+    transcript = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MessageMedia
+        fields = [
+            "id",
+            "kind",
+            "mime",
+            "byte_size",
+            "duration_ms",
+            "waveform",
+            "width",
+            "height",
+            "url",
+            "thumb_url",
+            "transcript",
+            "transcript_status",
+        ]
+
+    def get_url(self, obj) -> str:
+        return f"/api/v1/chat/media/{obj.id}"
+
+    def get_thumb_url(self, obj) -> str | None:
+        return f"/api/v1/chat/media/{obj.id}/thumb" if obj.thumb_key else None
+
+    def get_transcript(self, obj) -> str:
+        return obj.transcript
 
 
 def _reactions_payload(message: CoupleMessage) -> list:
@@ -30,13 +69,27 @@ class ReplyPreviewSerializer(serializers.Serializer):
     body = serializers.SerializerMethodField()
     kind = serializers.CharField()
     is_deleted = serializers.BooleanField()
+    thumb_url = serializers.SerializerMethodField()
 
     def get_sender_id(self, obj) -> str | None:
         return str(obj.sender_id) if obj.sender_id else None
 
     def get_body(self, obj) -> str:
         # A quote of a deleted message shows the tombstone, not the old text.
+        # On a photo this is the caption, which is worth quoting; a voice note
+        # has none, and the client renders a label from `kind` instead.
         return "" if obj.is_deleted else obj.body[:180]
+
+    def get_thumb_url(self, obj) -> str | None:
+        """Just enough for the quote to show the photo being replied to.
+
+        Only the thumbnail — a quote stub must never pull the full image, and
+        it must go dark the moment the media is destroyed rather than pointing
+        at bytes that are gone.
+        """
+        if obj.is_deleted or obj.media_id is None or not obj.media.thumb_key:
+            return None
+        return f"/api/v1/chat/media/{obj.media_id}/thumb"
 
 
 #: Delivery state of a message, from the sender's point of view. ``sending``
@@ -75,6 +128,7 @@ class CoupleMessageSerializer(serializers.ModelSerializer):
     reply_to = serializers.SerializerMethodField()
     is_deleted = serializers.BooleanField(read_only=True)
     status = serializers.SerializerMethodField()
+    media = serializers.SerializerMethodField()
 
     class Meta:
         model = CoupleMessage
@@ -85,6 +139,7 @@ class CoupleMessageSerializer(serializers.ModelSerializer):
             "kind",
             "body",
             "sticker",
+            "media",
             "reply_to",
             "reactions",
             "client_id",
@@ -120,10 +175,21 @@ class CoupleMessageSerializer(serializers.ModelSerializer):
             return None
         return ReplyPreviewSerializer(obj.reply_to).data
 
+    def get_media(self, obj) -> dict | None:
+        """Null once the bytes are gone, even though the bubble survives.
+
+        Hard-deleting media nulls this FK but leaves the message, so a photo
+        someone deleted renders as a tombstone rather than a broken image.
+        """
+        if obj.media_id is None or obj.is_deleted:
+            return None
+        return MessageMediaSerializer(obj.media).data
+
 
 class SendMessageSerializer(serializers.Serializer):
     body = serializers.CharField(required=False, allow_blank=True, max_length=8000)
     sticker = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    media = serializers.UUIDField(required=False, allow_null=True)
     kind = serializers.ChoiceField(
         choices=[c[0] for c in CoupleMessage.KIND_CHOICES if c[0] != "system"],
         default=CoupleMessage.KIND_TEXT,
@@ -138,8 +204,32 @@ class SendMessageSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"sticker": "A sticker message needs a sticker."}
                 )
+        elif kind in CoupleMessage.MEDIA_KINDS:
+            # The body stays optional here: on an image it is the caption, and
+            # a photo sent without one is the common case.
+            if not attrs.get("media"):
+                raise serializers.ValidationError(
+                    {"media": "A photo or voice message needs an uploaded file."}
+                )
         elif not (attrs.get("body") or "").strip():
             raise serializers.ValidationError({"body": "Message cannot be empty."})
+        return attrs
+
+
+class UploadMediaSerializer(serializers.Serializer):
+    """Metadata accompanying a multipart upload. The file itself is in FILES."""
+
+    kind = serializers.ChoiceField(choices=[c[0] for c in MessageMedia.KIND_CHOICES])
+    duration_ms = serializers.IntegerField(required=False, min_value=0)
+    # Cosmetic, and clamped in media.normalise_waveform rather than here — a bad
+    # waveform should cost the sender a flat bar, not a failed upload.
+    waveform = serializers.JSONField(required=False)
+
+    def validate(self, attrs):
+        if attrs["kind"] == MessageMedia.KIND_VOICE and not attrs.get("duration_ms"):
+            raise serializers.ValidationError(
+                {"duration_ms": "A voice note needs its duration."}
+            )
         return attrs
 
 

@@ -262,6 +262,13 @@ LIVEKIT_API_KEY = env("LIVEKIT_API_KEY", default=None)
 LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET", default=None)
 LIVEKIT_URL = env("LIVEKIT_URL", default=None)  # wss://<your-project>.livekit.cloud
 
+# Cloudinary holds chat media as encrypted blobs and never sees plaintext — see
+# docs/chat-media.md. Unset falls back to in-memory storage, which keeps tests
+# and a fresh checkout working but does not survive a restart.
+CLOUDINARY_CLOUD_NAME = env("CLOUDINARY_CLOUD_NAME", default=None)
+CLOUDINARY_API_KEY = env("CLOUDINARY_API_KEY", default=None)
+CLOUDINARY_API_SECRET = env("CLOUDINARY_API_SECRET", default=None)
+
 # Structured Logging
 LOGGING = {
     "version": 1,

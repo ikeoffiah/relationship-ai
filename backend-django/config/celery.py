@@ -29,6 +29,10 @@ app.conf.beat_schedule = {
         "task": "engagement.tasks.deliver_due_commitments",
         "schedule": crontab(minute="*/5"),  # every 5 minutes
     },
+    "sweep-orphan-chat-media": {
+        "task": "chat.sweep_orphan_media",
+        "schedule": crontab(hour=3, minute=30),  # nightly, off-peak
+    },
 }
 
 
