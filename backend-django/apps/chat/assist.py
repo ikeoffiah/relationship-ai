@@ -125,19 +125,42 @@ def _rolling_summary(relationship) -> str:
     return row.summary if row and row.summary else ""
 
 
+def message_text(message) -> str:
+    """What this message contributes to Bliss's reading of the thread.
+
+    A voice note's text lives on its media row, not in ``body``. Without this
+    fallback a spoken message is not just unreadable here — it is invisible,
+    because the loop below skips anything with an empty body. Voice is where
+    the loaded messages go, so that blind spot lands exactly where it hurts.
+
+    An image contributes its caption if it has one, and otherwise nothing:
+    there is no point telling a text model that a photo happened.
+    """
+    body = message.body
+    if body:
+        return body
+    if message.kind == CoupleMessage.KIND_VOICE and message.media_id:
+        return message.media.transcript
+    return ""
+
+
 def _thread_context(relationship, limit: int = CONTEXT_MESSAGES) -> str:
     """The tail of the conversation, oldest first, labelled by speaker."""
     recent = list(
         CoupleMessage.objects.filter(
-            relationship=relationship, deleted_at__isnull=True, kind=CoupleMessage.KIND_TEXT
-        ).order_by("-created_at")[:limit]
+            relationship=relationship,
+            deleted_at__isnull=True,
+            kind__in=(CoupleMessage.KIND_TEXT, CoupleMessage.KIND_VOICE, CoupleMessage.KIND_IMAGE),
+        )
+        .select_related("media")
+        .order_by("-created_at")[:limit]
     )
     recent.reverse()
     lines = []
     for message in recent:
-        body = message.body
-        if body:
-            lines.append(f"{message.sender_id}: {body}")
+        text = message_text(message)
+        if text:
+            lines.append(f"{message.sender_id}: {text}")
     verbatim = "\n".join(lines)
 
     # Summary first, then the verbatim tail. Longer-arc awareness at a fixed

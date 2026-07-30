@@ -54,7 +54,14 @@ class FCMTokenView(generics.GenericAPIView):
         return Response({"detail": "FCM token saved."}, status=status.HTTP_200_OK)
 
 class AccountDeletionView(generics.DestroyAPIView):
-    """Soft-delete the authenticated user's account by deactivating it."""
+    """Deactivate the authenticated user, and destroy their media outright.
+
+    Deactivation is a defensible soft delete for rows in our own database —
+    unreachable, and finishable later. It is not defensible for photographs and
+    voice notes held by a storage vendor, where "unreachable" means nothing and
+    the bytes stay on someone else's disk. So the media is destroyed here,
+    synchronously, at the moment the person asks.
+    """
     permission_classes = [permissions.IsAuthenticated]
     queryset = User.objects.all()
 
@@ -73,6 +80,22 @@ class AccountDeletionView(generics.DestroyAPIView):
                 {"detail": "Password confirmation is incorrect."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        from apps.chat.erasure import erase_media_for_user
+
+        # Before deactivating, not after: a failure here must not leave an
+        # account that is already unusable with its photographs still live.
+        _destroyed, failed = erase_media_for_user(user)
+
         user.is_active = False
         user.save(update_fields=["is_active"])
+
+        if failed:
+            # Honest rather than tidy. The account is gone and the sweep will
+            # finish the rest, but claiming a clean erasure we did not achieve
+            # is the one answer that would be wrong.
+            return Response(
+                {"detail": "Account deactivated. Some media could not be removed yet."},
+                status=status.HTTP_200_OK,
+            )
         return Response({"detail": "Account deactivated."}, status=status.HTTP_204_NO_CONTENT)

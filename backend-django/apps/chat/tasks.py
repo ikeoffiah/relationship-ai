@@ -103,14 +103,23 @@ def refresh_thread_summary(relationship_id) -> str | None:
         CoupleMessage.objects.filter(
             relationship=relationship,
             deleted_at__isnull=True,
-            kind=CoupleMessage.KIND_TEXT,
-        ).order_by("-created_at")[:SUMMARISE_WINDOW]
+            kind__in=(
+                CoupleMessage.KIND_TEXT,
+                CoupleMessage.KIND_VOICE,
+                CoupleMessage.KIND_IMAGE,
+            ),
+        )
+        .select_related("media")
+        .order_by("-created_at")[:SUMMARISE_WINDOW]
     )
     if not messages:
         return None
     messages.reverse()
 
-    transcript = "\n".join(f"{m.sender_id}: {m.body}" for m in messages if m.body)
+    # Voice notes contribute their transcript, so a couple who mostly talk
+    # rather than type do not end up with a summary of the little they typed.
+    lines = [(m.sender_id, assist.message_text(m)) for m in messages]
+    transcript = "\n".join(f"{sender}: {text}" for sender, text in lines if text)
     if not transcript:
         return None
 

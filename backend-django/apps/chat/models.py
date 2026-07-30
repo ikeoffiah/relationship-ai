@@ -138,6 +138,8 @@ class MessageMedia(models.Model):
         for key in self.storage_keys():
             storage.delete(key)
 
+        had_transcript = bool(self.transcript_ciphertext)
+
         self.storage_key = ""
         self.thumb_key = ""
         self.transcript_ciphertext = ""
@@ -151,6 +153,25 @@ class MessageMedia(models.Model):
                 "transcript_status",
                 "deleted_at",
             ]
+        )
+
+        if had_transcript:
+            self._invalidate_summary()
+
+    def _invalidate_summary(self) -> None:
+        """Drop the rolling summary that may have absorbed this transcript.
+
+        ThreadSummary is written from the thread's text, so once a voice note
+        has been summarised its words live in a second place. Deleting the
+        audio and the transcript while leaving that paragraph intact would make
+        the deletion a lie in exactly the way a photo left in a bucket is.
+
+        The summary is cleared rather than surgically edited — there is no way
+        to know which clause came from which message — and the covered count is
+        reset so the next background pass rebuilds it from what remains.
+        """
+        ThreadSummary.objects.filter(relationship_id=self.relationship_id).update(
+            summary="", covered_message_count=0
         )
 
     def __str__(self) -> str:

@@ -69,6 +69,11 @@ urlpatterns = [
         name="chat-media-blob",
     ),
     path(
+        "media/<uuid:media_id>/meta",
+        views.media_meta,
+        name="chat-media-meta",
+    ),
+    path(
         "media/<uuid:media_id>/thumb",
         views.media_thumb,
         name="chat-media-thumb",

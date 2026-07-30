@@ -19,10 +19,12 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.audit.constants import AuditEventType
+from apps.audit.logger import AuditLogger
 from apps.relationships.models import Relationship
 from utils.encryption import DecryptionError, decrypt_bytes, encrypt_bytes
 
-from . import assist, media as media_processing, realtime, storage
+from . import assist, media as media_processing, moderation, realtime, storage, transcription
 from .models import (
     AssistNudge,
     CoupleMessage,
@@ -351,8 +353,49 @@ def upload_media(request, relationship_id):
         waveform=waveform,
         width=width,
         height=height,
+        transcript_status=(
+            MessageMedia.TRANSCRIPT_PENDING
+            if data["kind"] == MessageMedia.KIND_VOICE
+            and transcription.should_transcribe(relationship)
+            else MessageMedia.TRANSCRIPT_SKIPPED
+        ),
+    )
+
+    # Both queued rather than run inline: the upload is on the request path and
+    # a model call is not, and neither of these may be why a photo fails to
+    # send. `_queue` swallows a broker that is down for the same reason.
+    if record.transcript_status == MessageMedia.TRANSCRIPT_PENDING:
+        _queue(transcription.transcribe_voice_note, record.id)
+    if record.kind == MessageMedia.KIND_IMAGE:
+        _queue(moderation.moderate_image, record.id)
+
+    AuditLogger.get_instance().log(
+        AuditEventType.MEDIA_UPLOADED,
+        user_id=request.user.id,
+        metadata={"media_id": str(record.id), "kind": record.kind},
     )
     return Response(MessageMediaSerializer(record).data, status=status.HTTP_201_CREATED)
+
+
+def _queue(task, *args) -> None:
+    """Fire a background task without letting the broker break the request."""
+    try:
+        task.delay(*args)
+    except Exception:
+        log.exception("chat_media_task_not_queued task=%s args=%s", task.name, args)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def media_meta(request, media_id):
+    """The media row as JSON, without its bytes.
+
+    Exists because transcription and moderation finish after the upload
+    response has gone. The client polls this to reveal a transcript, and to run
+    the pre-send caution check on a voice note before it is sent.
+    """
+    record = _media_or_404(request.user, media_id)
+    return Response(MessageMediaSerializer(record).data)
 
 
 def _media_or_404(user, media_id) -> MessageMedia:
