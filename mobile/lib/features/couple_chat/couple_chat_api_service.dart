@@ -107,6 +107,13 @@ class CoupleChatApiService extends BaseApiService {
       return data['unlocked'] as bool? ?? false;
     } catch (_) {
       // Fails closed. Not knowing must not be the same as being unlocked.
+      //
+      // This catch used to be doing two jobs: swallowing real failures, and
+      // absorbing the 409 the endpoint returned for anyone without a partner.
+      // The second was the common case, so every solo user opening the thread
+      // logged a DioException on a path where nothing had gone wrong. The
+      // server answers that question properly now, and this is back to meaning
+      // only what it says.
       return false;
     }
   }

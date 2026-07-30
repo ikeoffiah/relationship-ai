@@ -218,8 +218,28 @@ def spicy_consent(request):
     POST {enabled: bool} -> records the caller's opt-in (requires age-verified).
     """
     relationship = _active_relationship(request.user)
+
+    # A read has an answer even with nobody to be mutual with, and the answer is
+    # "not unlocked". This used to 409 for a solo user, which made a perfectly
+    # ordinary state — no partner yet — arrive at the client as an exception:
+    # a stack trace in the console every time someone solo opened games or the
+    # chat, and callers forced to infer "locked" from a failure. Worse, it made
+    # a real network problem indistinguishable from being single.
+    #
+    # POST still needs a relationship. You cannot record half of a mutual
+    # consent when there is no other half.
     if relationship is None:
-        return _needs_relationship()
+        if request.method == "POST":
+            return _needs_relationship()
+        return Response(
+            {
+                "you": False,
+                "partner": False,
+                "both_age_verified": False,
+                "unlocked": False,
+            }
+        )
+
     partner = _partner_of(relationship, request.user)
 
     if request.method == "POST":

@@ -17,14 +17,31 @@ class _StubApi implements BlissApiService {
   DateTime? lastFrom;
   DateTime? lastTo;
 
+  bool hasPartner = true;
+  ({String title, DateTime when, bool ask})? lastCreated;
+
   @override
-  Future<Map<DateTime, List<BlissItem>>> calendar({
+  Future<({Map<DateTime, List<BlissItem>> days, bool hasPartner})> calendar({
     required DateTime from,
     required DateTime to,
   }) async {
     lastFrom = from;
     lastTo = to;
-    return days;
+    return (days: days, hasPartner: hasPartner);
+  }
+
+  @override
+  Future<BlissItem> create(
+    BlissDraft draft, {
+    String source = 'bliss',
+    bool invitePartner = false,
+  }) async {
+    lastCreated = (
+      title: draft.title,
+      when: draft.dueAt ?? DateTime(0),
+      ask: invitePartner,
+    );
+    return BlissItem(id: 'new', kind: draft.kind, title: draft.title, dueAt: draft.dueAt);
   }
 
   @override
@@ -171,6 +188,8 @@ void main() {
     });
   });
 
+  _addEntryTests();
+
   group('calendar screen', () {
     Future<CalendarViewModel> pump(WidgetTester tester, _StubApi api) async {
       final vm = CalendarViewModel(api: api);
@@ -234,6 +253,100 @@ void main() {
       await tester.pump();
 
       expect(vm.month.month, before.month == 12 ? 1 : before.month + 1);
+    });
+  });
+}
+
+/// Adding an entry.
+///
+/// The calendar shipped without this — a display for things created elsewhere,
+/// with no way to add a date from the screen whose whole subject is dates.
+void _addEntryTests() {
+  group('adding an entry', () {
+    testWidgets('the add button opens a sheet', (tester) async {
+      final api = _StubApi();
+      final vm = CalendarViewModel(api: api);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<CalendarViewModel>.value(
+          value: vm,
+          child: const MaterialApp(home: CalendarScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('calendar_add')));
+      await tester.pumpAndSettle();
+      expect(find.text('Add to your calendar'), findsOneWidget);
+    });
+
+    testWidgets('"ask them" is hidden when there is nobody to ask', (
+      tester,
+    ) async {
+      // A switch that quietly does nothing is worse than no switch.
+      final api = _StubApi()..hasPartner = false;
+      final vm = CalendarViewModel(api: api);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<CalendarViewModel>.value(
+          value: vm,
+          child: const MaterialApp(home: CalendarScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('calendar_add')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('add_entry_ask')), findsNothing);
+    });
+
+    testWidgets('"ask them" is offered when there is', (tester) async {
+      final api = _StubApi()..hasPartner = true;
+      final vm = CalendarViewModel(api: api);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<CalendarViewModel>.value(
+          value: vm,
+          child: const MaterialApp(home: CalendarScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('calendar_add')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('add_entry_ask')), findsOneWidget);
+    });
+
+    test('an empty title is not saved', () async {
+      final api = _StubApi();
+      final vm = CalendarViewModel(api: api);
+      expect(await vm.add(title: '   ', when: DateTime(2026, 9, 1), askPartner: false), isFalse);
+      expect(api.lastCreated, isNull);
+    });
+
+    test('the invite flag reaches the server', () async {
+      final api = _StubApi();
+      final vm = CalendarViewModel(api: api);
+      await vm.add(
+        title: 'dinner out',
+        when: DateTime(2026, 9, 4, 19, 30),
+        askPartner: true,
+      );
+      expect(api.lastCreated?.title, 'dinner out');
+      expect(api.lastCreated?.ask, isTrue);
+    });
+
+    test('saving selects the day it was filed on', () async {
+      // Otherwise you add something for Friday and the agenda keeps showing
+      // whatever day you happened to be looking at.
+      final api = _StubApi();
+      final vm = CalendarViewModel(api: api);
+      await vm.add(
+        title: 'dinner out',
+        when: DateTime(2026, 9, 4, 19, 30),
+        askPartner: false,
+      );
+      expect(vm.selectedDay, DateTime(2026, 9, 4));
     });
   });
 }

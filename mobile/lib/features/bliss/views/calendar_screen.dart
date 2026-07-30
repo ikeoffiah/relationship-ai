@@ -48,6 +48,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             actions: const [SupportAction()],
           ),
+          floatingActionButton: FloatingActionButton.extended(
+            key: const Key('calendar_add'),
+            backgroundColor: AppColors.warmCoral,
+            foregroundColor: Colors.white,
+            onPressed: () => _AddEntrySheet.open(context, vm),
+            icon: const Icon(Icons.add),
+            label: const Text('Add'),
+          ),
           body: SafeArea(
             top: false,
             child: ListView(
@@ -418,5 +426,204 @@ class _InviteCard extends StatelessWidget {
     final suffix = l.hour < 12 ? 'am' : 'pm';
     return '${days[l.weekday - 1]} ${l.day} ${months[l.month - 1]}, '
         '$hour:${l.minute.toString().padLeft(2, '0')}$suffix';
+  }
+}
+
+
+/// Put something on the calendar.
+///
+/// The calendar shipped without this, which made it a display for things
+/// created elsewhere — a tag in the couple thread, or the plan screen — rather
+/// than somewhere you plan. Anyone who opened it to add a date found no way to.
+class _AddEntrySheet extends StatefulWidget {
+  final CalendarViewModel vm;
+  const _AddEntrySheet({required this.vm});
+
+  static Future<void> open(BuildContext context, CalendarViewModel vm) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: _AddEntrySheet(vm: vm),
+      ),
+    );
+  }
+
+  @override
+  State<_AddEntrySheet> createState() => _AddEntrySheetState();
+}
+
+class _AddEntrySheetState extends State<_AddEntrySheet> {
+  final _title = TextEditingController();
+  late DateTime _when = _defaultWhen();
+  bool _ask = false;
+  bool _saving = false;
+
+  /// The selected day at a plausible hour, rather than "now".
+  ///
+  /// Someone tapping Add on the 14th means the 14th, and defaulting to this
+  /// instant would silently file it on today. 7pm because these are mostly
+  /// evening plans, and a time already filled in is one fewer picker to open.
+  DateTime _defaultWhen() {
+    final day = widget.vm.selectedDay ?? DateTime.now();
+    return DateTime(day.year, day.month, day.day, 19, 0);
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickWhen() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _when,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 730)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_when),
+    );
+    if (time == null || !mounted) return;
+    setState(() {
+      _when = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  Future<void> _save() async {
+    if (_title.text.trim().isEmpty || _saving) return;
+    setState(() => _saving = true);
+    final ok = await widget.vm.add(
+      title: _title.text,
+      when: _when,
+      askPartner: _ask,
+    );
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Material rather than a DecoratedBox: SwitchListTile paints its background
+    // and ink on the nearest Material ancestor, and a coloured box in between
+    // hides them — which Flutter asserts about loudly, so the sheet threw on
+    // open in debug rather than merely looking wrong.
+    return Material(
+      color: AppColors.creamWhite,
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppRadii.lg),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xxl),
+        child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Add to your calendar',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            key: const Key('add_entry_title'),
+            controller: _title,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: 'Dinner out, call the venue…',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+            ),
+            onSubmitted: (_) => _save(),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          InkWell(
+            key: const Key('add_entry_when'),
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            onTap: _pickWhen,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.schedule_rounded,
+                    size: 18,
+                    color: AppColors.calmTeal,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    _AgendaRow._time(_when),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      _dayLabel(_when),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const Icon(Icons.edit_calendar_outlined, size: 18),
+                ],
+              ),
+            ),
+          ),
+          // Only offered when there is somebody to ask. A switch that quietly
+          // does nothing is worse than no switch, and the server refuses to set
+          // an invite when there is no partner anyway.
+          if (widget.vm.hasPartner)
+            SwitchListTile(
+              key: const Key('add_entry_ask'),
+              contentPadding: EdgeInsets.zero,
+              value: _ask,
+              activeThumbColor: AppColors.warmCoral,
+              onChanged: (v) => setState(() => _ask = v),
+              title: const Text('Ask them to come'),
+              subtitle: const Text(
+                "They'll get to say yes or no. Until they do, only you are "
+                'reminded.',
+              ),
+            ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              key: const Key('add_entry_save'),
+              onPressed: _saving ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warmCoral,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                ),
+              ),
+                child: Text(_saving ? 'Saving…' : 'Add it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _dayLabel(DateTime at) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${days[at.weekday - 1]} ${at.day} ${months[at.month - 1]}';
   }
 }

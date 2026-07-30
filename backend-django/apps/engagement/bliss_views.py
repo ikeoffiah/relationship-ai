@@ -307,7 +307,19 @@ def calendar(request):
         day = str(row["due_at"])[:10]
         days.setdefault(day, []).append(row)
 
-    return Response({"items": items, "days": days})
+    return Response(
+        {
+            "items": items,
+            "days": days,
+            # So the client knows whether to offer "ask my partner" at all.
+            # A toggle that quietly does nothing is worse than its absence, and
+            # the server already ignores an invite request when there is nobody
+            # to invite.
+            "has_partner": _partner_of(relationship, request.user) is not None
+            if relationship
+            else False,
+        }
+    )
 
 
 def _parse_when(raw):

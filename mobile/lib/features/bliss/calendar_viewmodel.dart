@@ -20,7 +20,12 @@ class CalendarViewModel extends ChangeNotifier {
   DateTime _month = _monthOf(DateTime.now());
   DateTime? _selected;
   bool _loading = false;
+  bool _hasPartner = false;
   String? _error;
+
+  /// Whether there is anybody to tag. Drives whether the add sheet offers it at
+  /// all — a toggle that quietly does nothing is worse than its absence.
+  bool get hasPartner => _hasPartner;
 
   DateTime get month => _month;
   DateTime? get selectedDay => _selected;
@@ -64,10 +69,11 @@ class CalendarViewModel extends ChangeNotifier {
 
     try {
       final fetched = await _api.calendar(from: from, to: to);
+      _hasPartner = fetched.hasPartner;
       _byDay
         ..clear()
         ..addAll({
-          for (final entry in fetched.entries) dayOf(entry.key): entry.value,
+          for (final entry in fetched.days.entries) dayOf(entry.key): entry.value,
         });
       _selected ??= dayOf(DateTime.now());
     } catch (e) {
@@ -84,6 +90,32 @@ class CalendarViewModel extends ChangeNotifier {
 
   Future<void> stepMonth(int delta) =>
       load(month: DateTime(_month.year, _month.month + delta));
+
+  /// Add something to the calendar.
+  ///
+  /// Reloads rather than inserting locally: the server decides the invite state
+  /// (and refuses to set one when there is no partner), so guessing it here
+  /// would mean the card could contradict the row it represents.
+  Future<bool> add({
+    required String title,
+    required DateTime when,
+    required bool askPartner,
+  }) async {
+    if (title.trim().isEmpty) return false;
+    try {
+      await _api.create(
+        BlissDraft(kind: 'event', title: title.trim(), dueAt: when, hasTime: true),
+        invitePartner: askPartner,
+      );
+      await load();
+      select(when);
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
 
   /// Answer an invitation, updating in place so the card resolves immediately
   /// rather than after a refetch.
