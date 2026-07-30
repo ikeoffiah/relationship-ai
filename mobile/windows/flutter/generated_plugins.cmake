@@ -12,6 +12,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   livekit_client
   local_auth_windows
   permission_handler_windows
+  record_windows
   sentry_flutter
   share_plus
   url_launcher_windows

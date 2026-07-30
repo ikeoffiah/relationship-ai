@@ -298,14 +298,141 @@ class CoupleChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Send a photo or voice note.
+  ///
+  /// Two network calls behind one optimistic bubble: upload, then send. The
+  /// bubble is on screen before either starts, rendering from [localPath],
+  /// with [CoupleMessage.uploadProgress] driving the ring over it.
+  ///
+  /// [uploadedMediaId] short-circuits the upload on a retry — a send that
+  /// failed after the bytes were already up must not re-upload them.
+  Future<void> sendMedia({
+    required String localPath,
+    required String kind,
+    String caption = '',
+    int? durationMs,
+    List<int> waveform = const [],
+    String? uploadedMediaId,
+  }) async {
+    final clientId = _uuid.v4();
+    final quoted = _replyingTo;
+    final optimistic = CoupleMessage.pendingMedia(
+      clientId: clientId,
+      senderId: userId,
+      kind: kind,
+      localPath: localPath,
+      body: caption,
+      durationMs: durationMs,
+      waveform: waveform,
+      replyTo: quoted == null
+          ? null
+          : ReplyPreview(
+              id: quoted.id,
+              senderId: quoted.senderId,
+              body: quoted.body,
+              isDeleted: quoted.isDeleted,
+              kind: quoted.kind,
+            ),
+    );
+    _messages.add(optimistic);
+    _replyingTo = null;
+    notifyListeners();
+
+    try {
+      var mediaId = uploadedMediaId;
+      if (mediaId == null) {
+        final uploaded = await _api.uploadMedia(
+          relationshipId,
+          path: localPath,
+          kind: kind,
+          durationMs: durationMs,
+          waveform: waveform.isEmpty ? null : waveform,
+          onProgress: (progress) {
+            _updateByClientId(
+              clientId,
+              (m) => m.copyWith(uploadProgress: progress),
+            );
+            notifyListeners();
+          },
+        );
+        mediaId = uploaded.id;
+        _uploadedMediaIds[clientId] = mediaId;
+      }
+
+      final saved = await _api.send(
+        relationshipId,
+        clientId: clientId,
+        mediaId: mediaId,
+        mediaKind: kind,
+        body: caption.isEmpty ? null : caption,
+        replyTo: quoted?.id,
+      );
+      _uploadedMediaIds.remove(clientId);
+      _replaceByClientId(clientId, saved);
+    } catch (_) {
+      _replaceByClientId(
+        clientId,
+        optimistic.copyWith(isPending: false, failed: true),
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Media already uploaded for a bubble whose *send* failed, keyed by client
+  /// id. Retrying reuses it rather than paying for the upload twice.
+  final Map<String, String> _uploadedMediaIds = {};
+
   /// Resend a bubble that previously failed.
   Future<void> retry(CoupleMessage failed) async {
+    final alreadyUploaded = _uploadedMediaIds.remove(failed.clientId);
     _messages.removeWhere((m) => m.clientId == failed.clientId);
     notifyListeners();
-    if (failed.kind == 'sticker') {
+
+    if (failed.isMedia) {
+      final localPath = failed.media?.localPath;
+      if (localPath == null) return;
+      await sendMedia(
+        localPath: localPath,
+        kind: failed.kind,
+        caption: failed.body,
+        durationMs: failed.media?.durationMs,
+        waveform: failed.media?.waveform ?? const [],
+        uploadedMediaId: alreadyUploaded,
+      );
+    } else if (failed.kind == 'sticker') {
       await sendSticker(failed.sticker);
     } else {
       await send(failed.body);
+    }
+  }
+
+  /// Fetch a voice note's transcript once the server has produced one.
+  ///
+  /// Transcription lands after the message does, so the bubble asks for it when
+  /// the reader taps to expand. Silent on failure — a note without a transcript
+  /// is a note, not an error.
+  Future<void> loadTranscript(CoupleMessage message) async {
+    final media = message.media;
+    if (media == null || !media.isVoice || media.hasTranscript) return;
+    try {
+      final fresh = await _api.mediaMeta(media.id);
+      final index = _messages.indexWhere((m) => m.id == message.id);
+      if (index != -1) {
+        _messages[index] = _messages[index].copyWith(media: fresh);
+        notifyListeners();
+      }
+    } catch (_) {
+      // Nothing to say. The note still plays.
+    }
+  }
+
+  void _updateByClientId(
+    String clientId,
+    CoupleMessage Function(CoupleMessage) update,
+  ) {
+    final index = _messages.indexWhere((m) => m.clientId == clientId);
+    if (index != -1) {
+      _messages[index] = update(_messages[index]);
     }
   }
 

@@ -56,6 +56,14 @@ dependencies:
   http: ^1.6.0
   firebase_core: ^4.12.1
   firebase_messaging: ^16.4.3
+
+  # Chat media. Voice notes are recorded to AAC on the device and played back
+  # locally after the proxy decrypts them; photos are downscaled and stripped
+  # before upload so the server never receives full-resolution originals.
+  record: ^5.1.2
+  just_audio: ^0.9.42
+  flutter_image_compress: ^2.3.0
+  path_provider: ^2.1.4
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -4,6 +4,8 @@
 /// them talk in, so a message belongs to a relationship rather than a session.
 library;
 
+import 'package:mobile/features/couple_chat/models/message_media.dart';
+
 /// Reactions grouped by emoji, matching how the API returns them — the UI
 /// renders "😍 2" chips, so grouping server-side keeps this from being a
 /// counting loop in the widget tree.
@@ -37,11 +39,21 @@ class ReplyPreview {
   final String body;
   final bool isDeleted;
 
+  /// 'text', 'sticker', 'image' or 'voice' — the quote renders a label for
+  /// media rather than an empty line.
+  final String kind;
+
+  /// Thumbnail of the quoted photo, if it still exists. Goes null the moment
+  /// the media is destroyed, so a quote never points at bytes that are gone.
+  final String? thumbUrl;
+
   const ReplyPreview({
     required this.id,
     required this.senderId,
     required this.body,
     required this.isDeleted,
+    this.kind = 'text',
+    this.thumbUrl,
   });
 
   factory ReplyPreview.fromJson(Map<String, dynamic> json) {
@@ -50,8 +62,20 @@ class ReplyPreview {
       senderId: json['sender_id'] as String?,
       body: json['body'] as String? ?? '',
       isDeleted: json['is_deleted'] as bool? ?? false,
+      kind: json['kind'] as String? ?? 'text',
+      thumbUrl: json['thumb_url'] as String?,
     );
   }
+
+  /// What to show when there is no text — a caption-less photo or any voice
+  /// note. Deliberately the same vocabulary people already read in other
+  /// messengers.
+  String get label => switch (kind) {
+    'image' => '📷 Photo',
+    'voice' => '🎤 Voice message',
+    'sticker' => 'Sticker',
+    _ => '',
+  };
 }
 
 /// How far a message you sent has got.
@@ -92,11 +116,20 @@ class CoupleMessage {
   final String kind;
   final String body;
   final String sticker;
+
+  /// The photo or voice note, when [kind] is 'image' or 'voice'. Null once the
+  /// bytes have been destroyed, even though the bubble survives as a tombstone.
+  final MessageMedia? media;
+
   final ReplyPreview? replyTo;
   final List<MessageReactionGroup> reactions;
   final String clientId;
   final bool isDeleted;
   final DateTime createdAt;
+
+  /// Upload progress, 0..1, while an optimistic media bubble is in flight.
+  /// Null for anything that is not currently uploading.
+  final double? uploadProgress;
 
   /// True while an optimistically-rendered message is still in flight. The
   /// bubble shows immediately and marks itself pending, so the thread never
@@ -125,9 +158,11 @@ class CoupleMessage {
     required this.clientId,
     required this.isDeleted,
     required this.createdAt,
+    this.media,
     this.isPending = false,
     this.failed = false,
     this.serverStatus,
+    this.uploadProgress,
   });
 
   factory CoupleMessage.fromJson(Map<String, dynamic> json) {
@@ -137,6 +172,9 @@ class CoupleMessage {
       kind: json['kind'] as String? ?? 'text',
       body: json['body'] as String? ?? '',
       sticker: json['sticker'] as String? ?? '',
+      media: json['media'] == null
+          ? null
+          : MessageMedia.fromJson(json['media'] as Map<String, dynamic>),
       replyTo: json['reply_to'] == null
           ? null
           : ReplyPreview.fromJson(json['reply_to'] as Map<String, dynamic>),
@@ -195,10 +233,50 @@ class CoupleMessage {
     );
   }
 
+  /// An optimistic photo or voice bubble, rendered straight from the file on
+  /// this device.
+  ///
+  /// This is the whole reason upload and send are two steps: the bubble is on
+  /// screen the instant the photo is picked or the finger lifts off the mic,
+  /// with a progress ring over it, rather than after a round trip.
+  factory CoupleMessage.pendingMedia({
+    required String clientId,
+    required String senderId,
+    required String kind,
+    required String localPath,
+    String body = '',
+    int? durationMs,
+    List<int> waveform = const [],
+    ReplyPreview? replyTo,
+  }) {
+    return CoupleMessage(
+      id: clientId,
+      senderId: senderId,
+      kind: kind,
+      body: body,
+      sticker: '',
+      media: MessageMedia.local(
+        kind: kind,
+        localPath: localPath,
+        durationMs: durationMs,
+        waveform: waveform,
+      ),
+      replyTo: replyTo,
+      reactions: const [],
+      clientId: clientId,
+      isDeleted: false,
+      createdAt: DateTime.now(),
+      isPending: true,
+      uploadProgress: 0,
+    );
+  }
+
   CoupleMessage copyWith({
     bool? isPending,
     bool? failed,
     MessageStatus? serverStatus,
+    MessageMedia? media,
+    double? uploadProgress,
   }) {
     return CoupleMessage(
       id: id,
@@ -206,6 +284,7 @@ class CoupleMessage {
       kind: kind,
       body: body,
       sticker: sticker,
+      media: media ?? this.media,
       replyTo: replyTo,
       reactions: reactions,
       clientId: clientId,
@@ -214,10 +293,17 @@ class CoupleMessage {
       isPending: isPending ?? this.isPending,
       failed: failed ?? this.failed,
       serverStatus: serverStatus ?? this.serverStatus,
+      uploadProgress: uploadProgress ?? this.uploadProgress,
     );
   }
 
   bool isMine(String userId) => senderId == userId;
+
+  bool get isMedia => kind == 'image' || kind == 'voice';
+
+  /// True for a media bubble whose bytes were destroyed — the row survives so
+  /// replies still render, but there is nothing left to show.
+  bool get isMediaTombstone => isMedia && media == null;
 }
 
 /// Bliss's verdict on a draft, returned as the user hits send.

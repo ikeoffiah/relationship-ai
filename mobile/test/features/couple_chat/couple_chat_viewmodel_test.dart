@@ -32,13 +32,15 @@ class _FakeApi implements CoupleChatApiService {
     String? body,
     String? sticker,
     String? replyTo,
+    String? mediaId,
+    String? mediaKind,
   }) async {
     sendCalls++;
     if (sendThrows) throw Exception('offline');
     return CoupleMessage(
       id: 'server-$clientId',
       senderId: 'me',
-      kind: 'text',
+      kind: mediaKind ?? 'text',
       body: body ?? '',
       sticker: '',
       // The real API echoes the quoted stub back; the double must too, or the

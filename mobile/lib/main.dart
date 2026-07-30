@@ -57,6 +57,7 @@ import 'package:mobile/features/commitments/views/commitments_screen.dart';
 import 'package:mobile/features/focus/focus_viewmodel.dart';
 import 'package:mobile/features/focus/views/focus_screen.dart';
 import 'package:mobile/core/api_services/notification_api_service.dart';
+import 'package:mobile/features/couple_chat/media_cache.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -119,7 +120,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final _navigatorKey = GlobalKey<NavigatorState>();
   late AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
@@ -127,13 +128,26 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initDeepLinks();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _linkSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Chat media is decrypted by the server and cached in the clear on this
+    // device. Leaving the foreground is the moment that stops being covered by
+    // the app being open, so the plaintext goes with it — anything still
+    // wanted is one fetch away.
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      MediaCache.instance.clear();
+    }
   }
 
   Future<void> _initDeepLinks() async {

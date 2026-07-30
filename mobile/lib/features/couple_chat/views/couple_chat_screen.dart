@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mobile/core/theme/app_colors.dart';
@@ -9,7 +10,9 @@ import 'package:mobile/features/bliss/bliss_viewmodel.dart';
 import 'package:mobile/features/bliss/widgets/bliss_confirm_sheet.dart';
 import 'package:mobile/features/couple_chat/models/couple_message.dart';
 import 'package:mobile/features/couple_chat/models/sticker_catalogue.dart';
+import 'package:mobile/features/couple_chat/views/media_bubbles.dart';
 import 'package:mobile/features/couple_chat/views/sticker_picker_sheet.dart';
+import 'package:mobile/features/couple_chat/views/voice_recorder.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
 
 /// The couple's conversation.
@@ -36,12 +39,21 @@ class CoupleChatScreen extends StatefulWidget {
 class _CoupleChatScreenState extends State<CoupleChatScreen> {
   final _composer = TextEditingController();
   final _scroll = ScrollController();
+  final _recorder = GlobalKey<VoiceRecorderBarState>();
+  final _picker = ImagePicker();
   bool _sending = false;
+  bool _recording = false;
+
+  /// Drives the mic⇄send swap. Held in state rather than read from the
+  /// controller at build time so the swap animates on the first character.
+  bool _hasText = false;
+
   CoupleChatSocket? _socket;
 
   @override
   void initState() {
     super.initState();
+    _composer.addListener(_onComposerChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vm = context.read<CoupleChatViewModel>();
       vm.load().then((_) {
@@ -106,9 +118,93 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
   @override
   void dispose() {
     _socket?.dispose();
+    _composer.removeListener(_onComposerChanged);
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _onComposerChanged() {
+    final hasText = _composer.text.trim().isNotEmpty;
+    if (hasText != _hasText) setState(() => _hasText = hasText);
+  }
+
+  // ── Media ─────────────────────────────────────────────────────────────────
+
+  /// Camera or library. Two options, deliberately — a file browser in a
+  /// couple's thread is a way to send the wrong thing by accident.
+  Future<void> _showAttachSheet() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.creamWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.lg)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const Key('attach_camera'),
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              key: const Key('attach_library'),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Photo library'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    await _pickAndSendPhoto(source);
+  }
+
+  Future<void> _pickAndSendPhoto(ImageSource source) async {
+    final vm = context.read<CoupleChatViewModel>();
+    try {
+      // Downscaled on the device before it ever leaves: the server re-encodes
+      // anyway, and uploading a 12MP original over a phone connection is a
+      // slow progress ring for no gain. The server still strips metadata —
+      // this is a bandwidth measure, not the privacy one.
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 88,
+      );
+      if (picked == null || !mounted) return;
+
+      final caption = _composer.text.trim();
+      _composer.clear();
+      await vm.sendMedia(
+        localPath: picked.path,
+        kind: 'image',
+        caption: caption,
+      );
+      _jumpToLatest();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open that photo.')),
+      );
+    }
+  }
+
+  Future<void> _sendRecording(VoiceRecording recording) async {
+    final vm = context.read<CoupleChatViewModel>();
+    await vm.sendMedia(
+      localPath: recording.path,
+      kind: 'voice',
+      durationMs: recording.durationMs,
+      waveform: recording.waveform,
+    );
+    _jumpToLatest();
   }
 
   void _jumpToLatest() {
@@ -449,6 +545,7 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
                             showStatusLabel: i == _lastOwnIndex(vm, widget.userId),
                             onLongPress: () => _showReactions(message),
                             onRetry: () => vm.retry(message),
+                            onRequestTranscript: () => vm.loadTranscript(message),
                           );
                         },
                       ),
@@ -467,8 +564,21 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
               _Composer(
                 controller: _composer,
                 sending: _sending,
+                hasText: _hasText,
                 onSend: _handleSend,
                 onStickers: () => _showStickers(vm),
+                onAttach: _showAttachSheet,
+                onStartRecording: () => _recorder.currentState?.start(),
+                onRecordDrag: (offset) => _recorder.currentState?.onDrag(offset),
+                onRecordRelease: () => _recorder.currentState?.onRelease(),
+                recording: _recording,
+                recorderBar: VoiceRecorderBar(
+                  key: _recorder,
+                  onComplete: _sendRecording,
+                  onActiveChanged: (active) {
+                    if (mounted) setState(() => _recording = active);
+                  },
+                ),
               ),
             ],
           ),
@@ -492,6 +602,9 @@ class _Bubble extends StatelessWidget {
   final VoidCallback onLongPress;
   final VoidCallback onRetry;
 
+  /// Asks for a voice note's transcript, which arrives after the message does.
+  final Future<void> Function()? onRequestTranscript;
+
   const _Bubble({
     required this.message,
     required this.userId,
@@ -499,6 +612,7 @@ class _Bubble extends StatelessWidget {
     required this.showStatusLabel,
     required this.onLongPress,
     required this.onRetry,
+    this.onRequestTranscript,
     super.key,
   });
 
@@ -541,6 +655,8 @@ class _Bubble extends StatelessWidget {
               if (message.replyTo != null) _quote(context, mine),
               if (message.kind == 'sticker' && !message.isDeleted)
                 _sticker()
+              else if (message.isMedia && !message.isDeleted)
+                _media(mine)
               else
                 Text(
                   message.isDeleted ? 'This message was deleted' : message.body,
@@ -580,6 +696,34 @@ class _Bubble extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  /// A photo or voice note. A media message whose bytes are gone renders the
+  /// same tombstone a deleted text message does, rather than a broken image.
+  Widget _media(bool mine) {
+    if (message.isMediaTombstone) {
+      return Builder(
+        builder: (context) => Text(
+          'This message was deleted',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: mine ? Colors.white : AppColors.softCharcoal,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+    if (message.kind == 'voice') {
+      return VoiceBubble(
+        message: message,
+        mine: mine,
+        onRetry: message.failed ? onRetry : null,
+        onRequestTranscript: onRequestTranscript,
+      );
+    }
+    return ImageBubble(
+      message: message,
+      onRetry: message.failed ? onRetry : null,
     );
   }
 
@@ -881,12 +1025,32 @@ class _Composer extends StatelessWidget {
   final bool sending;
   final VoidCallback onSend;
   final VoidCallback onStickers;
+  final VoidCallback onAttach;
+
+  /// Whether the composer has any text. Drives the mic⇄send swap, which is the
+  /// single gesture that makes voice feel native rather than bolted on.
+  final bool hasText;
+
+  final VoidCallback onStartRecording;
+  final void Function(Offset delta) onRecordDrag;
+  final VoidCallback onRecordRelease;
+
+  /// While true the input row is replaced by the recording bar.
+  final bool recording;
+  final Widget recorderBar;
 
   const _Composer({
     required this.controller,
     required this.sending,
     required this.onSend,
     required this.onStickers,
+    required this.onAttach,
+    required this.hasText,
+    required this.onStartRecording,
+    required this.onRecordDrag,
+    required this.onRecordRelease,
+    required this.recording,
+    required this.recorderBar,
   });
 
   @override
@@ -900,69 +1064,119 @@ class _Composer extends StatelessWidget {
           AppSpacing.lg,
           AppSpacing.md,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        // The recorder bar stays in the tree even when idle, where it renders
+        // nothing. Its GlobalKey is how the mic button starts a recording, and
+        // a key pointing at an unmounted widget resolves to null — the press
+        // would silently do nothing.
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              key: const Key('sticker_button'),
-              onPressed: onStickers,
-              icon: const Icon(Icons.emoji_emotions_outlined),
-              color: AppColors.softCharcoal.withValues(alpha: 0.5),
-              tooltip: 'Stickers',
-            ),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 5,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: 'Message',
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.md,
+            recorderBar,
+            if (!recording)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  IconButton(
+                    key: const Key('sticker_button'),
+                    onPressed: onStickers,
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                    color: AppColors.softCharcoal.withValues(alpha: 0.5),
+                    tooltip: 'Stickers',
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                    borderSide: BorderSide(
-                      color: AppColors.softCharcoal.withValues(alpha: 0.1),
+                  IconButton(
+                    key: const Key('attach_button'),
+                    onPressed: onAttach,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    color: AppColors.softCharcoal.withValues(alpha: 0.5),
+                    tooltip: 'Photo',
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      minLines: 1,
+                      maxLines: 5,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: 'Message',
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.md,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          borderSide: BorderSide(
+                            color: AppColors.softCharcoal.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
+                          borderSide: const BorderSide(color: AppColors.warmCoral),
+                        ),
+                      ),
                     ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                    borderSide: const BorderSide(color: AppColors.warmCoral),
+                  const SizedBox(width: AppSpacing.sm),
+                  // The swap. Empty composer offers the mic; the first
+                  // character turns it into send. Same position, same size, so
+                  // the thumb never has to look for it.
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 150),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: hasText || sending
+                        ? _sendButton()
+                        : _micButton(),
                   ),
-                ),
+                ],
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            IconButton(
-              key: const Key('send_button'),
-              onPressed: sending ? null : onSend,
-              tooltip: 'Send',
-              icon: sending
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.warmCoral,
-                      ),
-                    )
-                  : const Icon(Icons.arrow_upward_rounded),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.warmCoral,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.warmCoral.withValues(
-                  alpha: 0.4,
-                ),
-                padding: const EdgeInsets.all(AppSpacing.md),
-              ),
-            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _sendButton() {
+    return IconButton(
+      key: const Key('send_button'),
+      onPressed: sending ? null : onSend,
+      tooltip: 'Send',
+      icon: sending
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.warmCoral,
+              ),
+            )
+          : const Icon(Icons.arrow_upward_rounded),
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.warmCoral,
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: AppColors.warmCoral.withValues(alpha: 0.4),
+        padding: const EdgeInsets.all(AppSpacing.md),
+      ),
+    );
+  }
+
+  Widget _micButton() {
+    // A long-press rather than a tap: a tap that starts recording is a tap
+    // that records every time the thumb brushes the wrong place.
+    return GestureDetector(
+      key: const Key('mic_button'),
+      onLongPress: onStartRecording,
+      onLongPressMoveUpdate: (details) => onRecordDrag(details.offsetFromOrigin),
+      onLongPressEnd: (_) => onRecordRelease(),
+      onLongPressCancel: onRecordRelease,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: const BoxDecoration(
+          color: AppColors.warmCoral,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.mic_rounded, color: Colors.white),
       ),
     );
   }

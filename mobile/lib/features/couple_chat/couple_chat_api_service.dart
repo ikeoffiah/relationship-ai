@@ -1,5 +1,9 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:mobile/core/api_services/base_api_service.dart';
 import 'package:mobile/features/couple_chat/models/couple_message.dart';
+import 'package:mobile/features/couple_chat/models/message_media.dart';
 
 /// HTTP client for the couple's thread.
 ///
@@ -41,12 +45,17 @@ class CoupleChatApiService extends BaseApiService {
 
   /// Send a message. [clientId] makes a retry idempotent — the server returns
   /// the original rather than posting twice.
+  ///
+  /// [mediaId] attaches an already-uploaded photo or voice note. On a photo a
+  /// non-empty [body] is its caption.
   Future<CoupleMessage> send(
     String relationshipId, {
     required String clientId,
     String? body,
     String? sticker,
     String? replyTo,
+    String? mediaId,
+    String? mediaKind,
   }) async {
     try {
       final response = await dio.post(
@@ -54,6 +63,7 @@ class CoupleChatApiService extends BaseApiService {
         data: {
           'client_id': clientId,
           if (sticker != null) ...{'kind': 'sticker', 'sticker': sticker},
+          if (mediaId != null) ...{'kind': mediaKind, 'media': mediaId},
           // ignore: use_null_aware_elements — keyed entries, not spreads
           if (body != null) 'body': body,
           // ignore: use_null_aware_elements
@@ -61,6 +71,66 @@ class CoupleChatApiService extends BaseApiService {
         },
       );
       return CoupleMessage.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
+  /// Upload a photo or voice note, ahead of the message that will carry it.
+  ///
+  /// Two steps rather than one multipart send, so the bubble can render from
+  /// the local file with a progress ring the moment the user picks or releases.
+  /// [onProgress] drives that ring.
+  ///
+  /// An upload that is never followed by a send is collected server-side after
+  /// a day, so abandoning here costs nothing.
+  Future<MessageMedia> uploadMedia(
+    String relationshipId, {
+    required String path,
+    required String kind,
+    int? durationMs,
+    List<int>? waveform,
+    void Function(double progress)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      final form = FormData.fromMap({
+        'kind': kind,
+        'file': await MultipartFile.fromFile(path),
+        // ignore: use_null_aware_elements — keyed entries, not spreads
+        if (durationMs != null) 'duration_ms': durationMs,
+        if (waveform != null) 'waveform': jsonEncode(waveform),
+      });
+      final response = await dio.post(
+        '${_base(relationshipId)}/media',
+        data: form,
+        cancelToken: cancelToken,
+        options: Options(
+          // The default 10s receive timeout is for JSON. A photo on a poor
+          // connection legitimately takes longer, and killing it mid-upload
+          // reads as "the app is broken" rather than "the network is slow".
+          sendTimeout: const Duration(minutes: 2),
+          receiveTimeout: const Duration(minutes: 2),
+        ),
+        onSendProgress: (sent, total) {
+          if (total > 0) onProgress?.call(sent / total);
+        },
+      );
+      return MessageMedia.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
+  /// Re-read a media row.
+  ///
+  /// Transcription finishes after the upload has responded, so this is how a
+  /// voice note's transcript arrives — for the sender before they send, and
+  /// for the reader when they tap to expand.
+  Future<MessageMedia> mediaMeta(String mediaId) async {
+    try {
+      final response = await dio.get('/api/v1/chat/media/$mediaId/meta');
+      return MessageMedia.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw handleError(e);
     }

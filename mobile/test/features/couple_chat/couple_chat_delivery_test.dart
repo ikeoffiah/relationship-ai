@@ -36,6 +36,8 @@ class _StubApi implements CoupleChatApiService {
     String? body,
     String? sticker,
     String? replyTo,
+    String? mediaId,
+    String? mediaKind,
   }) async {
     sentSticker = sticker;
     if (sendThrows) throw Exception('offline');
