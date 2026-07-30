@@ -1,0 +1,25 @@
+{
+  "//": [
+    "Points the editor's type checker at the project's virtualenv.",
+    "",
+    "Without this, basedpyright/pyright resolves imports against whichever",
+    "interpreter the editor happened to pick, and reports every third-party",
+    "package as unresolved — openai, django, rest_framework, celery. They are",
+    "all installed; the checker was just looking somewhere else. The effect is",
+    "worse than the noise suggests: a few hundred false 'could not be resolved'",
+    "hints teach you to ignore that entire category, which is the category a",
+    "genuinely missing dependency shows up in.",
+    "",
+    "django-stubs is not installed, so Django's dynamic attributes (objects,",
+    "reverse accessors, model fields) cannot be resolved statically. Those",
+    "specific rules are off rather than left to produce noise on every model.",
+    "ruff remains the authority in CI."
+  ],
+  "venvPath": ".",
+  "venv": "venv",
+  "include": ["apps", "config", "utils"],
+  "exclude": ["**/migrations", "**/__pycache__", "venv"],
+  "reportAttributeAccessIssue": "none",
+  "reportGeneralTypeIssues": "none",
+  "typeCheckingMode": "basic"
+}

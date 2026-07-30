@@ -64,6 +64,15 @@ class CertConfig {
   //
   // TODO(security): Replace these placeholders with real values before release.
   // See the docstring above for the extraction command.
+  //
+  // What happens if you do not: PinnedHttpClient now treats a placeholder as
+  // "reject", so shipping like this loses the pin — it does not open a hole.
+  // That is the safe direction, but it is still a release blocker, because no
+  // pin is being enforced and the file reads as though one is.
+  //
+  // It used to be the unsafe direction. A placeholder made the callback return
+  // true, which accepts certificates the OS has already rejected, announced
+  // only through a debugPrint that produces no output in release.
 
   /// Pinned hashes for [djangoApiHost].
   static const List<String> djangoApiHashes = [
