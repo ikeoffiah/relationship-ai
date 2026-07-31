@@ -825,13 +825,24 @@ def _needs_read_coaching(incoming: str) -> bool:
     return _needs_model(incoming) or any(m in lowered for m in _HARD_TO_RECEIVE)
 
 
+def no_coaching() -> dict:
+    """The "nothing to say" reply, which is most of what read-coaching returns.
+
+    A fresh dict each call rather than a module constant: it goes out as a
+    response body, and a shared one would be a mutable global.
+    """
+    return {"guidance": None, "defer_to_support": False}
+
+
 def coach_response(relationship, user, incoming: str) -> dict:
     """Private guidance for the partner who just received a hard message.
 
     Returns ``{"guidance": str|None, "defer_to_support": bool}``. Only the
-    receiver ever sees this; it is never surfaced to the sender.
+    receiver ever sees this; it is never surfaced to the sender. The caller is
+    responsible for establishing that ``incoming`` is a message this user
+    received — see :func:`apps.chat.views.assist_read_coach`.
     """
-    blank = {"guidance": None, "defer_to_support": False}
+    blank = no_coaching()
     if not incoming.strip():
         return blank
 

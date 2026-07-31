@@ -103,7 +103,8 @@ def _s7(couple):
     *managed*, and it is the fastest way to make someone stop saying true
     things in front of the product.
     """
-    hard = "I don't know if I want to keep doing this"
+    # The last turn: B saying the hardest thing they can say. A received it.
+    hard = couple.last_sent()["id"]
     coaching = couple.read_coach("a", hard)
     guidance = coaching.get("guidance") or ""
 
@@ -145,11 +146,11 @@ def _s7(couple):
     #
     # Not a leak, and worth being precise about which: the guidance is built
     # from the incoming text and the shared thread, never from A's profile, so
-    # what comes back is not A's private data — at temperature 0 an identical
-    # question simply gets an identical answer. What it does show is that
-    # `/assist/read-coach` takes a free string and has no idea who sent it, so
-    # it cannot tell "help me receive this" from "show me what my partner would
-    # be told". It should take a message id and refuse the sender.
+    # what comes back would not be A's private data — at temperature 0 an
+    # identical question simply gets an identical answer. What it tests is that
+    # the endpoint knows who sent what. It used to take a free string and had
+    # no way to tell "help me receive this" from "show me what my partner is
+    # being told"; it now takes a message id, and the sender gets nothing.
     back = couple.read_coach("b", hard)
     check(
         "S7: the sender is not coached on their own message",

@@ -8,6 +8,7 @@ not be able to learn which relationships exist.
 
 import logging
 from datetime import UTC, datetime
+from uuid import UUID
 
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse
@@ -800,14 +801,62 @@ def assist_settings(request, relationship_id):
     )
 
 
+def _thread_message_or_404(relationship, message_id) -> CoupleMessage:
+    """A message in this couple's thread, named by an id from a request body.
+
+    ``get_object_or_404`` on its own is not enough here. Everywhere else a
+    message id arrives through a ``<uuid:...>`` route and is already known to
+    be a uuid; an id out of a JSON body is whatever the caller typed, and a
+    malformed one reaches the query as a string and raises instead of missing.
+    """
+    try:
+        parsed = UUID(str(message_id))
+    except (TypeError, ValueError):
+        raise Http404
+    return get_object_or_404(CoupleMessage, id=parsed, relationship=relationship)
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def assist_read_coach(request, relationship_id):
     """Private guidance for the partner who just received a hard message.
 
+    Takes ``{"message_id": ...}``: a message in this couple's thread that
+    somebody else sent. Both halves of that are checked here rather than left
+    to the client, because the contract — guidance for the partner who
+    *received* this — is what makes the guidance private, and a contract only
+    the caller enforces is a convention.
+
     Only the receiver sees this. It is never shown to, or recorded against, the
     person who sent the message.
     """
     relationship = _thread_or_404(request.user, relationship_id)
-    incoming = (request.data.get("message") or "").strip()
+
+    # Presence, not truthiness: an explicit `"message_id": null` is a caller
+    # naming a message badly, not one that has not shipped the id yet.
+    if "message_id" not in request.data:
+        # Deprecated: the free-text body this endpoint used to take, and the
+        # reason it could be asked about a string that was never in the thread
+        # — it had no way to tell "help me receive this" from "spend a model
+        # call on this". Kept for one release so a client that has not shipped
+        # `message_id` yet still gets coaching. Drop this branch once the build
+        # that sends the id is the oldest one in the wild.
+        log.warning("chat_assist_read_coach_legacy_body user=%s", request.user.id)
+        incoming = (request.data.get("message") or "").strip()
+    else:
+        message = _thread_message_or_404(relationship, request.data["message_id"])
+        if message.sender_id == request.user.id:
+            # Asking about your own message is outside the contract, and the
+            # honest answer is nothing. Not because the reply would give
+            # anything of theirs away — the guidance is built from this text
+            # and the shared thread, never from the partner's profile — but
+            # because someone who has just said the hardest thing they can say
+            # should not be able to find out that the system stepped in to
+            # help their partner handle it.
+            return Response(assist.no_coaching())
+        # Read the text from the row rather than the body: it is the text the
+        # partner actually sent, and for a voice note it lives on the media
+        # row, where a caller passing a string would never have found it.
+        incoming = assist.message_text(message)
+
     return Response(assist.coach_response(relationship, request.user, incoming))

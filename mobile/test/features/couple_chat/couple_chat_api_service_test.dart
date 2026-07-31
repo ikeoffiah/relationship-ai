@@ -471,10 +471,27 @@ void main() {
         (_) async => ok({'guidance': 'they may be hurt', 'defer_to_support': true}),
       );
 
-      final result = await service.readCoach('rel-1', 'incoming');
+      final result = await service.readCoach('rel-1', 'msg-1');
 
       expect(result.guidance, 'they may be hurt');
       expect(result.deferToSupport, isTrue);
+    });
+
+    test('read coaching asks by message id, not by text', () async {
+      // The server reads the message out of the thread so it can tell that we
+      // received it rather than sent it. Sending the text instead would put
+      // that back on this client's good behaviour.
+      when(
+        () => dio.post<dynamic>(any(), data: any(named: 'data')),
+      ).thenAnswer((_) async => ok({'guidance': null, 'defer_to_support': false}));
+
+      await service.readCoach('rel-1', 'msg-1');
+
+      final data = verify(
+        () => dio.post<dynamic>(any(), data: captureAny(named: 'data')),
+      ).captured.single as Map<String, dynamic>;
+      expect(data['message_id'], 'msg-1');
+      expect(data.containsKey('message'), isFalse);
     });
 
     test('failed read coaching says nothing', () async {
@@ -482,7 +499,7 @@ void main() {
         () => dio.post<dynamic>(any(), data: any(named: 'data')),
       ).thenThrow(DioException(requestOptions: RequestOptions(path: '/')));
 
-      final result = await service.readCoach('rel-1', 'incoming');
+      final result = await service.readCoach('rel-1', 'msg-1');
 
       expect(result.guidance, isNull);
       expect(result.deferToSupport, isFalse);

@@ -229,14 +229,18 @@ class CoupleChatApiService extends BaseApiService {
 
   /// Private guidance for the partner who just received something hard.
   /// Never shown to the sender.
+  ///
+  /// Takes the id rather than the text: the server reads the message out of
+  /// the thread itself, which is how it can tell that we received this one
+  /// rather than sent it. Asking about our own message answers nothing.
   Future<({String? guidance, bool deferToSupport})> readCoach(
     String relationshipId,
-    String message,
+    String messageId,
   ) async {
     try {
       final response = await dio.post(
         '${_base(relationshipId)}/assist/read-coach',
-        data: {'message': message},
+        data: {'message_id': messageId},
       );
       final data = response.data as Map<String, dynamic>;
       return (

@@ -162,8 +162,8 @@ hardware (the simulator has no microphone).
 ## 6. The scenario suite exists now — and what it found
 
 Built to the plan in `docs/intelligence-test-plan.md`. All eighteen scenarios,
-193 assertions, ~6.5 minutes, ~40 model calls. Currently **178/193**, with the
-15 failures being the four findings below and nothing else.
+193 assertions, ~6.5 minutes, ~40 model calls. Currently **179/193**, with the
+14 failures being the three findings below and nothing else.
 
 ```bash
 make scenarios                    # all
@@ -173,7 +173,7 @@ make scenarios ARGS="S1 quiet"    # one scenario, or one group
 `scripts/e2e/harness.py` holds what it shares with `couple_thread.py`;
 `scripts/e2e/scenarios/` holds the runner and the six groups.
 
-**Deliberately not in `make validate` yet.** Three assertions describe
+**Deliberately not in `make validate` yet.** Some assertions describe
 behaviour we think is wrong rather than behaviour that broke, and they are
 meant to stay red until someone decides what to do about them. A
 permanently-failing suite in `validate` teaches people to ignore `validate`.
@@ -215,13 +215,23 @@ permanently-failing suite in `validate` teaches people to ignore `validate`.
    threshold counts messages where it means occasions, and the evening it
    fires on is the one where somebody was frightened and could not stop
    typing.
-4. **S7 — `/assist/read-coach` will coach the sender on their own message.**
-   It takes a free string and has no idea who sent it, so it cannot
-   distinguish "help me receive this" from "show me what my partner would be
-   told". Not a leak — the guidance is built from the incoming text and the
-   shared thread, never from the partner's profile — but the endpoint's whole
-   contract is that it serves the *receiver*. It should take a message id and
-   refuse the sender. Lowest severity of the four.
+
+### Since fixed
+
+- **S7 — `/assist/read-coach` would coach the sender on their own message.**
+  It took a free string and had no idea who sent it, so it could not
+  distinguish "help me receive this" from "show me what my partner would be
+  told". It now takes `{"message_id": ...}`: 404 if that is not a message in
+  this couple's thread, nothing at all if the caller sent it, and the text is
+  read from the row via `assist.message_text` rather than from the body —
+  which also means a voice note is coached on its transcript, where a caller
+  passing a string would never have found it. Never a leak, before or after:
+  the guidance is built from the incoming text and the shared thread, never
+  from the partner's profile. What it fixes is a load-bearing contract that
+  only the client was enforcing, and a model call that any caller could spend
+  on any string. The old `message` key still answers for one release so a
+  mobile build that has not shipped the id yet keeps working; the branch in
+  `assist_read_coach` says when to delete it.
 
 ### Smaller things worth knowing
 
