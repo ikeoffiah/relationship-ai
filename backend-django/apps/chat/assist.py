@@ -83,12 +83,48 @@ def _get_client():
     return _client
 
 
+# Every completion this module makes, counted. The scenario suite reads it
+# before and after a conversation to report what that conversation cost.
+#
+# Worth the four lines because the failure it catches is silent: the tiering in
+# `_needs_model` is the difference between one call per conversation and one
+# call per message, and if a future edit widens the gate nothing breaks, no
+# test goes red, and the only symptom is a bill. Counting attempts rather than
+# successes on purpose — a call that times out was still made, and the latency
+# was still paid by someone holding a finished message.
+_CALLS_KEY = "assist:model_calls"
+
+
+def _count_call() -> None:
+    try:
+        cache.incr(_CALLS_KEY)
+    except ValueError:
+        # incr refuses to create a key. A racing worker may have created it in
+        # between, which costs this one call off the tally and nothing else.
+        cache.set(_CALLS_KEY, 1, None)
+    except Exception:
+        pass
+
+
+def model_calls() -> int:
+    """How many completions have been attempted since the counter was reset."""
+    try:
+        return int(cache.get(_CALLS_KEY) or 0)
+    except Exception:
+        return 0
+
+
+def reset_model_calls() -> None:
+    cache.set(_CALLS_KEY, 0, None)
+
+
 def _complete(
     system: str, user: str, timeout: float, model: str | None = None, max_tokens: int = 220
 ) -> str | None:
     """One short completion. Returns None on any failure — never raises."""
     if not os.environ.get("OPENAI_API_KEY"):
         return None
+    _count_call()
     try:
         response = _get_client().with_options(timeout=timeout).chat.completions.create(
             model=model or FAST_MODEL,
