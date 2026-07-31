@@ -762,11 +762,43 @@ def _nudge_for(relationship, user, local_hour: int | None) -> AssistNudge | None
 # someone into accommodating abuse. That case routes to support instead.
 
 # Signals that this is not a communication problem to be smoothed over.
+#
+# Grouped by the part of the pattern they belong to, because the gaps were in
+# whole groups rather than scattered. The list used to be threats, isolation
+# and discrediting only — so a message reading "I went through your phone last
+# night" produced nothing at all: no referral, and no coaching either, since
+# it does not look sharp to the gate below. The right outcome by accident.
+#
+# What is deliberately NOT here is monitoring pressure — "why did it take you
+# two hours to answer me", and the "who were you with" that was already in the
+# list. Those are ordinary relationship friction at least as often as they are
+# control, and there is no phrasing that separates the two. Everything below
+# has few innocent readings.
+#
+# Matched as substrings against the message someone *received*, so these are
+# in the voice of the person who typed it.
 _ABUSE_SIGNALS = (
-    "not allowed to", "won't let me", "wont let me", "if you leave",
-    "i'll hurt", "ill hurt", "you'll regret", "youll regret", "nobody will believe",
-    "no one will believe", "i'll take the kids", "ill take the kids",
-    "check your phone", "who were you with",
+    # threats
+    "if you leave", "i'll hurt", "ill hurt", "you'll regret", "youll regret",
+    "i'll take the kids", "ill take the kids",
+    # isolation and discrediting
+    "not allowed to", "won't let me", "wont let me",
+    "nobody will believe", "no one will believe",
+    "who were you with",
+    # surveillance. "check your phone" used to stand here alone and is nobody's
+    # sentence — it looked like coverage and caught nothing. These are what
+    # people actually write.
+    "give me your phone", "let me see your phone", "unlock your phone",
+    "through your phone", "read your messages", "see your messages",
+    "your location on", "track your location", "where you are at all times",
+    # control of movement and appearance
+    "not going out dressed", "you're not going out", "youre not going out",
+    "not wearing that",
+    # financial control
+    "control the money", "i decide what we spend", "hand over your wages",
+    # enforced secrecy
+    "if you tell anyone", "don't tell anyone about this",
+    "dont tell anyone about this",
 )
 
 _READ_COACH_SYSTEM = (
@@ -903,10 +935,31 @@ def note_send_pattern(relationship, user, message) -> None:
         # Pursuit: a run of messages with nothing back in between. Two is a
         # person adding a thought; a run is the protest behaviour the pattern
         # is named for.
-        if len(previous) >= behaviour.PURSUIT_UNANSWERED_RUN - 1 and all(
-            m.sender_id == user.id for m in previous
-        ):
-            behaviour.observe(user, behaviour.PURSUES)
+        #
+        # Observed once per episode, when the run *reaches* the threshold —
+        # not on every message after it. The previous version re-fired on each
+        # further message, so a single unbroken run of seven banked four
+        # observations inside a minute, against a MIN_OBSERVATIONS of four
+        # whose whole purpose is to distinguish a pattern from a coincidence.
+        # The threshold was counting messages where it means occasions, and
+        # the evening it fired on was the one where somebody was frightened
+        # and could not stop typing — after which Bliss would phrase their
+        # partner's messages around a pattern that happened once.
+        #
+        # Counting the consecutive run also settles an off-by-one: the old
+        # condition fired on the third message of a run at the start of a
+        # thread but the fourth mid-thread, because mid-thread the partner's
+        # message was still inside the window it examined. PURSUIT_UNANSWERED_RUN
+        # is 3 and its comment says three in a row is the behaviour, so three
+        # in a row is what this now means, wherever it happens.
+        run = 0
+        for earlier in previous:
+            if earlier.sender_id != user.id:
+                break
+            run += 1
+        if run >= behaviour.PURSUIT_UNANSWERED_RUN - 1:
+            if run == behaviour.PURSUIT_UNANSWERED_RUN - 1:
+                behaviour.observe(user, behaviour.PURSUES)
             return
 
         # Withdrawal: coming back to the thread long after the partner spoke,

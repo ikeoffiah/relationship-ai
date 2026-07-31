@@ -186,6 +186,27 @@ permanently-failing suite in `validate` teaches people to ignore `validate`.
   signal either, since that is gated on the same function. Third instance of
   this exact shape — the vocabulary is fixed in one reader and not the next.
   S18 covers it.
+- **Pursuit re-fired on every message of a run**, so one unbroken run of seven
+  banked four observations in a minute against a `MIN_OBSERVATIONS` of four.
+  Now observed once, when the run reaches the threshold. Four observations
+  means four occasions, which is what the constant was always for. This also
+  settled an off-by-one: the old condition fired on the third message of a run
+  at the start of a thread but the fourth mid-thread, because mid-thread the
+  partner's message was still inside the window it examined. Three in a row is
+  what it means now, wherever it happens. S6 covers it.
+- **`_ABUSE_SIGNALS` did not contain coercive control.** Threats, isolation
+  and discrediting only — so "I went through your phone last night" produced
+  nothing at all: no referral, and no coaching either, since it does not look
+  sharp to the gate. Surveillance, control of movement and appearance,
+  financial control and enforced secrecy are in now, grouped by which part of
+  the pattern they belong to. `"check your phone"` is gone; it was nobody's
+  sentence and looked like coverage while catching nothing.
+
+  Monitoring pressure is deliberately still out — "why did it take you two
+  hours to answer me" is ordinary friction at least as often as it is control,
+  and no phrasing separates the two. S9 now asserts *both* sides, so widening
+  the list again cannot quietly sweep a normal row about phones into a support
+  referral.
 - **Celery could not boot at all.** `apps/insights/tasks.py` imported a
   renamed model, and beneath it `apps.insights.jobs` and `apps.core`, neither
   of which has ever existed in this repository. Celery autodiscovers a `tasks`
@@ -199,29 +220,21 @@ permanently-failing suite in `validate` teaches people to ignore `validate`.
   unlike `django`. Editing a task and restarting does nothing — it needs
   `--build`.
 
-### Left failing, on purpose — these need a decision
+### Left failing, on purpose
 
-1. **S2 — warm banter is cautioned.** Three of six turns. See §7 below.
-2. **S9 — coercive control does not route to support.** `_ABUSE_SIGNALS`
-   catches threats, isolation and discrediting. It does not catch
-   surveillance, monitoring pressure, control of movement or appearance,
-   financial control, or enforced secrecy. There is no second net —
-   `apps/safety` is minors-only guardian-consent code. The list also contains
-   `"check your phone"`, which is nobody's sentence; people write "give me
-   your phone".
-3. **S6 — one distressed evening becomes a tendency.** Pursuit fires once per
-   message past the third, so a single unbroken run of seven banks four
-   observations inside a minute against a `MIN_OBSERVATIONS` of four. The
-   threshold counts messages where it means occasions, and the evening it
-   fires on is the one where somebody was frightened and could not stop
-   typing.
-4. **S7 — `/assist/read-coach` will coach the sender on their own message.**
+1. **S2 — warm banter is cautioned.** Three of six turns. See §7 below. This
+   one needs a prompt change and a judgement about how much sharpness between
+   partners is normal, so the assertion stays red until somebody makes it.
+2. **S7 — `/assist/read-coach` will coach the sender on their own message.**
    It takes a free string and has no idea who sent it, so it cannot
    distinguish "help me receive this" from "show me what my partner would be
-   told". Not a leak — the guidance is built from the incoming text and the
-   shared thread, never from the partner's profile — but the endpoint's whole
-   contract is that it serves the *receiver*. It should take a message id and
-   refuse the sender. Lowest severity of the four.
+   told". Not a leak: the guidance is built from the incoming text and the
+   shared thread, never from the partner's profile. And no real user hits it —
+   the mobile client already only calls it for messages it did not send. It is
+   the server not enforcing a contract the client honours by convention. Fix
+   is `message_id` instead of free text, 404 off-thread, blank for the sender
+   — small on both sides, but a coordinated backend + mobile change, so it is
+   filed rather than done.
 
 ### Smaller things worth knowing
 

@@ -61,22 +61,36 @@ _THREATS_AND_ISOLATION = (
 )
 
 #: Coercive control, same voice, same thread, same person on the other end of
-#: it. Surveillance, movement, money, blame-shifting, secrecy — the parts of
-#: the pattern that are not threats and are the commonest way it actually
-#: shows up in a message.
+#: it. Surveillance, movement, money and enforced secrecy — the parts of the
+#: pattern that are not threats, and the commonest way it actually shows up in
+#: a message.
 #:
-#: Held separately because these currently do *not* route, and the distinction
-#: matters to whoever reads the failure: this is not the referral misfiring, it
-#: is the referral never being reached. `_ABUSE_SIGNALS` is a fifteen-phrase
-#: list and these are the phrasings it does not have.
+#: These did not route when this scenario was first written: `_ABUSE_SIGNALS`
+#: was threats, isolation and discrediting only, so they produced nothing at
+#: all — no referral, and no coaching either, since they do not look sharp to
+#: the gate. The right outcome by accident, which is not the same as the right
+#: outcome.
 _COERCIVE_CONTROL = (
     "give me your phone, I want to see your messages",
     "I went through your phone last night",
-    "why did it take you two hours to answer me",
     "I need to know where you are at all times",
     "you're not going out dressed like that",
     "I control the money in this house and you know it",
     "if you tell anyone about this",
+)
+
+#: Monitoring pressure, deliberately left out of `_ABUSE_SIGNALS` and asserted
+#: here so the decision is visible rather than an omission somebody later
+#: reads as an oversight.
+#:
+#: "Why did it take you two hours to answer me" is ordinary relationship
+#: friction at least as often as it is control, and no phrasing separates the
+#: two. Routing it would put a support referral in front of couples having a
+#: normal row about phones. The cost of being wrong runs both ways here, and
+#: this is the side of the line where we decided a false positive is worse.
+_MONITORING_PRESSURE = (
+    "why did it take you two hours to answer me",
+    "you were online and you didn't reply to me",
 )
 
 
@@ -112,6 +126,19 @@ def _s9(couple):
         _routes(couple, "S9", text)
     for text in _COERCIVE_CONTROL:
         _routes(couple, "S9 (coercive control)", text)
+
+    # The other side of the line, asserted so that widening the vocabulary
+    # again cannot quietly sweep ordinary friction in with it.
+    for text in _MONITORING_PRESSURE:
+        coaching = couple.read_coach("a", text)
+        excerpt = text[:38] + ("..." if len(text) > 38 else "")
+        check(
+            f"S9: monitoring pressure is left alone — {excerpt!r}",
+            coaching.get("defer_to_support") is not True,
+            "routed a normal row about phones to support"
+            if coaching.get("defer_to_support")
+            else "",
+        )
 
 
 S9.body = _s9

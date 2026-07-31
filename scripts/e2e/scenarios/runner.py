@@ -107,26 +107,36 @@ class Couple:
         )
         return r.json() if r.content else {}
 
+    #: How many times a caution-expected check may be asked before it counts as
+    #: a real absence. Three, because two was not enough: on a full run with a
+    #: Celery worker draining summaries behind it the stack slows by half, and
+    #: a check that must answer inside 2.5s starts missing the window.
+    CHECK_ATTEMPTS = 3
+
     def check_draft(self, who: str, text: str, expect_caution: bool = False) -> dict:
         """The pre-send check, as the client runs it.
 
-        ``expect_caution`` buys one retry, and only in that direction. The
-        check has a 2.5s budget and fails open — correctly, since trapping
-        someone's message behind a slow classifier is far worse than missing a
-        warning — and a fail-open is deliberately indistinguishable from "ok"
-        to everything outside, including this suite. So under load (a full run
-        with Celery draining summaries behind it) a caution assertion goes red
-        for a reason that is the system working as designed.
+        ``expect_caution`` buys up to :data:`CHECK_ATTEMPTS` tries, and only in
+        that direction. The check has a 2.5s budget and fails open — correctly,
+        since trapping someone's message behind a slow classifier is far worse
+        than missing a warning — and a fail-open is deliberately
+        indistinguishable from "ok" to everything outside, including this
+        suite. So under load a caution assertion goes red for a reason that is
+        the system working exactly as designed.
 
         Retrying only when a caution was expected is the asymmetry that keeps
         this honest: it can turn a timeout into the caution that was really
         there, and it can never turn a false positive into a pass. A draft that
-        does not caution twice is a draft that does not caution.
+        does not caution in three attempts does not caution.
+
+        A timed-out call is not cached — `check_before_send` only caches a
+        verdict it actually got — so each attempt genuinely re-asks.
         """
-        verdict = self._check_once(who, text)
-        if expect_caution and verdict.get("verdict") != "caution":
+        for attempt in range(1, self.CHECK_ATTEMPTS + 1):
             verdict = self._check_once(who, text)
-            verdict["retried"] = True
+            verdict["attempts"] = attempt
+            if not expect_caution or verdict.get("verdict") == "caution":
+                return verdict
         return verdict
 
     def _check_once(self, who: str, text: str) -> dict:
@@ -512,11 +522,12 @@ def _play_turn(couple: Couple, scenario: Scenario, index: int, turn: Turn, expec
         verdict = couple.check_draft(who, turn.text, expect_caution=expect["caution"])
         cautioned = verdict.get("verdict") == "caution"
         if expect["caution"]:
+            attempts = verdict.get("attempts", 1)
             check(
                 f"{label}: caution on {excerpt!r}",
                 cautioned,
-                (verdict.get("reason") or "no caution")
-                + (" (on retry)" if verdict.get("retried") and cautioned else ""),
+                (verdict.get("reason") or f"no caution in {attempts} attempts")
+                + (f" (attempt {attempts})" if cautioned and attempts > 1 else ""),
             )
             if cautioned:
                 faults = rewrite_faults(turn.text, verdict.get("suggestion") or "")

@@ -217,18 +217,22 @@ Written after executing the plan, against §5. Details and recommendations in
 |---|---|
 | S2 will likely fail | **Right, and for the wrong reason.** The local gate is fine — it escalates three of six, which is what a generous gate is for. The *model* cautions against a prompt that already forbids it, twice writing a REASON arguing against its own verdict. Softening `_needs_model` would buy nothing. |
 | S5's boundary is probably fuzzy | **Wrong.** "A bit frustrating" and "I'm annoyed, honestly" both go through untouched; the caution arrives on the sweeping accusation and stays for the contempt. The boundary is where it should be. |
-| S6 depends on back-dating being faithful | **Right, three times.** Back-dating only the sharp pair let repairs pile up at "now" and the fifth bad night read as pursuit; back-dating a pair to one timestamp left their order to Postgres; and a four-message run banks one observation against a threshold of four. Suspect the fixture first was the correct advice. |
+| S6 depends on back-dating being faithful | **Right, three times.** Back-dating only the sharp pair let repairs pile up at "now" and the fifth bad night read as pursuit; back-dating a pair to one timestamp left their order to Postgres; and a four-message run banks one observation against a threshold of four. Suspect the fixture first was the correct advice — though the fourth thing S6 turned up was a real one: pursuit re-fired on every message of a run, so one bad evening became a tendency. |
 | S13 should pass trivially | **Right.** The interesting part was deciding what it could assert at all, since "nothing ever escalates" is the absence of a feature. It pins the blast radius: two callers, and nothing outside `outcomes.py` reads the raw score. |
 
-Three things the plan did not anticipate:
+Four things the plan did not anticipate:
 
 - **`_sharp_before` reads `msg.body`**, so a spoken rupture was invisible to
   the nudge machinery and to the withdrawal signal — the same shape as the two
   bugs that motivated this plan, one function further on. Fixed.
+- **`_ABUSE_SIGNALS` had no coercive control in it** — threats, isolation and
+  discrediting only. Surveillance, control of movement, financial control and
+  enforced secrecy produced nothing at all. Fixed; monitoring pressure left
+  out deliberately, and now asserted from both sides.
 - **Celery could not boot**, so every background task in the product silently
   did nothing. Fixed to the extent that is honest.
 - **`/assist/nudge` costs a model call on every fetch**, because a declined
-  opportunity probe writes no row and so never starts the cooldown.
+  opportunity probe writes no row and so never starts the cooldown. Open.
 
 And one about the suite rather than the product: S16 passed on first run with
 an assertion that was reading nothing, because `direction` is weekly and every
