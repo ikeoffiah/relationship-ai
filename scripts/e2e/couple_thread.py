@@ -22,10 +22,8 @@ processes.
 """
 
 import asyncio
-import io
 import json
 import pathlib
-import subprocess
 import sys
 import time
 import uuid
@@ -33,99 +31,30 @@ import uuid
 import requests
 import websockets
 
-# Repo root, resolved from this file so the script is not tied to one machine.
-REPO = str(pathlib.Path(__file__).resolve().parents[2])
-DJANGO = "http://localhost:8000"
-WS = "ws://localhost:8001"
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-results = []
-latencies = {}
+# The plumbing this shares with the scenario suite: making users, keeping
+# score, and reaching into the container for the setup a public API correctly
+# refuses to provide. Two copies of "did this pass" would drift.
+from harness import (  # noqa: E402
+    DJANGO,
+    REPO,
+    WS,
+    auth,
+    check,
+    has_exif,
+    jpeg_with_gps,
+    latencies,
+    m4a_bytes,
+    ms,
+    pair,
+    register,
+    report,
+    shell,
+    wait_for,
+)
 
-
-def check(name, ok, detail=""):
-    results.append((name, ok, detail))
-    print(f"  {'PASS' if ok else 'FAIL'}  {name}{'  — ' + detail if detail else ''}")
-    return ok
-
-
-def register(email):
-    body = {
-        "email": email,
-        "password": "Sup3rSecret!pw",
-        "password_confirm": "Sup3rSecret!pw",
-        "first_name": email.split("@")[0],
-    }
-    r = requests.post(f"{DJANGO}/api/v1/auth/register/", json=body, timeout=20)
-    if r.status_code not in (200, 201):
-        r = requests.post(
-            f"{DJANGO}/api/v1/auth/login/",
-            json={"email": email, "password": body["password"]},
-            timeout=20,
-        )
-    data = r.json()
-    token = data.get("access") or data.get("access_token") or (data.get("tokens") or {}).get("access")
-    assert token, f"no token in {data}"
-    return token
-
-
-def auth(token):
-    return {"Authorization": f"Bearer {token}"}
-
-
-def jpeg_with_gps() -> bytes:
-    """A photo carrying GPS, as a phone camera produces one.
-
-    The fixture matters: uploading a clean JPEG would prove nothing about the
-    metadata strip, and a shared album quietly becoming a location history is
-    the likeliest real harm in the whole feature.
-    """
-    from PIL import Image
-
-    image = Image.new("RGB", (2400, 1800), (180, 90, 70))
-    exif = image.getexif()
-    exif[0x010F] = "TestPhone"  # Make
-    gps = exif.get_ifd(0x8825)
-    gps[1], gps[2] = "N", (51.0, 30.0, 0.0)
-    gps[3], gps[4] = "W", (0.0, 7.0, 0.0)
-
-    buffer = io.BytesIO()
-    image.save(buffer, format="JPEG", exif=exif, quality=95)
-    return buffer.getvalue()
-
-
-def has_exif(blob: bytes) -> bool:
-    from PIL import Image
-
-    try:
-        return bool(Image.open(io.BytesIO(blob)).getexif())
-    except Exception:
-        return False
-
-
-def m4a_bytes(payload=4096) -> bytes:
-    """Enough of an MP4 container header to pass the server's sniff."""
-    return b"\x00\x00\x00\x20ftypM4A " + b"\x00" * payload
-
-
-def ms(t0):
-    return f"{(time.perf_counter() - t0) * 1000:.0f}ms"
-
-
-async def wait_for(sink, predicate, timeout=5.0):
-    """Block until a matching event lands, and report how long it took.
-
-    Polling for an event beats sleeping a fixed interval and then looking: a
-    sleep floors every measurement at the sleep length, which would have made
-    a 20ms round trip read as 600ms in this script's own output.
-    """
-    t0 = time.perf_counter()
-    deadline = t0 + timeout
-    while time.perf_counter() < deadline:
-        for event in sink:
-            if predicate(event):
-                return event, (time.perf_counter() - t0) * 1000
-        await asyncio.sleep(0.005)
-    return None, (time.perf_counter() - t0) * 1000
+_ = REPO  # re-exported for anyone importing this module rather than running it
 
 
 async def run():
@@ -139,20 +68,7 @@ async def run():
     # correctly, since a token returned in an API response would be a token an
     # attacker could enumerate — so pairing is done as setup rather than as
     # part of what is under test here.
-    rel = subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "django",
-            "python", "manage.py", "shell", "-c",
-            "from django.contrib.auth import get_user_model;"
-            "from apps.relationships.models import Relationship;"
-            "U=get_user_model();"
-            f"a=U.objects.get(email='e2e-a-{stamp}@test.local');"
-            f"b=U.objects.get(email='e2e-b-{stamp}@test.local');"
-            "r=Relationship.objects.create(partner_a=a,partner_b=b,status='active');"
-            "print(r.id)",
-        ],
-        capture_output=True, text=True, cwd=REPO,
-    ).stdout.strip().splitlines()[-1]
+    rel = pair(f"e2e-a-{stamp}@test.local", f"e2e-b-{stamp}@test.local")
     check("relationship formed", bool(rel), rel)
 
     base = f"{DJANGO}/api/v1/chat/{rel}"
@@ -615,23 +531,18 @@ async def run():
 
     # Four dismissals of the same kind at the same hour, then the policy should
     # hold that kind back. Driven through the real feedback endpoint.
-    made = subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "django",
-            "python", "manage.py", "shell", "-c",
-            "import json;"
-            "from django.contrib.auth import get_user_model;"
-            "from apps.chat.models import AssistNudge;"
-            "from apps.relationships.models import Relationship;"
-            "U=get_user_model();"
-            f"a=U.objects.get(email='e2e-a-{stamp}@test.local');"
-            f"r=Relationship.objects.get(id='{rel}');"
-            "print(json.dumps([str(AssistNudge.objects.create("
-            "relationship=r,user=a,kind='night',suggestion='say goodnight').id)"
-            " for _ in range(4)]))",
-        ],
-        capture_output=True, text=True, cwd=REPO,
-    ).stdout.strip().splitlines()[-1]
+    made = shell(
+        "import json;"
+        "from django.contrib.auth import get_user_model;"
+        "from apps.chat.models import AssistNudge;"
+        "from apps.relationships.models import Relationship;"
+        "U=get_user_model();"
+        f"a=U.objects.get(email='e2e-a-{stamp}@test.local');"
+        f"r=Relationship.objects.get(id='{rel}');"
+        "print(json.dumps([str(AssistNudge.objects.create("
+        "relationship=r,user=a,kind='night',suggestion='say goodnight').id)"
+        " for _ in range(4)]))"
+    )
     nudge_ids = json.loads(made)
     check("four nudges staged", len(nudge_ids) == 4)
 
@@ -643,32 +554,22 @@ async def run():
             timeout=20,
         )
 
-    suppressed = subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "django",
-            "python", "manage.py", "shell", "-c",
-            "from apps.personalization import outcomes;"
-            f"print(outcomes.suppressed('{rel}', 'nudge_night', "
-            "{'hour': __import__('django.utils.timezone', fromlist=['x'])"
-            ".localtime().hour}))",
-        ],
-        capture_output=True, text=True, cwd=REPO,
-    ).stdout.strip().splitlines()[-1]
+    suppressed = shell(
+        "from apps.personalization import outcomes;"
+        f"print(outcomes.suppressed('{rel}', 'nudge_night', "
+        "{'hour': __import__('django.utils.timezone', fromlist=['x'])"
+        ".localtime().hour}))"
+    )
     check(
         "four dismissals suppress that nudge",
         suppressed == "True",
         f"suppressed={suppressed}",
     )
 
-    other = subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "django",
-            "python", "manage.py", "shell", "-c",
-            "from apps.personalization import outcomes;"
-            f"print(outcomes.suppressed('{rel}', 'nudge_repair', {{'hour': 23}}))",
-        ],
-        capture_output=True, text=True, cwd=REPO,
-    ).stdout.strip().splitlines()[-1]
+    other = shell(
+        "from apps.personalization import outcomes;"
+        f"print(outcomes.suppressed('{rel}', 'nudge_repair', {{'hour': 23}}))"
+    )
     check(
         "it does not suppress a different kind",
         other == "False",
@@ -678,18 +579,13 @@ async def run():
     # ---- the partner boundary -------------------------------------------
     print("\n== the partner boundary ==")
 
-    subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "django",
-            "python", "manage.py", "shell", "-c",
-            "from django.contrib.auth import get_user_model;"
-            "from apps.personalization import behaviour;"
-            "U=get_user_model();"
-            f"a=U.objects.get(email='e2e-a-{stamp}@test.local');"
-            "[behaviour.observe(a, s) for s in behaviour.SIGNALS for _ in range(6)];"
-            "print('ok')",
-        ],
-        capture_output=True, text=True, cwd=REPO,
+    shell(
+        "from django.contrib.auth import get_user_model;"
+        "from apps.personalization import behaviour;"
+        "U=get_user_model();"
+        f"a=U.objects.get(email='e2e-a-{stamp}@test.local');"
+        "[behaviour.observe(a, s) for s in behaviour.SIGNALS for _ in range(6)];"
+        "print('ok')"
     )
 
     own = requests.get(
@@ -775,17 +671,12 @@ async def run():
             timeout=20,
         )
 
-    computed = subprocess.run(
-        [
-            "docker", "compose", "exec", "-T", "django",
-            "python", "manage.py", "shell", "-c",
-            "from apps.personalization.tasks import refresh_connection_scores;"
-            "refresh_connection_scores();"
-            "from apps.personalization import connection;"
-            f"print(connection.presentation('{rel}')['score'])",
-        ],
-        capture_output=True, text=True, cwd=REPO,
-    ).stdout.strip().splitlines()[-1]
+    computed = shell(
+        "from apps.personalization.tasks import refresh_connection_scores;"
+        "refresh_connection_scores();"
+        "from apps.personalization import connection;"
+        f"print(connection.presentation('{rel}')['score'])"
+    )
     check(
         "the nightly job runs and produces a score for an active couple",
         computed not in ("", "None"),
@@ -810,13 +701,4 @@ async def run():
 
 asyncio.run(run())
 
-failed = [n for n, ok, _ in results if not ok]
-if latencies:
-    print("\n== latency (real, not floored by a sleep) ==")
-    for name, value in latencies.items():
-        print(f"  {name:<18} {value:6.0f}ms")
-
-print(f"\n{len(results) - len(failed)}/{len(results)} passed")
-if failed:
-    print("failed: " + "; ".join(failed))
-sys.exit(1 if failed else 0)
+sys.exit(report())
