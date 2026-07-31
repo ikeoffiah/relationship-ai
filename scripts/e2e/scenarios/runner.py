@@ -163,6 +163,9 @@ class Couple:
 
     # ── internal state no endpoint exposes, and should not ──────────────
 
+    def user_id(self, who: str) -> str:
+        return shell(f"print({self.user_expr(who)}.id)")
+
     def tendencies(self, who: str) -> list:
         """What has been observed about this partner. Self-readable only."""
         return shell_json(

@@ -624,14 +624,25 @@ def _sharp_before(relationship, before, window: timedelta) -> bool:
     unsatisfiable — the gap had to exceed six hours and the sharpness had to
     fall inside the last six, so it could never fire.
     """
-    recent = CoupleMessage.objects.filter(
-        relationship=relationship,
-        created_at__gte=before - window,
-        created_at__lte=before,
-        deleted_at__isnull=True,
-    ).order_by("-created_at")[:20]
+    recent = (
+        CoupleMessage.objects.filter(
+            relationship=relationship,
+            created_at__gte=before - window,
+            created_at__lte=before,
+            deleted_at__isnull=True,
+        )
+        .select_related("media")
+        .order_by("-created_at")[:20]
+    )
+    # Through `message_text`, not `body`. A voice note's words live on its
+    # media row, so reading `body` here made every spoken rupture invisible to
+    # this scan: no repair opening after an argument that happened out loud,
+    # and no withdrawal signal either, since that is gated on this same
+    # function. Voice is exactly where the loaded messages go, so the blind
+    # spot sat precisely where it did the most damage — which is the same
+    # sentence transcription.py opens with, about the bug this one survived.
     return any(
-        any(m in (msg.body or "").lower() for m in _SHARP_MARKERS) for msg in recent
+        any(m in message_text(msg).lower() for m in _SHARP_MARKERS) for msg in recent
     )
 
 

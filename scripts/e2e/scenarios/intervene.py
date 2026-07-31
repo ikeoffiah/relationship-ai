@@ -11,6 +11,7 @@ failure wearing different clothes.
 """
 
 from .runner import (
+    Couple,
     Scenario,
     Turn,
     bad_night,
@@ -180,6 +181,22 @@ _SEND_AGAIN = (
 )
 
 
+def _burst(couple, evening):
+    """One evening of B messaging into silence.
+
+    Four messages produces exactly one pursuit observation: the signal fires
+    when the three messages behind the current one are all the sender's, so the
+    first three of a run build the condition and the fourth trips it.
+    """
+    for text in (
+        "are you there?",
+        "I don't want to leave it like this",
+        "please just say something",
+        f"ok I'll stop ({evening})",
+    ):
+        couple.send("b", text)
+
+
 def _s6(couple):
     """A withdraws after conflict; B pursues into the silence.
 
@@ -201,13 +218,13 @@ def _s6(couple):
 
     # B messaging into silence. Three in a row with nothing back is the run the
     # pursuit signal is named for; two is a person adding a thought.
-    for text in (
-        "are you there?",
-        "I don't want to leave it like this",
-        "please just say something",
-        "ok I'll stop",
-    ):
-        couple.send("b", text)
+    #
+    # Four separate evenings rather than one long burst, because four separate
+    # occasions is what MIN_OBSERVATIONS is meant to mean. `_burst` below shows
+    # why the distinction is not academic.
+    for evening in range(4):
+        couple.send("a", "sorry, been flat out today")
+        _burst(couple, evening)
 
     pursuing = couple.tendencies("b")
     check(
@@ -244,6 +261,38 @@ def _s6(couple):
         "S6: building it cost one model call",
         model_calls() - before == 1,
         f"{model_calls() - before}",
+    )
+
+    _one_bad_evening_is_not_a_pattern()
+
+
+def _one_bad_evening_is_not_a_pattern():
+    """Seven messages in one distressed evening must not become a tendency.
+
+    MIN_OBSERVATIONS is four, and the comment above it says why: below this we
+    have a coincidence rather than a pattern, and acting on a coincidence is
+    how a personalisation feature ends up telling someone something untrue
+    about themselves.
+
+    But pursuit fires once per message past the third, so a single run of seven
+    banks four "observations" inside a minute. The threshold counts messages
+    where it means occasions, and the one evening someone is frightened and
+    cannot stop typing is exactly the evening it fires on — after which Bliss
+    starts phrasing their partner's messages around a pattern that happened
+    once.
+
+    Its own couple, so it cannot disturb the scenario's own accumulation.
+    """
+    alone = Couple("s6-burst")
+    alone.send("a", "I'm heading to bed, we'll talk tomorrow")
+    for index in range(7):
+        alone.send("b", f"I really need to talk about this ({index})")
+
+    observed = alone.tendencies("b")
+    check(
+        "S6: one distressed evening is not enough to call it a tendency",
+        "pursues_when_unanswered" not in observed,
+        f"{observed} after a single unbroken run of seven messages",
     )
 
 
