@@ -259,6 +259,21 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
     if (verdict.caution) {
       final choice = await _showCautionSheet(verdict);
       if (!mounted) return;
+
+      // Report before acting on it, and against `draft` rather than whatever
+      // is in the composer now — on "use the suggestion" those are different
+      // texts, and the register the server calibrates on belongs to the
+      // message it flagged, not to its own rewrite.
+      //
+      // A dismissed sheet (null) is reported as nothing. The three outcomes
+      // are things someone chose; backing out is not one of them, and guessing
+      // which it resembles would put a made-up signal into the only supervised
+      // evidence this system gets.
+      final outcome = _outcomeFor(choice);
+      if (outcome != null) {
+        vm.reportCautionOutcome(outcome, draft: draft);
+      }
+
       switch (choice) {
         case _CautionChoice.sendAnyway:
           break;
@@ -568,6 +583,16 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
 }
 
 enum _CautionChoice { sendAnyway, sendSuggestion, edit }
+
+/// What the sheet's three buttons mean to the learning loop.
+///
+/// Null for a dismissed sheet — see `_handleSend`.
+CautionOutcome? _outcomeFor(_CautionChoice? choice) => switch (choice) {
+  _CautionChoice.sendSuggestion => CautionOutcome.usedSuggestion,
+  _CautionChoice.edit => CautionOutcome.edited,
+  _CautionChoice.sendAnyway => CautionOutcome.sentAnyway,
+  null => null,
+};
 
 class _Bubble extends StatelessWidget {
   final CoupleMessage message;

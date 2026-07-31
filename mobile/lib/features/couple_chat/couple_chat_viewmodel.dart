@@ -223,6 +223,31 @@ class CoupleChatViewModel extends ChangeNotifier {
   Future<DraftVerdict> checkDraft(String draft) =>
       _api.checkDraft(relationshipId, draft);
 
+  /// Tell the server which way a caution went, without waiting for it.
+  ///
+  /// Fire and forget in both directions: the future is not awaited, so
+  /// reporting cannot add a beat to the send, and the service swallows its own
+  /// errors, so it cannot fail one either. An unrecorded outcome costs a
+  /// slightly staler calibration — never a message.
+  void reportCautionOutcome(CautionOutcome choice, {String? draft}) {
+    try {
+      // `catchError` for a request that fails, the try for anything that goes
+      // wrong before there is a future to fail. `unawaited` alone would turn
+      // the first into an unhandled async error.
+      unawaited(
+        _api
+            .cautionOutcome(relationshipId, choice, draft: draft)
+            .catchError((_) {}),
+      );
+    } catch (_) {
+      // Belt and braces. The service already swallows its own failures, so
+      // this only catches something going wrong before the request is even
+      // made. It is here because of what sits on the other side of this line:
+      // the caller is one statement away from sending someone's message, and
+      // nothing about recording what they chose is worth failing that for.
+    }
+  }
+
   Future<String?> rephrase(String draft) => _api.rephrase(relationshipId, draft);
 
   /// Send a message, rendering it optimistically first.

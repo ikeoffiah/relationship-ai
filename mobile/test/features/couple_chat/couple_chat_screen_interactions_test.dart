@@ -33,10 +33,26 @@ class _StubApi implements CoupleChatApiService {
   final reactions = <String>[];
   final deleted = <String>[];
   String? rephrased = 'a kinder version';
+  final outcomes = <({CautionOutcome choice, String? draft})>[];
+  bool outcomeThrows = false;
   ({String? guidance, bool deferToSupport}) coach = (
     guidance: null,
     deferToSupport: false,
   );
+
+  // Deliberately not `async`, so the throw below happens *synchronously* —
+  // the case a rejected future would not reproduce, and the one `unawaited`
+  // cannot help with.
+  @override
+  Future<void> cautionOutcome(
+    String relationshipId,
+    CautionOutcome choice, {
+    String? draft,
+  }) {
+    if (outcomeThrows) throw StateError('reporting is down');
+    outcomes.add((choice: choice, draft: draft));
+    return Future.value();
+  }
 
   @override
   Future<({List<CoupleMessage> messages, bool hasMore, String? nextBefore})>
@@ -320,6 +336,117 @@ void main() {
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         'you always do this',
       );
+    });
+  });
+
+  group('reporting which way a caution went', () {
+    // The best supervised signal in the product, and until this was wired up
+    // it was collected by nothing: the check ran, the sheet appeared, someone
+    // decided, and the server heard none of it. Everything downstream — the
+    // suppression of a caution that is always overridden, the per-register
+    // calibration of what this couple counts as sharp, the accepts_rephrasing
+    // tendency — is fed from here and only from here.
+
+    Future<_StubApi> flagged(WidgetTester tester, String draft) async {
+      final (_, api) = await pump(tester, []);
+      api.verdict = const DraftVerdict(
+        caution: true,
+        reason: 'this may land badly',
+        suggestion: 'a softer version',
+      );
+      await tester.enterText(find.byType(TextField), draft);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send_button')));
+      await tester.pumpAndSettle();
+      return api;
+    }
+
+    testWidgets('taking the suggestion reports it as accepted', (tester) async {
+      final api = await flagged(tester, 'you always do this');
+
+      await tester.tap(find.text('Send this instead'));
+      await tester.pumpAndSettle();
+
+      expect(api.outcomes.single.choice, CautionOutcome.usedSuggestion);
+    });
+
+    testWidgets('sending as written reports the override', (tester) async {
+      final api = await flagged(tester, 'you always do this');
+
+      await tester.tap(find.text('Send as written'));
+      await tester.pumpAndSettle();
+
+      expect(api.outcomes.single.choice, CautionOutcome.sentAnyway);
+    });
+
+    testWidgets('going back to edit reports that too', (tester) async {
+      final api = await flagged(tester, 'you always do this');
+
+      await tester.tap(find.text('Let me edit'));
+      await tester.pumpAndSettle();
+
+      expect(api.outcomes.single.choice, CautionOutcome.edited);
+      expect(api.sent, isEmpty);
+    });
+
+    testWidgets('dismissing the sheet reports nothing', (tester) async {
+      // Backing out is not one of the three things someone can choose, and
+      // guessing which it resembles would put a made-up signal into the only
+      // supervised evidence this system gets.
+      final api = await flagged(tester, 'you always do this');
+
+      Navigator.of(tester.element(find.byType(CoupleChatScreen))).pop();
+      await tester.pumpAndSettle();
+
+      expect(api.outcomes, isEmpty);
+    });
+
+    testWidgets('it reports the draft that was flagged, not the rewrite', (
+      tester,
+    ) async {
+      // On "send this instead" the composer is replaced before the send. The
+      // server derives the register from what it cautioned — reporting the
+      // suggestion would file the lesson against Bliss's own prose.
+      final api = await flagged(tester, "you're the worst 😂");
+
+      await tester.tap(find.text('Send this instead'));
+      await tester.pumpAndSettle();
+
+      expect(api.outcomes.single.draft, "you're the worst 😂");
+      expect(api.sent.single['body'], 'a softer version');
+    });
+
+    testWidgets('a draft that is not flagged reports nothing', (tester) async {
+      final (_, api) = await pump(tester, []);
+      await tester.enterText(find.byType(TextField), 'can you grab milk');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('send_button')));
+      await tester.pumpAndSettle();
+
+      expect(api.sent, isNotEmpty);
+      expect(api.outcomes, isEmpty);
+    });
+
+    testWidgets('a failure to report never stops the message', (tester) async {
+      // The whole module is fail-open, and this is the one place where a
+      // person is mid-send. A learning signal is not worth a lost message.
+      final (_, api) = await pump(tester, []);
+      api.outcomeThrows = true;
+      api.verdict = const DraftVerdict(
+        caution: true,
+        reason: 'careful',
+        suggestion: 'softer',
+      );
+      await tester.enterText(find.byType(TextField), 'you always do this');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send_button')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Send as written'));
+      await tester.pumpAndSettle();
+
+      expect(api.sent.single['body'], 'you always do this');
     });
   });
 

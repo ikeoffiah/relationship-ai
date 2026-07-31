@@ -214,6 +214,34 @@ class CoupleChatApiService extends BaseApiService {
     }
   }
 
+  /// Report which way a caution went. Never throws.
+  ///
+  /// [draft] is the text that was *flagged*, not whatever ends up being sent —
+  /// on "use the suggestion" those differ, and the server derives the register
+  /// of the message it cautioned. It only reads the register from it and
+  /// stores that; the text is not kept.
+  ///
+  /// Failures are swallowed on purpose, and silently. This is bookkeeping
+  /// about help that has already been given; a person mid-send has nothing to
+  /// gain from being told it did not record, and the whole module is fail-open.
+  Future<void> cautionOutcome(
+    String relationshipId,
+    CautionOutcome choice, {
+    String? draft,
+  }) async {
+    try {
+      await dio.post(
+        '${_base(relationshipId)}/assist/caution-outcome',
+        data: {
+          'choice': choice.wire,
+          if (draft != null && draft.isNotEmpty) 'draft': draft,
+        },
+      );
+    } catch (_) {
+      // Deliberately nothing.
+    }
+  }
+
   /// "Help me say this." Returns null if Bliss has nothing to offer.
   Future<String?> rephrase(String relationshipId, String draft) async {
     try {

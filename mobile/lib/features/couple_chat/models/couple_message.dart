@@ -329,6 +329,26 @@ class DraftVerdict {
   }
 }
 
+/// Which way a pre-send caution went.
+///
+/// The best supervised signal in the product: the person was shown help at the
+/// decisive moment, holding a finished message, and chose. Until this was
+/// reported the check ran, the sheet appeared, someone decided — and nothing
+/// was written down, so a caution that was overridden every single time went
+/// on interrupting forever.
+///
+/// The wire values are fixed by `CAUTION_CHOICES` in the server's chat views;
+/// anything else is rejected with a 400.
+enum CautionOutcome {
+  usedSuggestion('used_suggestion'),
+  edited('edited'),
+  sentAnyway('sent_anyway');
+
+  const CautionOutcome(this.wire);
+
+  final String wire;
+}
+
 /// The emoji offered on long-press. Deliberately weighted to affection rather
 /// than the generic thumbs-up set — this is a thread between partners, not a
 /// team channel.

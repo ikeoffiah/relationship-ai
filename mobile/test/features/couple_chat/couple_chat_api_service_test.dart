@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:mobile/features/couple_chat/couple_chat_api_service.dart';
+import 'package:mobile/features/couple_chat/models/couple_message.dart';
 
 class MockDio extends Mock implements Dio {}
 
@@ -503,6 +504,66 @@ void main() {
 
       expect(result.guidance, isNull);
       expect(result.deferToSupport, isFalse);
+    });
+
+    test('a caution outcome posts the wire value the server accepts', () async {
+      when(
+        () => dio.post<dynamic>(any(), data: any(named: 'data')),
+      ).thenAnswer((_) async => ok({'ok': true}));
+
+      await service.cautionOutcome(
+        'rel-1',
+        CautionOutcome.usedSuggestion,
+        draft: "you're the worst 😂",
+      );
+
+      final captured = verify(
+        () => dio.post<dynamic>(
+          captureAny(),
+          data: captureAny(named: 'data'),
+        ),
+      ).captured;
+      expect(captured[0], contains('/assist/caution-outcome'));
+      final data = captured[1] as Map<String, dynamic>;
+      // Not the enum name: the server rejects anything outside its three.
+      expect(data['choice'], 'used_suggestion');
+      expect(data['draft'], "you're the worst 😂");
+    });
+
+    test('every outcome has a wire value, and they are the server\'s three', () {
+      expect(
+        CautionOutcome.values.map((o) => o.wire).toSet(),
+        {'used_suggestion', 'edited', 'sent_anyway'},
+      );
+    });
+
+    test('the draft is omitted rather than sent empty', () async {
+      // An empty string would have the server derive a register from nothing
+      // and file the lesson under it. Absent means "no register", which is a
+      // different and honest answer.
+      when(
+        () => dio.post<dynamic>(any(), data: any(named: 'data')),
+      ).thenAnswer((_) async => ok({'ok': true}));
+
+      await service.cautionOutcome('rel-1', CautionOutcome.edited, draft: '');
+
+      final data = verify(
+        () => dio.post<dynamic>(any(), data: captureAny(named: 'data')),
+      ).captured.single as Map<String, dynamic>;
+      expect(data.containsKey('draft'), isFalse);
+    });
+
+    test('a failed report is swallowed', () async {
+      // Bookkeeping about help already given. Someone mid-send has nothing to
+      // gain from being told the recording failed.
+      when(
+        () => dio.post<dynamic>(any(), data: any(named: 'data')),
+      ).thenThrow(DioException(requestOptions: RequestOptions(path: '/')));
+
+      await expectLater(
+        service.cautionOutcome('rel-1', CautionOutcome.sentAnyway),
+        completes,
+      );
     });
   });
 }
