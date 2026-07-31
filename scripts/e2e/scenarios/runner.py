@@ -206,11 +206,21 @@ class Couple:
             timeout=30,
         ).status_code
 
-    def caution_outcome(self, who: str, choice: str) -> int:
+    def caution_outcome(self, who: str, choice: str, draft: str | None = None) -> int:
+        """Report which way a caution went.
+
+        ``draft`` is what lets the loop learn per register rather than per
+        couple. Optional here as it is on the endpoint, so the legacy shape
+        stays exercised — a client that does not send it must still be able to
+        quieten a caution it keeps overriding.
+        """
+        body = {"choice": choice}
+        if draft is not None:
+            body["draft"] = draft
         return requests.post(
             f"{self.base}/assist/caution-outcome",
             headers=self.headers(who),
-            json={"choice": choice},
+            json=body,
             timeout=30,
         ).status_code
 

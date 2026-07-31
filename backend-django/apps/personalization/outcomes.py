@@ -72,19 +72,32 @@ def bucket(kind: str, context: dict | None) -> str:
     a lesson worth learning; "do not send it at 23:04 on a Tuesday when they
     have exchanged eleven messages" is a coincidence with a long name. Every
     extra dimension divides the evidence, and there is not much of it.
+
+    At most one dimension, for the same reason. Nudges split by time of day
+    because that is what makes a nudge unwelcome; the pre-send caution splits
+    by register, because what makes a caution unwelcome is being told off for
+    a joke. Crossing the two would quarter the evidence to answer a question
+    nobody asked.
     """
-    hour = (context or {}).get("hour")
-    if hour is None:
-        return kind
-    if 5 <= hour < 12:
-        window = "morning"
-    elif 12 <= hour < 18:
-        window = "afternoon"
-    elif 18 <= hour < 23:
-        window = "evening"
-    else:
-        window = "night"
-    return f"{kind}@{window}"
+    context = context or {}
+
+    hour = context.get("hour")
+    if hour is not None:
+        if 5 <= hour < 12:
+            window = "morning"
+        elif 12 <= hour < 18:
+            window = "afternoon"
+        elif 18 <= hour < 23:
+            window = "evening"
+        else:
+            window = "night"
+        return f"{kind}@{window}"
+
+    register = context.get("register")
+    if register:
+        return f"{kind}@{register}"
+
+    return kind
 
 
 def record(relationship, kind: str, context: dict | None, response: str) -> None:

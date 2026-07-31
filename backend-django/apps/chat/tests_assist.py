@@ -5,6 +5,7 @@ their own message. Most of what follows checks the failure paths, not the
 happy one.
 """
 
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -752,3 +753,112 @@ class ContemptVocabularyTests(AssistTestCase):
         # traffic skews far more benign. Anywhere near 100% means the tiering
         # has stopped earning its place.
         self.assertLess(escalated / len(EVAL_DRAFTS), 0.7)
+
+
+class RegisterTests(AssistTestCase):
+    """Sharpness is couple-relative, so the caution calibrates per register.
+
+    The disqualifiers carry the weight here. What makes this safe to ship is
+    not that it recognises a joke — it is that nothing a couple teaches it can
+    reach the patterns the check exists for.
+    """
+
+    def test_emoji_and_laughter_read_as_playful(self):
+        for draft in (
+            "you're the worst 😂",
+            "I hate you so much right now 😂😂",
+            "you're ridiculous lol",
+            "stop it haha",
+            "get out of here :)",
+        ):
+            self.assertEqual(assist.register_of(draft), assist.REGISTER_PLAYFUL, draft)
+
+    def test_plain_sharpness_is_plain(self):
+        for draft in (
+            "you never follow through on anything",
+            "I'm annoyed about it, honestly",
+            "can you grab milk on the way home",
+        ):
+            self.assertEqual(assist.register_of(draft), assist.REGISTER_PLAIN, draft)
+
+    def test_an_emoji_cannot_relabel_name_calling(self):
+        """Otherwise a couple could calibrate away the whole vocabulary by
+        appending a laugh to it."""
+        for draft in (
+            "you are an idiot 😂",
+            "you're pathetic lol",
+            "you always do this and I'm sick of it 😂",
+            "you never listen haha",
+            "I'm done, watch me 😂",
+        ):
+            self.assertEqual(assist.register_of(draft), assist.REGISTER_PLAIN, draft)
+
+    def test_absolutes_only_disqualify_when_aimed_at_the_partner(self):
+        """"I never sleep well 😂" is not an accusation."""
+        self.assertEqual(
+            assist.register_of("I never sleep well before a flight 😂"),
+            assist.REGISTER_PLAYFUL,
+        )
+
+
+class CautionCalibrationTests(AssistTestCase):
+    """What a couple teaches the caution, and what it may not reach."""
+
+    def outcome(self, choice, draft=None):
+        body = {"choice": choice}
+        if draft is not None:
+            body["draft"] = draft
+        return self.client.post(
+            reverse("chat-assist-caution-outcome", args=[self.relationship.id]),
+            body,
+            format="json",
+        )
+
+    def weights(self):
+        from apps.personalization.models import CouplePolicy
+
+        policy = CouplePolicy.objects.filter(relationship=self.relationship).first()
+        return policy.weights if policy else {}
+
+    def test_a_draft_files_the_lesson_under_its_register(self):
+        for _ in range(5):
+            self.assertEqual(self.outcome("sent_anyway", "you're the worst 😂").status_code, 200)
+        self.assertIn("caution@playful", self.weights())
+        self.assertNotIn("caution", self.weights())
+
+    def test_overriding_on_banter_does_not_quieten_plain_sharpness(self):
+        for _ in range(5):
+            self.outcome("sent_anyway", "you're the worst 😂")
+        self.assertFalse(assist._caution_is_wanted(self.relationship, "playful"))
+        self.assertTrue(assist._caution_is_wanted(self.relationship, "plain"))
+
+    def test_an_outcome_without_a_draft_still_quietens_everything(self):
+        """The shape a client that has not shipped register reporting sends —
+        which is every client today, since mobile does not call this at all."""
+        for _ in range(5):
+            self.assertEqual(self.outcome("sent_anyway").status_code, 200)
+        self.assertIn("caution", self.weights())
+        for register in ("playful", "plain", None):
+            self.assertFalse(assist._caution_is_wanted(self.relationship, register), register)
+
+    def test_a_lesson_taught_before_registers_existed_keeps_applying(self):
+        """The write-here/read-there bug took this loop out once. Reading only
+        the register key would have done it again, silently, to every couple
+        who had already told us something."""
+        from apps.personalization import outcomes
+
+        for _ in range(5):
+            outcomes.record(self.relationship, "caution", None, "declined")
+        self.assertFalse(assist._caution_is_wanted(self.relationship, "playful"))
+
+    def test_the_draft_is_not_stored(self):
+        self.outcome("sent_anyway", "you're the worst 😂")
+        self.assertNotIn("worst", json.dumps(self.weights()))
+
+    def test_check_before_send_consults_the_register(self):
+        for _ in range(5):
+            self.outcome("sent_anyway", "you're the worst 😂")
+        with patch.object(assist, "_complete") as complete:
+            verdict = assist.check_before_send(self.relationship, self.alex, "you're the worst 😂")
+        self.assertEqual(verdict["verdict"], "ok")
+        complete.assert_not_called()

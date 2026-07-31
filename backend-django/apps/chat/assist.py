@@ -460,6 +460,59 @@ def _needs_model(draft: str) -> bool:
     return False
 
 
+# ── Register: what kind of sharpness this is ────────────────────────────────
+#
+# Sharpness is couple-relative. "You're the worst 😂" between two people who
+# talk that way is affection; between others it is contempt. One global
+# threshold cannot be right for both, and the couple it is wrong for turns the
+# feature off.
+#
+# So the caution calibrates per *register* rather than per couple as a whole.
+# A couple who override the caution on playful messages five times stop being
+# cautioned on playful messages — and still get cautioned on a cold sentence
+# with an "always" in it, because that is a different bucket.
+#
+# Deliberately local and free, like everything else the learning layer reads.
+# And deliberately coarse: two registers, because every extra dimension divides
+# already-thin evidence, and "do not interrupt this couple when they are
+# joking" is a lesson worth learning where "do not interrupt them on a Tuesday
+# when they have used two emoji" is a coincidence with a long name.
+
+REGISTER_PLAYFUL = "playful"
+REGISTER_PLAIN = "plain"
+
+_PLAYFUL_TEXT = (
+    "lol", "lmao", "haha", "hehe", "xd", ":)", ":-)", ":d", ";)", "😂", "🤣",
+)
+
+# The emoji planes, plus the older symbol blocks most keyboards still emit.
+_EMOJI_RE = re.compile("[\U0001f300-\U0001faff☀-➿⬀-⯿]")
+
+
+def register_of(draft: str) -> str:
+    """Whether this draft is playing or not.
+
+    The disqualifiers matter more than the markers. Name-calling, threats and
+    sweeping accusations are never playful *whatever is sitting next to them* —
+    an emoji after "you always do this" does not make it a joke, and allowing
+    it to would let a couple calibrate away the exact patterns the check exists
+    for. This is what bounds the blast radius: the worst a couple can teach the
+    system is to stop commenting on their banter.
+    """
+    text = draft.lower()
+
+    if _STRONG_RE.search(text):
+        return REGISTER_PLAIN
+    if any(marker in text for marker in _THREAT_MARKERS):
+        return REGISTER_PLAIN
+    if any(marker in text for marker in _ABSOLUTE_MARKERS) and _SECOND_PERSON_RE.search(text):
+        return REGISTER_PLAIN
+
+    if _EMOJI_RE.search(draft) or any(marker in text for marker in _PLAYFUL_TEXT):
+        return REGISTER_PLAYFUL
+    return REGISTER_PLAIN
+
+
 def _parse_check(raw: str) -> dict:
     verdict, reason, suggestion = "ok", "", ""
     for line in raw.splitlines():
@@ -476,21 +529,37 @@ def _parse_check(raw: str) -> dict:
     return {"verdict": verdict, "reason": reason, "suggestion": suggestion}
 
 
-def _caution_is_wanted(relationship) -> bool:
-    """Whether this couple still reads the pre-send caution.
+def _caution_is_wanted(relationship, register: str | None = None) -> bool:
+    """Whether this couple still reads the pre-send caution, in this register.
 
     A caution that is overridden every single time is not a caution, it is
     friction with a moral tone — and each override spends a little of the
     credibility the one that matters will need. So it stops, on the same
     one-directional rule as the nudges: it can quieten, never escalate.
 
+    Both buckets are read, and that is not belt-and-braces. Outcomes recorded
+    before registers existed live under the bare ``caution`` key, and outcomes
+    recorded by a client that does not send the draft still do. Reading only
+    the register-specific key would be the write-here/read-there bug that took
+    this loop out once already — the calibration would silently never fire for
+    anyone who had taught it something before today. Old lessons keep applying;
+    new ones apply more narrowly.
+
     Deliberately about *tone* cautions only. Safety signals are a different
-    layer with a different escalation path, and nothing here touches them.
+    layer with a different escalation path, and nothing here touches them —
+    which is also what stops this being a way to switch off the thing that
+    matters: the most a couple can teach it is to stop commenting on banter.
     """
     try:
         from apps.personalization import outcomes
 
-        return not outcomes.suppressed(relationship.id, "caution")
+        if outcomes.suppressed(relationship.id, "caution"):
+            return False
+        if register and outcomes.suppressed(
+            relationship.id, "caution", {"register": register}
+        ):
+            return False
+        return True
     except Exception:
         # Not knowing means carry on as before.
         return True
@@ -505,7 +574,7 @@ def check_before_send(relationship, user, draft: str) -> dict:
     blank = {"verdict": "ok", "reason": "", "suggestion": ""}
     if not draft.strip():
         return blank
-    if not _caution_is_wanted(relationship):
+    if not _caution_is_wanted(relationship, register_of(draft)):
         return blank
 
     # Belt and braces. _complete already swallows provider errors, but this is

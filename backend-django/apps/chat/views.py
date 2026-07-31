@@ -724,14 +724,31 @@ def assist_caution_outcome(request, relationship_id):
         )
 
     response = CAUTION_CHOICES[choice]
+
     # Deliberately no hour. A caution is about the message, not the time of
     # day: someone who overrides them overrides them at breakfast too, and
-    # splitting by window would divide already-thin evidence four ways. It also
-    # has to match how `assist._caution_is_wanted` reads it back — writing to
-    # `caution@morning` and reading from `caution` meant the calibration could
-    # never fire, which is exactly what it did until a real override was tried
-    # end to end.
-    outcomes.record(relationship, "caution", None, response)
+    # splitting by window would divide already-thin evidence four ways.
+    #
+    # The register *is* worth splitting on, because sharpness is couple-
+    # relative in a way that timing is not. "You're the worst 😂" between two
+    # people who talk that way is affection; the same words elsewhere are
+    # contempt. A couple who override the caution on their banter should stop
+    # being interrupted mid-joke without also switching it off for the cold
+    # sentence that matters. See `assist.register_of`.
+    #
+    # The draft is optional: a client that does not send it records against the
+    # bare `caution` key, which still works and still quietens everything. What
+    # must not drift is how this is read back — writing to `caution@morning`
+    # and reading from `caution` meant the calibration could never fire, which
+    # is exactly what it did until a real override was tried end to end.
+    # `_caution_is_wanted` therefore reads both keys.
+    #
+    # Only the register is derived; the draft is not stored, logged, or passed
+    # on. `InterventionEvent` records that a kind of help was offered in a kind
+    # of moment, never what was said.
+    draft = (request.data.get("draft") or "").strip()
+    context = {"register": assist.register_of(draft)} if draft else None
+    outcomes.record(relationship, "caution", context, response)
 
     if choice == "used_suggestion":
         # The observed-tendency side of the same event. Defined since the

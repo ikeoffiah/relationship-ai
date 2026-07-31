@@ -51,7 +51,7 @@ Test couple already paired on the local stack: `ada@example.com` /
 |---|---|
 | `apps/chat` | 100% coverage |
 | `personalization/{boundary,outcomes,connection}.py` | 100% each |
-| Backend | 822 tests passing |
+| Backend | 832 tests passing |
 | Mobile `couple_chat` | 91.9%, 544 tests |
 | e2e | 67/67 against the live stack |
 
@@ -161,8 +161,8 @@ hardware (the simulator has no microphone).
 
 ## 6. The scenario suite exists now — and what it found
 
-Built to the plan in `docs/intelligence-test-plan.md`. All eighteen scenarios,
-192 assertions, ~8 minutes, ~40 model calls. Currently **186/192**, and the six
+Built to the plan in `docs/intelligence-test-plan.md`. All nineteen scenarios,
+201 assertions, ~9 minutes, ~40 model calls. Currently **195/201**, and the six
 failures are all S2 — the one finding still open.
 
 ```bash
@@ -236,6 +236,11 @@ before you believe them.
    left. See §7 below. It needs a prompt change plus a judgement about how
    much sharpness between partners is normal, so the assertion stays red until
    somebody makes it.
+
+   Per-couple calibration now exists (§8) and does **not** rescue S2, by
+   design: S2 fails on turn two of a brand-new couple, and calibration needs
+   history. The two are complements — the prompt sets where the line starts,
+   the calibration moves it for a particular couple.
 
 ### Since fixed
 

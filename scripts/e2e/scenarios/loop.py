@@ -38,6 +38,12 @@ def _s11(couple):
     The important part is not the number — it is that the number is reachable
     at all from the endpoint the client actually calls, which is what the
     bucket mismatch made false.
+
+    Reports outcomes *without* a draft on purpose, which is the shape a client
+    that has not shipped register reporting still sends. That path writes to
+    the bare ``caution`` key and has to keep working: the mobile app does not
+    call this endpoint at all yet, so it is the only shape in production.
+    S19 covers the register-aware path.
     """
     first = couple.check_draft("a", SHARP, expect_caution=True)
     check(
@@ -321,4 +327,105 @@ def policy_call_sites():
 S13.body = _s13
 
 
-SCENARIOS = [S11, S12, S13]
+# ── S19 — Sharpness is couple-relative ──────────────────────────────────────
+
+S19 = Scenario(
+    "S19",
+    "Calibrating what counts as sharp, per couple",
+    note="a couple can teach it to stay out of their banter — and only that",
+)
+
+BANTER = "you're the worst 😂"
+CONTEMPT = "you are pathetic and I don't know why I bother, this is typical you"
+
+
+def _s19(couple):
+    """Two people who talk to each other like that should be left to it.
+
+    S2 is the case this exists for: a couple whose affection sounds sharp get
+    cautioned mid-joke, and that is the false positive that makes them turn the
+    feature off. One global threshold cannot be right for both them and a
+    couple whose sharpness means it.
+
+    The second half is what keeps this from being an off switch. Whatever a
+    couple teaches it about their banter must not touch the cold sentence with
+    a verdict in it — otherwise "we joke like this" becomes "stop watching",
+    and the caution that mattered goes past with the rest.
+
+    Note this does not rescue S2, and is not meant to: S2 fails on turn two of
+    a brand-new couple, and there is no history to calibrate against yet. This
+    is what happens *after* a couple has told us something.
+    """
+    opening = couple.check_draft("a", BANTER, expect_caution=True)
+    check(
+        "S19: banter cautions before the couple has said otherwise",
+        opening.get("verdict") == "caution",
+        opening.get("reason") or "no caution — nothing to calibrate away",
+    )
+
+    for _ in range(5):
+        code = couple.caution_outcome("a", "sent_anyway", draft=BANTER)
+        if code != 200:
+            check("S19: overrides record", False, f"status {code}")
+            return
+
+    weights = couple.policy_weights()
+    check(
+        "S19: the lesson is filed under the register, not the whole couple",
+        "caution@playful" in weights and "caution" not in weights,
+        str(weights),
+    )
+
+    quiet = couple.check_draft("a", BANTER)
+    check(
+        "S19: and the same banter now goes through",
+        quiet.get("verdict") == "ok",
+        f"verdict={quiet.get('verdict')}",
+    )
+
+    # A different joke they have never sent before, so this is the register
+    # being learned rather than one string being remembered.
+    unseen = couple.check_draft("a", "I hate you so much right now 😂😂")
+    check(
+        "S19: including a joke they have never sent before",
+        unseen.get("verdict") == "ok",
+        f"verdict={unseen.get('verdict')}",
+    )
+
+    # The half that stops this being a way to switch the feature off.
+    still = couple.check_draft("a", CONTEMPT, expect_caution=True)
+    check(
+        "S19: contempt still cautions for the same couple",
+        still.get("verdict") == "caution",
+        still.get("reason") or "the calibration became an off switch",
+    )
+    check(
+        "S19: nothing about their banter reached the plain register",
+        not couple.suppressed("caution", {"register": "plain"}),
+        str(couple.policy_weights()),
+    )
+
+    # And an emoji cannot be used to relabel the patterns the check exists for.
+    for draft in (
+        "you always do this and I'm sick of it 😂",
+        "you are an idiot 😂",
+        "I'm done, watch me 😂",
+    ):
+        check(
+            f"S19: an emoji does not make {draft[:28]!r} playful",
+            _register_of(draft) == "plain",
+            f"register={_register_of(draft)}",
+        )
+
+
+def _register_of(draft):
+    return shell(
+        "from apps.chat import assist;"
+        f"print(assist.register_of({draft!r}))"
+    )
+
+
+S19.body = _s19
+
+
+SCENARIOS = [S11, S12, S13, S19]
