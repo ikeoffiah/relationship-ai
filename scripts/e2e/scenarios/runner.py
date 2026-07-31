@@ -27,6 +27,7 @@ from harness import (  # noqa: E402
     check,
     pair,
     register,
+    repo_root,
     shell,
     shell_json,
     stamp,
