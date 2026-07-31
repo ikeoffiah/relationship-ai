@@ -58,6 +58,40 @@ void main() {
       expect(authViewModel.errorMessage, 'Please enter your email');
     });
 
+    test('modern and plus-addressed emails are accepted', () {
+      // The old pattern capped the TLD at four characters and disallowed `+`,
+      // which locked out everyone on a .online or .agency address and everyone
+      // who signs up for a new app with plus-addressing. Neither could
+      // register, and neither could log in.
+      for (final address in [
+        'someone@example.online',
+        'someone@example.agency',
+        'someone+bliss@gmail.com',
+        'first.last@sub.domain.co.uk',
+        'a@b.io',
+      ]) {
+        authViewModel.setEmail(address);
+        authViewModel.setPassword('Sup3rSecret!pw');
+        expect(
+          authViewModel.validateLoginForm(),
+          isTrue,
+          reason: '$address should be accepted',
+        );
+      }
+    });
+
+    test('an obvious typo is still caught', () {
+      for (final address in ['not-an-email', 'missing@tld', 'a@b.c', '@nope.com']) {
+        authViewModel.setEmail(address);
+        authViewModel.setPassword('Sup3rSecret!pw');
+        expect(
+          authViewModel.validateLoginForm(),
+          isFalse,
+          reason: '$address should be rejected',
+        );
+      }
+    });
+
     test('validateLoginForm returns false for invalid email', () {
       authViewModel.setEmail('invalid_email');
       authViewModel.setPassword('password123');

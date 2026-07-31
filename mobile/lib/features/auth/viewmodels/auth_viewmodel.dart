@@ -95,9 +95,21 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Validate email format
+  /// Validate email format.
+  ///
+  /// Deliberately permissive about the top-level domain. The previous pattern
+  /// capped it at four characters, which quietly locked out everyone on a
+  /// `.online`, `.agency`, `.digital` or `.travel` address — they could not
+  /// register and could not log in, with only "Please enter a valid email" to
+  /// go on. It also rejected `+` in the local part, so plus-addressing —
+  /// `someone+bliss@gmail.com`, which is exactly what a careful person uses to
+  /// sign up for a new app — failed the same way.
+  ///
+  /// The server is the authority on whether an address exists; this only needs
+  /// to catch the obvious typo, and the cost of being too strict here is far
+  /// higher than the cost of being too loose.
   bool _isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex = RegExp(r"^[\w.+%-]+@([\w-]+\.)+[A-Za-z]{2,}$");
     return emailRegex.hasMatch(email);
   }
 
