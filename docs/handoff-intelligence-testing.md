@@ -162,7 +162,8 @@ hardware (the simulator has no microphone).
 ## 6. The scenario suite exists now — and what it found
 
 Built to the plan in `docs/intelligence-test-plan.md`. All eighteen scenarios,
-187 assertions, ~7 minutes, ~40 model calls.
+193 assertions, ~6.5 minutes, ~40 model calls. Currently **178/193**, with the
+15 failures being the four findings below and nothing else.
 
 ```bash
 make scenarios                    # all
@@ -214,6 +215,13 @@ permanently-failing suite in `validate` teaches people to ignore `validate`.
    threshold counts messages where it means occasions, and the evening it
    fires on is the one where somebody was frightened and could not stop
    typing.
+4. **S7 — `/assist/read-coach` will coach the sender on their own message.**
+   It takes a free string and has no idea who sent it, so it cannot
+   distinguish "help me receive this" from "show me what my partner would be
+   told". Not a leak — the guidance is built from the incoming text and the
+   shared thread, never from the partner's profile — but the endpoint's whole
+   contract is that it serves the *receiver*. It should take a message id and
+   refuse the sender. Lowest severity of the four.
 
 ### Smaller things worth knowing
 
@@ -221,13 +229,14 @@ permanently-failing suite in `validate` teaches people to ignore `validate`.
   opportunity probe answers NONE most of the time by design, no row is
   written, so the 20h cooldown never applies and the next thread-open pays
   again. Five fetches, five calls. Recording the declined probe would fix it.
-- **`/assist/read-coach` takes a free string and cannot tell who sent it**, so
-  it cannot distinguish "help me receive this" from "show me what my partner
-  would be told". It should take a message id and refuse the sender.
 - The suite is mildly flaky under its own load: the pre-send check has a 2.5s
   budget and fails open, so a caution assertion can go red because the system
   worked as designed. Caution-expected assertions retry once, in that
-  direction only.
+  direction only; the media upload retries once on 5xx.
+- The cost column counts every completion attempted in the stack during a
+  scenario, which with a live worker includes the rolling thread summaries
+  that scenario's messages queued. Real spend, but not attributable line by
+  line.
 
 ---
 
