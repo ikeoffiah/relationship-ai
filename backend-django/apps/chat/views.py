@@ -694,6 +694,56 @@ def assist_nudge(request, relationship_id):
     )
 
 
+#: What the caution sheet's three buttons mean to the loop. This is the best
+#: supervised signal in the product: the person was shown help at the decisive
+#: moment, with their finished message in hand, and chose.
+CAUTION_CHOICES = {
+    "used_suggestion": "accepted",
+    "edited": "modified",
+    "sent_anyway": "declined",
+}
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def assist_caution_outcome(request, relationship_id):
+    """Which way a pre-send caution went.
+
+    Until this existed the check ran, the sheet appeared, the person decided —
+    and nothing was written down. A caution that is always overridden is not a
+    caution, it is friction with a moral tone, and there was no way to find out
+    that was happening.
+    """
+    relationship = _thread_or_404(request.user, relationship_id)
+    choice = (request.data.get("choice") or "").strip()
+    if choice not in CAUTION_CHOICES:
+        return Response(
+            {"error": f"choice must be one of {sorted(CAUTION_CHOICES)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    response = CAUTION_CHOICES[choice]
+    outcomes.record(
+        relationship,
+        "caution",
+        {"hour": timezone.localtime().hour},
+        response,
+    )
+
+    if choice == "used_suggestion":
+        # The observed-tendency side of the same event. Defined since the
+        # behaviour module was written and never once called, because nothing
+        # was reporting this back.
+        try:
+            from apps.personalization import behaviour
+
+            behaviour.note_rephrase_accepted(request.user)
+        except Exception:
+            log.warning("note_rephrase_accepted_failed", exc_info=True)
+
+    return Response({"ok": True})
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def assist_nudge_feedback(request, nudge_id):

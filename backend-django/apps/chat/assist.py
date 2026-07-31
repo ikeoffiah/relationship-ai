@@ -440,6 +440,26 @@ def _parse_check(raw: str) -> dict:
     return {"verdict": verdict, "reason": reason, "suggestion": suggestion}
 
 
+def _caution_is_wanted(relationship) -> bool:
+    """Whether this couple still reads the pre-send caution.
+
+    A caution that is overridden every single time is not a caution, it is
+    friction with a moral tone — and each override spends a little of the
+    credibility the one that matters will need. So it stops, on the same
+    one-directional rule as the nudges: it can quieten, never escalate.
+
+    Deliberately about *tone* cautions only. Safety signals are a different
+    layer with a different escalation path, and nothing here touches them.
+    """
+    try:
+        from apps.personalization import outcomes
+
+        return not outcomes.suppressed(relationship.id, "caution")
+    except Exception:
+        # Not knowing means carry on as before.
+        return True
+
+
 def check_before_send(relationship, user, draft: str) -> dict:
     """Should this message give the sender pause?
 
@@ -448,6 +468,8 @@ def check_before_send(relationship, user, draft: str) -> dict:
     """
     blank = {"verdict": "ok", "reason": "", "suggestion": ""}
     if not draft.strip():
+        return blank
+    if not _caution_is_wanted(relationship):
         return blank
 
     # Belt and braces. _complete already swallows provider errors, but this is

@@ -104,3 +104,32 @@ class CouplePolicy(models.Model):
 
     def __str__(self):
         return f"Policy for relationship {self.relationship_id}"
+
+
+class ConnectionScore(models.Model):
+    """One number for how the relationship is going, and a short trend.
+
+    One row per couple. ``series`` is a bounded list of weekly points — enough
+    for a trend line on the home screen, deliberately not enough to be a dated
+    record of when a couple was struggling. It prunes itself on write.
+
+    ``value`` is a float so the smoothing has somewhere to live; everything
+    user-facing rounds it. See connection.py for why it moves slowly and why
+    it is built from behaviour rather than from either partner's private
+    check-in.
+    """
+
+    relationship = models.OneToOneField(
+        "relationships.Relationship",
+        on_delete=models.CASCADE,
+        related_name="connection_score",
+    )
+    value = models.FloatField(null=True, blank=True)
+    series = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "connection_scores"
+
+    def __str__(self):
+        return f"Connection score for relationship {self.relationship_id}"
