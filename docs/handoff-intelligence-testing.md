@@ -51,7 +51,7 @@ Test couple already paired on the local stack: `ada@example.com` /
 |---|---|
 | `apps/chat` | 100% coverage |
 | `personalization/{boundary,outcomes,connection}.py` | 100% each |
-| Backend | 817 tests passing |
+| Backend | 822 tests passing |
 | Mobile `couple_chat` | 91.9%, 544 tests |
 | e2e | 67/67 against the live stack |
 
@@ -162,8 +162,8 @@ hardware (the simulator has no microphone).
 ## 6. The scenario suite exists now — and what it found
 
 Built to the plan in `docs/intelligence-test-plan.md`. All eighteen scenarios,
-193 assertions, ~6.5 minutes, ~40 model calls. Currently **179/193**, with the
-14 failures being the three findings below and nothing else.
+192 assertions, ~8 minutes, ~40 model calls. Currently **186/192**, and the six
+failures are all S2 — the one finding still open.
 
 ```bash
 make scenarios                    # all
@@ -173,10 +173,20 @@ make scenarios ARGS="S1 quiet"    # one scenario, or one group
 `scripts/e2e/harness.py` holds what it shares with `couple_thread.py`;
 `scripts/e2e/scenarios/` holds the runner and the six groups.
 
-**Deliberately not in `make validate` yet.** Some assertions describe
+**Deliberately not in `make validate` yet.** S2's six assertions describe
 behaviour we think is wrong rather than behaviour that broke, and they are
 meant to stay red until someone decides what to do about them. A
 permanently-failing suite in `validate` teaches people to ignore `validate`.
+Wire it in the day S2 is settled — it is the last one.
+
+Run it against the stack the containers are actually serving. `docker-compose`
+mounts `./backend-django` relative to wherever compose was invoked, and the
+project name is fixed (`relationshipai`), so in a repo with two git worktrees
+whichever ran `docker compose` last owns the containers — silently, and the
+suite will happily test the other worktree's code. `make scenarios` runs from
+the checkout it lives in; if results look impossible, check
+`docker inspect relationshipai-django-1 --format '{{range .Mounts}}{{.Source}}{{end}}'`
+before you believe them.
 
 ### Fixed while building it
 
