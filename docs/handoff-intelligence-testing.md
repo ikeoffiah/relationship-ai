@@ -51,7 +51,7 @@ Test couple already paired on the local stack: `ada@example.com` /
 |---|---|
 | `apps/chat` | 100% coverage |
 | `personalization/{boundary,outcomes,connection}.py` | 100% each |
-| Backend | 832 tests passing |
+| Backend | 844 tests passing |
 | Mobile `couple_chat` | 558 tests |
 | e2e | 67/67 against the live stack |
 
@@ -162,8 +162,8 @@ hardware (the simulator has no microphone).
 ## 6. The scenario suite exists now — and what it found
 
 Built to the plan in `docs/intelligence-test-plan.md`. All nineteen scenarios,
-201 assertions, ~9 minutes, ~40 model calls. Currently **195/201**, and the six
-failures are all S2 — the one finding still open.
+201 assertions, ~9 minutes, ~40 model calls. Currently **200/201** — one
+failure left, S2.5, and §7 explains why it is a model limit rather than a bug.
 
 ```bash
 make scenarios                    # all
@@ -232,15 +232,11 @@ before you believe them.
 
 ### Left failing, on purpose
 
-1. **S2 — warm banter is cautioned.** Three of six turns, and the only one
-   left. See §7 below. It needs a prompt change plus a judgement about how
-   much sharpness between partners is normal, so the assertion stays red until
-   somebody makes it.
-
-   Per-couple calibration now exists (§8) and does **not** rescue S2, by
-   design: S2 fails on turn two of a brand-new couple, and calibration needs
-   history. The two are complements — the prompt sets where the line starts,
-   the calibration moves it for a particular couple.
+1. **S2.5 only.** The prompt change landed and took S2 from six failures to
+   one; §7 has what changed and the measurement showing the last one is a
+   model limit rather than a prompt one. Per-couple calibration (§8) is a
+   complement, not a rescue: it needs history, and S2 fails on turn two of a
+   brand-new couple.
 
 ### Since fixed
 
@@ -276,40 +272,69 @@ before you believe them.
 
 ---
 
-## 7. The S2 recommendation
+## 7. S2: what the prompt fixed, and what it did not
 
-`docs/intelligence-test-plan.md` §5 predicted this would fail and it does, but
-not where expected. **The local gate is not the problem.** `_needs_model`
-escalates three of the six banter turns, which is a deliberately generous gate
-working as intended — escalating costs one cheap call, and the plan's
-suggestion of softening the heuristic would buy nothing while making real
-contempt easier to miss.
+Five of S2's six assertions now pass. The sixth is a model limit, not a prompt
+one, and the evidence for that is below.
 
-The false positive is the **model's** decision, against a prompt that already
-forbids it. On two of the three it wrote a REASON arguing against its own
-verdict — "Could be hurtful, but not necessarily contemptuous", "Expresses
-strong emotion but not outright contempt or threats" — and returned
-`VERDICT: caution` anyway.
+### What changed
 
-Recommended, in order:
+**The check prompt.** Three additions, each answering an observed failure
+rather than general good practice:
 
-1. **Give the check an out.** The format demands VERDICT, REASON and
-   SUGGESTION; a model that has decided to say something has nowhere to put
-   "this is fine". Requiring `VERDICT: ok` and nothing else for the ok case —
-   and making that the majority-case example in the prompt — costs nothing.
-2. **Tell it about affection.** The prompt has no concept of a couple who talk
-   like this. One line — emoji, hyperbole and running jokes between partners
-   are not contempt; flag the sentence someone would still be hurt by tomorrow
-   — is the smallest change that addresses the actual failure.
-3. **Do not relax `_needs_model`.** It is doing its job.
-4. **Fix read-coaching's inheritance separately.** `_needs_read_coaching` calls
-   `_needs_model`, so the receiver of "you're the worst 😂" gets privately
-   coached on handling a hurtful message. That is worse than the caution: it
-   tells someone their partner hurt them when their partner was joking.
+- *"Almost every message you see is fine. The normal answer is ok."* The
+  previous version described what to flag and left the majority case implicit —
+  and a model with a REASON and a SUGGESTION field to fill has an incentive to
+  find something to put in them.
+- *An affection paragraph.* The vocabulary had no concept of a couple who tease
+  each other, so "you're the worst 😂" was textbook second-person-plus-negative
+  -word and nothing said otherwise.
+- *"Judge what will happen, not what could"*, and *"a reason that argues
+  against your own verdict means the verdict is ok"*. Both are transcriptions
+  of what it actually did: every wrong flag came back hedged — "Could be
+  hurtful", "Expresses strong emotion but not outright contempt".
 
-The reason this matters more than its severity suggests: this is the false
-positive that makes a couple turn the feature off, and every override spends a
-little of the credibility the caution that matters will need.
+Plus four worked examples, deliberately not the phrasings the suite tests, so
+the line is what is being taught rather than the strings.
+
+**Read-coaching's gate.** This was three of the six failures and a worse bug
+than the caution. `_needs_read_coaching` inherited `_needs_model`, the
+send-side contempt vocabulary, so the receiver of a joke was privately coached
+on handling being hurt. The caution merely interrupts you; this reinterprets
+your relationship for you. It now checks withdrawal first and unconditionally
+— nothing may talk `_HARD_TO_RECEIVE` out of firing — then leaves playful
+register alone, then falls through to the old gate. Its prompt also leads with
+the decision instead of the assumption; it used to open "a partner has just
+received the message below and it *may be hard to take*", which answers the
+question it was meant to ask.
+
+### The one still failing, and why
+
+`S2.5 — "you're ridiculous and I'm telling everyone"` still cautions. Four
+rounds of prompt work moved it from flagging with a flat reason to flagging
+with *"Could be seen as a harsh joke, might hurt if taken seriously"* — the
+model naming it as a joke and hedging, in exact defiance of two explicit
+instructions. That is not a prompt that needs more words.
+
+Measured directly, same prompt, same thread context, six drafts spanning both
+classes:
+
+| model | correct | latency |
+|---|---|---|
+| `gpt-4.1-nano` (current) | 5/6 | 714ms |
+| `gpt-4.1-mini` | **6/6** | 782ms |
+
+**+68ms, inside a 2.5s budget.** The check already reads its model from
+`OPENAI_FAST_MODEL`, so this is an env var, not a code change. It is left as a
+decision rather than taken, because it is recurring spend on every draft that
+clears the local gate — roughly 4× per call at list prices. The tiering exists
+precisely so that number stays small, and S1 is the assertion that keeps it
+honest.
+
+If the answer is no, the alternative is to accept that one borderline line and
+change S2.5's expectation. It is genuinely the most ambiguous of the three, and
+"I'm telling everyone" does read as a threat to embarrass outside a thread that
+is visibly a joke.
 
 ---
 

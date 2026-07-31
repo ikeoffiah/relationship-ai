@@ -862,3 +862,102 @@ class CautionCalibrationTests(AssistTestCase):
             verdict = assist.check_before_send(self.relationship, self.alex, "you're the worst 😂")
         self.assertEqual(verdict["verdict"], "ok")
         complete.assert_not_called()
+
+
+class ReadCoachingGateTests(AssistTestCase):
+    """Who gets offered help receiving a message, and who is left alone.
+
+    This gate has been wrong in both directions. It was once the send-side
+    contempt vocabulary alone, so it fired on "you always do this" — unpleasant
+    but survivable — and stayed silent on "I don't know if I want to keep doing
+    this", which is the hardest thing a partner can open with. Then, once
+    withdrawal was added, it still inherited the send-side gate and so coached
+    the receiver of a joke on handling being hurt.
+    """
+
+    def test_withdrawal_always_wins(self):
+        """Nothing may talk this out of firing — not an emoji, not anything."""
+        for incoming in (
+            "I don't know if I want to keep doing this",
+            "I don't know if I want to keep doing this 😞",
+            "I'm so tired of trying lol",
+        ):
+            self.assertTrue(assist._needs_read_coaching(incoming), incoming)
+
+    def test_playful_sharpness_is_left_alone(self):
+        """Telling someone their partner may have hurt them, when their partner
+        was playing, does the harm the message did not."""
+        for incoming in (
+            "you're the worst 😂",
+            "I hate you so much right now 😂😂",
+            "you're such a menace lol",
+        ):
+            self.assertFalse(assist._needs_read_coaching(incoming), incoming)
+
+    def test_plain_sharpness_still_offers_help(self):
+        for incoming in (
+            "you always do this and I'm sick of it",
+            "you are pathetic",
+        ):
+            self.assertTrue(assist._needs_read_coaching(incoming), incoming)
+
+    def test_an_emoji_does_not_silence_coaching_on_real_contempt(self):
+        """`register_of` refuses to call name-calling or absolutes playful, so
+        the bypass cannot be opened with a laugh."""
+        for incoming in (
+            "you are an idiot 😂",
+            "you always do this and I'm sick of it 😂",
+        ):
+            self.assertTrue(assist._needs_read_coaching(incoming), incoming)
+
+    def test_abuse_routing_does_not_run_through_this_gate(self):
+        """Safety is checked before it, so nothing here can suppress a
+        referral — including for a disclosure with a laugh in it."""
+        result = assist.coach_response(
+            self.relationship, self.sam, "I went through your phone last night 😂"
+        )
+        self.assertTrue(result["defer_to_support"])
+        self.assertIsNone(result["guidance"])
+
+
+class CoachingReplyParsingTests(AssistTestCase):
+    """A refusal to comment must not be rendered to somebody as comment."""
+
+    def parse(self, raw):
+        return assist._parse_coaching(raw)
+
+    def test_the_labelled_no(self):
+        self.assertIsNone(self.parse("NEEDED: no"))
+
+    def test_the_labelled_yes(self):
+        self.assertEqual(
+            self.parse("NEEDED: yes\nGUIDANCE: Take a breath and say what is true."),
+            "Take a breath and say what is true.",
+        )
+
+    def test_declining_in_prose_is_still_a_decline(self):
+        """The failure the sentinel could not see: the model says no help is
+        needed, in a sentence, and the old code showed that sentence as help."""
+        self.assertIsNone(
+            self.parse("NEEDED: no\nThis seems playful and teasing, so no help is needed.")
+        )
+
+    def test_the_old_sentinel_is_still_understood(self):
+        for raw in ("NONE", "none", "  NONE  "):
+            self.assertIsNone(self.parse(raw), raw)
+
+    def test_a_model_that_ignores_the_format_is_taken_at_its_word(self):
+        self.assertEqual(
+            self.parse("Take a moment before replying."),
+            "Take a moment before replying.",
+        )
+
+    def test_nothing_at_all(self):
+        for raw in (None, "", "   "):
+            self.assertIsNone(self.parse(raw), repr(raw))
+
+    def test_guidance_spanning_lines_is_kept_whole(self):
+        self.assertEqual(
+            self.parse("NEEDED: yes\nGUIDANCE: One thought.\nAnd a second."),
+            "One thought. And a second.",
+        )

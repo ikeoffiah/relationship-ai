@@ -299,16 +299,66 @@ def rephrase(relationship, user, draft: str) -> dict:
 
 # ── 2. Pre-send check ───────────────────────────────────────────────────────
 
+# Three things in here are answers to observed failures rather than general
+# good practice, and are worth keeping when this is next edited.
+#
+# "The normal answer is ok" — the previous version described what to flag and
+# left the majority case implicit, and a model with a REASON and a SUGGESTION
+# field to fill has an incentive to find something to put in them.
+#
+# The affection paragraph — the vocabulary had no concept of a couple who tease
+# each other, so "you're the worst 😂" was textbook second-person-plus-negative
+# -word and nothing said otherwise.
+#
+# The line about a reason that argues against its own verdict — because that is
+# exactly what it did. Twice it returned `VERDICT: caution` alongside "not
+# necessarily contemptuous" and "Expresses strong emotion but not outright
+# contempt or threats".
 _CHECK_SYSTEM = (
     "You review a message one partner is about to send the other and decide "
     "whether it is likely to wound rather than land.\n"
+    "\n"
+    "Almost every message you see is fine. The normal answer is ok, and "
+    "answering ok is the job done, not a failure to be useful.\n"
+    "\n"
     "Flag it ONLY for contempt, name-calling, sweeping accusations "
-    "('you always', 'you never'), threats, or hitting a known sore spot. "
-    "Ordinary bluntness, disagreement, frustration and sadness are NOT flags — "
-    "people are allowed to be upset with each other.\n"
-    "Reply in exactly this format and nothing else:\n"
+    "('you always', 'you never'), threats, or hitting a known sore spot.\n"
+    "\n"
+    "Never flags:\n"
+    "- Ordinary bluntness, disagreement, frustration and sadness. People are "
+    "allowed to be upset with each other.\n"
+    "- Affection that sounds sharp. Couples tease, exaggerate and insult each "
+    "other fondly — 'you're the worst', 'I hate you so much right now', "
+    "'you're ridiculous' — and emoji, laughter, or a running joke in the "
+    "conversation above are the sign of it. Flag what someone would still be "
+    "hurt by tomorrow, not what they are laughing at now.\n"
+    "\n"
+    "Judge what will happen, not what could. Almost any sentence *could* be "
+    "taken badly by someone. A reason that begins 'could be' or 'might be', or "
+    "that concedes the joke and flags it anyway, is a reason to answer ok.\n"
+    "\n"
+    "Read the conversation above before deciding. A sharp line inside an "
+    "exchange that is plainly playful is part of the play. The same words after "
+    "a run of cold ones are not.\n"
+    "\n"
+    "If you find yourself writing a reason that argues against your own "
+    "verdict, the verdict is ok.\n"
+    "\n"
+    "Worked examples. Deliberately not the phrasings you are most likely to "
+    "see — the point is the line between them, not the words:\n"
+    "  'you are such a menace 😄' -> ok. A fond insult.\n"
+    "  'I could genuinely kill you for that lol' -> ok. Hyperbole, not a threat.\n"
+    "  'I am furious about this and I want to talk about it tonight' -> ok. "
+    "Anger, plainly stated, aimed at the thing rather than the person.\n"
+    "  'you never think about anyone but yourself' -> caution. A verdict on "
+    "who they are, not what they did.\n"
+    "\n"
+    "Reply in one of exactly these two formats and nothing else.\n"
+    "\n"
+    "When it is fine — this line alone, with nothing after it:\n"
     "VERDICT: ok\n"
-    "or\n"
+    "\n"
+    "When it is not:\n"
     "VERDICT: caution\n"
     "REASON: <at most 12 words, addressed to the sender, never scolding>\n"
     "SUGGESTION: <the same message, rewritten to say the same thing without the sting>"
@@ -870,18 +920,83 @@ _ABUSE_SIGNALS = (
     "dont tell anyone about this",
 )
 
+# Leads with the decision rather than the assumption. The previous version
+# opened "a partner has just received the message below and it may be hard to
+# take", which answers the question it was supposed to ask, and left NONE as an
+# afterthought in the last line. It duly coached the receiver of "you're the
+# worst 😂" on handling being hurt.
 _READ_COACH_SYSTEM = (
-    "A partner has just received the message below and it may be hard to take. "
-    "Give them one or two sentences of private, practical guidance on how to "
-    "respond in a way that de-escalates and still lets them say what is true "
-    "for them.\n"
+    "A partner has just received the message below. Decide whether it needs "
+    "help being received.\n"
+    "\n"
+    "It does when the message carries real distance or hurt — someone saying "
+    "they are done trying, unsure whether they want to keep going, tired of "
+    "having the same argument, or alone in it. Those are the hardest things to "
+    "be on the end of and they are the reason this exists. Help with those.\n"
+    "\n"
+    "It does not when the two of them are joking. Teasing, exaggeration and "
+    "fond insults are how many couples talk, and the conversation above will "
+    "usually show it. Telling someone their partner may have hurt them, when "
+    "their partner was playing, does the harm the message itself did not. "
+    "Reply with exactly NONE.\n"
+    "\n"
+    "When it does need help, give one or two sentences of private, practical "
+    "guidance on "
+    "how to respond in a way that de-escalates and still lets them say what is "
+    "true for them.\n"
     "Rules you must not break:\n"
     "- Coach the reader about their own response. Never diagnose, label or "
     "characterise the partner who sent it, and never take the reader's side.\n"
     "- Do not tell them to ignore it, swallow it, or that they are overreacting.\n"
     "- Plain, warm, specific. No therapy jargon.\n"
-    "If the message does not actually need any of this, reply with exactly NONE."
+    "\n"
+    "Reply in one of exactly these two formats and nothing else.\n"
+    "\n"
+    "When it needs nothing — this line alone:\n"
+    "NEEDED: no\n"
+    "\n"
+    "When it does:\n"
+    "NEEDED: yes\n"
+    "GUIDANCE: <the one or two sentences>"
 )
+
+
+def _parse_coaching(raw: str | None) -> str | None:
+    """The guidance in a reply, or None if it declined to offer any.
+
+    A labelled field rather than a bare sentinel, for the same reason the
+    pre-send check uses one. Asking for the word NONE works right up until the
+    model declines *in prose* — "This seems playful and teasing, so no help is
+    needed here" — at which point a refusal to comment is rendered to somebody
+    as comment. That is the exact failure this layer is supposed to avoid, and
+    the sentinel could not see it coming.
+
+    The old sentinel is still honoured: a model that answers NONE is
+    understood, and so is one that ignores the format and simply answers.
+    """
+    text = (raw or "").strip()
+    if not text or text.upper().startswith("NONE"):
+        return None
+
+    needed, parts = None, []
+    for line in (line.strip() for line in text.splitlines()):
+        if not line:
+            continue
+        lowered = line.lower()
+        if lowered.startswith("needed:"):
+            needed = "yes" in lowered
+        elif lowered.startswith("guidance:"):
+            parts.append(line.split(":", 1)[1].strip())
+        elif parts:
+            parts.append(line)
+
+    if needed is False:
+        return None
+
+    guidance = " ".join(part for part in parts if part).strip()
+    # A model that ignored the format and answered anyway is taken at its word,
+    # which is what happened before this function existed.
+    return (guidance or text) or None
 
 
 #: Messages that are hard to *receive*, which is a different question from the
@@ -923,7 +1038,30 @@ def _needs_read_coaching(incoming: str) -> bool:
     and its own escalation.
     """
     lowered = incoming.lower()
-    return _needs_model(incoming) or any(m in lowered for m in _HARD_TO_RECEIVE)
+
+    # Withdrawal first, and unconditionally. "I don't know if I want to keep
+    # doing this 😞" carries an emoji and is still the hardest thing a partner
+    # can open with; nothing below may talk this out of firing.
+    if any(marker in lowered for marker in _HARD_TO_RECEIVE):
+        return True
+
+    # Playful sharpness is not hard to receive, it is how these two talk. The
+    # send-side gate cannot tell the difference — it asks "will this wound
+    # whoever reads it", and "you're the worst 😂" is second person plus a
+    # negative word either way — so read-coaching inherited that mistake and
+    # privately told someone their partner might have hurt them when their
+    # partner was joking. Worse than the caution it came from: the caution
+    # interrupts you, this one reinterprets your relationship for you.
+    #
+    # `register_of` refuses to call name-calling, threats or absolutes playful,
+    # so this cannot silence coaching on anything the vocabulary knows is
+    # sharp. It can be fooled by contempt the vocabulary is missing — but that
+    # is the same gap on the send path, and safety does not run through here:
+    # `_ABUSE_SIGNALS` is checked before this function is reached.
+    if register_of(incoming) == REGISTER_PLAYFUL:
+        return False
+
+    return _needs_model(incoming)
 
 
 def no_coaching() -> dict:
@@ -966,10 +1104,10 @@ def coach_response(relationship, user, incoming: str) -> dict:
             if context
             else f"The message they just received:\n{incoming}"
         )
-        raw = _complete(_READ_COACH_SYSTEM, prompt, CHECK_TIMEOUT_SECONDS)
-        if not raw or raw.strip().upper() == "NONE":
+        guidance = _parse_coaching(_complete(_READ_COACH_SYSTEM, prompt, CHECK_TIMEOUT_SECONDS))
+        if not guidance:
             return blank
-        return {"guidance": raw.strip(), "defer_to_support": False}
+        return {"guidance": guidance, "defer_to_support": False}
     except Exception as exc:
         log.warning("chat_assist_read_coach_failed: %s", exc)
         return blank

@@ -15,6 +15,7 @@ from .runner import (
     Scenario,
     backdate_policy,
     check,
+    model_calls,
     repo_root,
     shell,
     shell_json,
@@ -356,13 +357,12 @@ def _s19(couple):
     a brand-new couple, and there is no history to calibrate against yet. This
     is what happens *after* a couple has told us something.
     """
-    opening = couple.check_draft("a", BANTER, expect_caution=True)
-    check(
-        "S19: banter cautions before the couple has said otherwise",
-        opening.get("verdict") == "caution",
-        opening.get("reason") or "no caution — nothing to calibrate away",
-    )
-
+    # Deliberately does *not* assert that the banter cautions first. It used
+    # to, and that made this scenario depend on the model's current opinion of
+    # one joke — so the day the check prompt was fixed and banter stopped being
+    # flagged, S19 went red without anything it tests having changed. What is
+    # under test is the bucketing: where a lesson is filed, and what it reaches.
+    # Whether the model needed the lesson today is S2's question.
     for _ in range(5):
         code = couple.caution_outcome("a", "sent_anyway", draft=BANTER)
         if code != 200:
@@ -376,20 +376,31 @@ def _s19(couple):
         str(weights),
     )
 
+    check(
+        "S19: the playful register is now suppressed for this couple",
+        couple.suppressed("caution", {"register": "playful"}),
+        str(couple.policy_weights()),
+    )
+
+    # And it short-circuits before the model, which is the point: a couple who
+    # have said "stop commenting on our jokes" should not go on paying for the
+    # call that decides to say nothing.
+    before = model_calls()
     quiet = couple.check_draft("a", BANTER)
     check(
-        "S19: and the same banter now goes through",
-        quiet.get("verdict") == "ok",
-        f"verdict={quiet.get('verdict')}",
+        "S19: the same banter goes through without asking the model",
+        quiet.get("verdict") == "ok" and model_calls() == before,
+        f"verdict={quiet.get('verdict')}, {model_calls() - before} calls",
     )
 
     # A different joke they have never sent before, so this is the register
     # being learned rather than one string being remembered.
+    before = model_calls()
     unseen = couple.check_draft("a", "I hate you so much right now 😂😂")
     check(
         "S19: including a joke they have never sent before",
-        unseen.get("verdict") == "ok",
-        f"verdict={unseen.get('verdict')}",
+        unseen.get("verdict") == "ok" and model_calls() == before,
+        f"verdict={unseen.get('verdict')}, {model_calls() - before} calls",
     )
 
     # The half that stops this being a way to switch the feature off.
