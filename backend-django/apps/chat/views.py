@@ -21,6 +21,7 @@ from rest_framework.response import Response
 
 from apps.audit.constants import AuditEventType
 from apps.audit.logger import AuditLogger
+from apps.personalization import outcomes
 from apps.relationships.models import Relationship
 from utils.encryption import DecryptionError, decrypt_bytes, encrypt_bytes
 
@@ -713,6 +714,15 @@ def assist_nudge_feedback(request, nudge_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
     nudge.save(update_fields=["acted_at", "dismissed_at"])
+
+    # The other half of the loop. Until now an unacted nudge was recorded and
+    # never read; this is what makes it change anything.
+    outcomes.record(
+        nudge.relationship,
+        f"nudge_{nudge.kind}",
+        {"hour": timezone.localtime(nudge.created_at).hour},
+        "accepted" if action == "acted" else "declined",
+    )
     return Response({"ok": True})
 
 

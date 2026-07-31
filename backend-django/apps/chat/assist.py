@@ -589,7 +589,29 @@ def nudge_for(relationship, user, local_hour: int | None = None) -> AssistNudge 
     warm goodnight on top of an unresolved row reads as tone-deaf.
     """
     try:
-        return _nudge_for(relationship, user, local_hour)
+        nudge = _nudge_for(relationship, user, local_hour)
+        if nudge is None:
+            return None
+
+        # What this couple has told us by dismissing things. A nudge nobody
+        # wants is worse than no nudge: it is how someone learns to swipe past
+        # the assist without reading it, and then the one that would have
+        # mattered goes past too.
+        #
+        # Checked after the nudge is built rather than before, so suppression
+        # is decided against the kind that would actually have been offered.
+        # The row is still written — it is the daily budget's record, and a
+        # suppressed offer is itself worth knowing about.
+        from apps.personalization import outcomes
+
+        if outcomes.suppressed(
+            relationship.id, f"nudge_{nudge.kind}", {"hour": local_hour}
+        ):
+            log.info(
+                "nudge_suppressed relationship=%s kind=%s", relationship.id, nudge.kind
+            )
+            return None
+        return nudge
     except Exception as exc:
         # An unprompted extra must never break opening the thread.
         log.warning("chat_assist_nudge_failed: %s", exc)

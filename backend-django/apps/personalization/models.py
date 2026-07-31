@@ -72,3 +72,35 @@ class BehaviourProfile(models.Model):
 
     def __str__(self):
         return f"Behaviour profile for {self.user_id}"
+
+
+class CouplePolicy(models.Model):
+    """What has been learned about helping this couple.
+
+    One row per relationship holding ``{bucket: {score, count, updated_at}}``,
+    the same shape and the same discipline as ``BehaviourProfile``: a running
+    total rather than a table of events, because we never need to query an
+    individual offer — only whether this kind of help has been landing lately.
+
+    Keeping it as one row is also what stops it becoming a log of when a couple
+    was struggling, which is a thing that would then exist and be subpoenable.
+
+    Decay is applied on read and on write (see outcomes.py) so the stored score
+    is always "as of updated_at" and never needs a sweep. That matters here for
+    the same reason it does for tendencies: a couple who ignored everything
+    through a hard fortnight should not be written off for good.
+    """
+
+    relationship = models.OneToOneField(
+        "relationships.Relationship",
+        on_delete=models.CASCADE,
+        related_name="couple_policy",
+    )
+    weights = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "couple_policies"
+
+    def __str__(self):
+        return f"Policy for relationship {self.relationship_id}"
