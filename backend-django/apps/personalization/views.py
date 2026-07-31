@@ -185,3 +185,28 @@ class BehaviourView(APIView):
                 "min_observations": MIN_OBSERVATIONS,
             }
         )
+
+class ConnectionScoreView(APIView):
+    """The couple's connection score, and how loudly to say it.
+
+    Read-only and joint: both partners get the same number, because it is built
+    from behaviour they both took part in. There is no per-partner variant and
+    there must not be one — the moment the two of them see different numbers,
+    the difference is a claim about one of them.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.personalization import connection
+        from apps.relationships.models import Relationship
+
+        relationship = (
+            Relationship.objects.filter(partner_a=request.user).first()
+            or Relationship.objects.filter(partner_b=request.user).first()
+        )
+        if relationship is None:
+            return Response(
+                {"score": None, "emphasis": "hidden", "direction": None, "series": []}
+            )
+        return Response(connection.presentation(relationship.id))

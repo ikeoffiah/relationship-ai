@@ -125,3 +125,30 @@ def compute_prompt_modifiers(user_profile_id):
         
     except UserProfile.DoesNotExist:
         logger.error(f"UserProfile {user_profile_id} not found")
+
+
+@shared_task(name="personalization.refresh_connection_scores")
+def refresh_connection_scores() -> int:
+    """Recompute every active couple's connection score.
+
+    Daily rather than on write. The score is a fortnight-wide measure smoothed
+    over weeks — recomputing it on every message would be a great deal of work
+    to produce the same number, and would put a query fan-out on the send path
+    for something nobody is waiting on.
+    """
+    from apps.personalization import connection
+    from apps.relationships.models import Relationship
+
+    updated = 0
+    for relationship in Relationship.objects.filter(status="active").iterator():
+        try:
+            if connection.update(relationship) is not None:
+                updated += 1
+        except Exception:
+            logger.warning(
+                "connection_refresh_failed relationship=%s",
+                relationship.id,
+                exc_info=True,
+            )
+    logger.info("connection_scores_refreshed count=%s", updated)
+    return updated

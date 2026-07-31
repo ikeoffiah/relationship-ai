@@ -139,10 +139,18 @@ def _components(relationship, since) -> tuple[dict[str, float], int]:
     # Gottman's strongest single predictor is not whether couples fight, it is
     # whether repair lands. Weighted accordingly, and generously: any repair at
     # all in a fortnight is worth most of this component.
-    from .behaviour import REPAIRS, tendencies_for
+    from .behaviour import MIN_OBSERVATIONS, REPAIRS, tendencies_for
 
     repairs = sum(1 for p in partners if REPAIRS in tendencies_for(p))
     repair = _ratio(repairs, 1.0)
+
+    # Repair counts toward the evidence as well as toward the score. A
+    # tendency has already cleared its own threshold to be reported at all, so
+    # there are at least MIN_OBSERVATIONS behind each one — and a component
+    # that can move the number while contributing nothing to "do we know
+    # enough to show a number" was an inconsistency waiting to produce a
+    # confident score from almost nothing, or refuse one from plenty.
+    events += repairs * MIN_OBSERVATIONS
 
     return (
         {

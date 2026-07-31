@@ -579,6 +579,219 @@ async def run():
         f"got {after.status_code}",
     )
 
+    # ---- the outcome loop ----------------------------------------------
+    # The part unit tests structurally cannot check: that feedback given
+    # through one endpoint changes what a different endpoint decides to offer,
+    # across two processes and a real database.
+    print("\n== the outcome loop ==")
+
+    caution = requests.post(
+        f"{base}/assist/caution-outcome",
+        headers=auth(a_token),
+        json={"choice": "sent_anyway"},
+        timeout=20,
+    )
+    check("a caution outcome is recorded", caution.status_code == 200, str(caution.status_code))
+
+    bad = requests.post(
+        f"{base}/assist/caution-outcome",
+        headers=auth(a_token),
+        json={"choice": "shrugged"},
+        timeout=20,
+    )
+    check("an unknown choice is refused", bad.status_code == 400, f"got {bad.status_code}")
+
+    stranger_loop = requests.post(
+        f"{DJANGO}/api/v1/chat/{rel}/assist/caution-outcome",
+        headers=auth(stranger),
+        json={"choice": "sent_anyway"},
+        timeout=20,
+    )
+    check(
+        "a stranger cannot report into this couple's loop",
+        stranger_loop.status_code == 404,
+        f"got {stranger_loop.status_code}",
+    )
+
+    # Four dismissals of the same kind at the same hour, then the policy should
+    # hold that kind back. Driven through the real feedback endpoint.
+    made = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "django",
+            "python", "manage.py", "shell", "-c",
+            "import json;"
+            "from django.contrib.auth import get_user_model;"
+            "from apps.chat.models import AssistNudge;"
+            "from apps.relationships.models import Relationship;"
+            "U=get_user_model();"
+            f"a=U.objects.get(email='e2e-a-{stamp}@test.local');"
+            f"r=Relationship.objects.get(id='{rel}');"
+            "print(json.dumps([str(AssistNudge.objects.create("
+            "relationship=r,user=a,kind='night',suggestion='say goodnight').id)"
+            " for _ in range(4)]))",
+        ],
+        capture_output=True, text=True, cwd=REPO,
+    ).stdout.strip().splitlines()[-1]
+    nudge_ids = json.loads(made)
+    check("four nudges staged", len(nudge_ids) == 4)
+
+    for nudge_id in nudge_ids:
+        requests.post(
+            f"{DJANGO}/api/v1/chat/assist/nudges/{nudge_id}/feedback",
+            headers=auth(a_token),
+            json={"action": "dismissed"},
+            timeout=20,
+        )
+
+    suppressed = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "django",
+            "python", "manage.py", "shell", "-c",
+            "from apps.personalization import outcomes;"
+            f"print(outcomes.suppressed('{rel}', 'nudge_night', "
+            "{'hour': __import__('django.utils.timezone', fromlist=['x'])"
+            ".localtime().hour}))",
+        ],
+        capture_output=True, text=True, cwd=REPO,
+    ).stdout.strip().splitlines()[-1]
+    check(
+        "four dismissals suppress that nudge",
+        suppressed == "True",
+        f"suppressed={suppressed}",
+    )
+
+    other = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "django",
+            "python", "manage.py", "shell", "-c",
+            "from apps.personalization import outcomes;"
+            f"print(outcomes.suppressed('{rel}', 'nudge_repair', {{'hour': 23}}))",
+        ],
+        capture_output=True, text=True, cwd=REPO,
+    ).stdout.strip().splitlines()[-1]
+    check(
+        "it does not suppress a different kind",
+        other == "False",
+        f"suppressed={other}",
+    )
+
+    # ---- the partner boundary -------------------------------------------
+    print("\n== the partner boundary ==")
+
+    subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "django",
+            "python", "manage.py", "shell", "-c",
+            "from django.contrib.auth import get_user_model;"
+            "from apps.personalization import behaviour;"
+            "U=get_user_model();"
+            f"a=U.objects.get(email='e2e-a-{stamp}@test.local');"
+            "[behaviour.observe(a, s) for s in behaviour.SIGNALS for _ in range(6)];"
+            "print('ok')",
+        ],
+        capture_output=True, text=True, cwd=REPO,
+    )
+
+    own = requests.get(
+        f"{DJANGO}/api/v1/personalization/behaviour", headers=auth(a_token), timeout=20
+    )
+    check(
+        "A can read their own tendencies",
+        own.status_code == 200 and bool(own.json()),
+        str(own.status_code),
+    )
+
+    # Everything B can reach, checked for A's profile vocabulary. The unit
+    # suite asserts this against the view layer; this asserts it against the
+    # running server, with a profile that was populated through the real code.
+    vocabulary = [
+        "withdraws_after_conflict", "pursues_when_unanswered",
+        "escalates_under_stress", "reaches_for_repair", "accepts_rephrasing",
+    ]
+    surfaces = {
+        "the thread": requests.get(f"{base}/messages", headers=auth(b_token), timeout=20),
+        "the nudge endpoint": requests.get(
+            f"{base}/assist/nudge", headers=auth(b_token), timeout=20
+        ),
+        "assist settings": requests.get(
+            f"{base}/assist/settings", headers=auth(b_token), timeout=20
+        ),
+        "the connection score": requests.get(
+            f"{DJANGO}/api/v1/personalization/connection", headers=auth(b_token), timeout=20
+        ),
+    }
+    leaked = {
+        name: [word for word in vocabulary if word in response.text]
+        for name, response in surfaces.items()
+    }
+    offenders = {name: words for name, words in leaked.items() if words}
+    check(
+        "B's surfaces say nothing about A's profile",
+        not offenders,
+        json.dumps(offenders) if offenders else "clean",
+    )
+
+    peek = requests.get(
+        f"{DJANGO}/api/v1/personalization/behaviour", headers=auth(b_token), timeout=20
+    )
+    check(
+        "there is no way to ask for a partner's tendencies",
+        "withdraws_after_conflict" not in peek.text,
+        "B's own profile is empty, and there is no id parameter to change that",
+    )
+
+    # ---- the connection score -------------------------------------------
+    print("\n== the connection score ==")
+
+    score_a = requests.get(
+        f"{DJANGO}/api/v1/personalization/connection", headers=auth(a_token), timeout=20
+    ).json()
+    _ = score_a
+    score_b = requests.get(
+        f"{DJANGO}/api/v1/personalization/connection", headers=auth(b_token), timeout=20
+    ).json()
+    check(
+        "both partners see the same number",
+        score_a == score_b,
+        f"{score_a.get('score')} vs {score_b.get('score')}",
+    )
+    check(
+        "a brand new couple is shown nothing rather than a zero",
+        score_a.get("score") is None and score_a.get("emphasis") == "hidden",
+        json.dumps(score_a),
+    )
+
+    for token in (a_token, b_token):
+        requests.post(
+            f"{DJANGO}/api/v1/engagement/check-in",
+            headers=auth(token),
+            json={"connection_score": 4, "mood": "good"},
+            timeout=20,
+        )
+        requests.post(
+            f"{DJANGO}/api/v1/engagement/gratitude",
+            headers=auth(token),
+            json={"text": "thank you for yesterday"},
+            timeout=20,
+        )
+
+    computed = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "django",
+            "python", "manage.py", "shell", "-c",
+            "from apps.personalization.tasks import refresh_connection_scores;"
+            "refresh_connection_scores();"
+            "from apps.personalization import connection;"
+            f"print(connection.presentation('{rel}')['score'])",
+        ],
+        capture_output=True, text=True, cwd=REPO,
+    ).stdout.strip().splitlines()[-1]
+    check(
+        "the nightly job runs and produces a score for an active couple",
+        computed not in ("", "None"),
+        f"score={computed}",
+    )
+
     # ---- presence teardown ---------------------------------------------
     print("\n== presence teardown ==")
     a_events.clear()
