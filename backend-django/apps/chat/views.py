@@ -723,12 +723,14 @@ def assist_caution_outcome(request, relationship_id):
         )
 
     response = CAUTION_CHOICES[choice]
-    outcomes.record(
-        relationship,
-        "caution",
-        {"hour": timezone.localtime().hour},
-        response,
-    )
+    # Deliberately no hour. A caution is about the message, not the time of
+    # day: someone who overrides them overrides them at breakfast too, and
+    # splitting by window would divide already-thin evidence four ways. It also
+    # has to match how `assist._caution_is_wanted` reads it back — writing to
+    # `caution@morning` and reading from `caution` meant the calibration could
+    # never fire, which is exactly what it did until a real override was tried
+    # end to end.
+    outcomes.record(relationship, "caution", None, response)
 
     if choice == "used_suggestion":
         # The observed-tendency side of the same event. Defined since the

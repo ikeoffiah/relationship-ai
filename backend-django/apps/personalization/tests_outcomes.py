@@ -239,6 +239,67 @@ class LoopIntegrationTests(TestCase):
         entry = next(iter(policy.weights.values()))
         self.assertGreater(entry["score"], 0)
 
+    def override_a_caution(self):
+        return self.client.post(
+            reverse("chat-assist-caution-outcome", args=[self.relationship.id]),
+            {"choice": "sent_anyway"},
+            format="json",
+        )
+
+    def test_overriding_the_caution_repeatedly_stops_it_interrupting(self):
+        """The write and the read have to agree on the bucket.
+
+        They did not: the endpoint stored under `caution@<window>` and the
+        check read `caution`, so the calibration could never fire no matter how
+        many times someone overrode it. Both sides go through the real code
+        here, which is the only way that mismatch shows up.
+        """
+        from apps.chat import assist
+
+        self.assertTrue(assist._caution_is_wanted(self.relationship))
+
+        for _ in range(5):
+            self.assertEqual(self.override_a_caution().status_code, 200)
+
+        self.assertFalse(assist._caution_is_wanted(self.relationship))
+
+    def test_a_suppressed_caution_lets_the_message_through(self):
+        from apps.chat import assist
+
+        for _ in range(5):
+            self.override_a_caution()
+
+        verdict = assist.check_before_send(
+            self.relationship, self.alex, "you always do this"
+        )
+
+        # Not "we decided it was fine" — "we stopped asking". The message goes.
+        self.assertEqual(verdict["verdict"], "ok")
+
+    def test_using_the_suggestion_counts_the_other_way(self):
+        for _ in range(5):
+            self.override_a_caution()
+        from apps.chat import assist
+
+        self.assertFalse(assist._caution_is_wanted(self.relationship))
+
+        for _ in range(8):
+            self.client.post(
+                reverse("chat-assist-caution-outcome", args=[self.relationship.id]),
+                {"choice": "used_suggestion"},
+                format="json",
+            )
+
+        self.assertTrue(assist._caution_is_wanted(self.relationship))
+
+    def test_an_unknown_caution_choice_is_refused(self):
+        response = self.client.post(
+            reverse("chat-assist-caution-outcome", args=[self.relationship.id]),
+            {"choice": "shrugged"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
     def test_a_policy_failure_does_not_break_the_feedback_endpoint(self):
         nudge = AssistNudge.objects.create(
             relationship=self.relationship,

@@ -736,6 +736,48 @@ _READ_COACH_SYSTEM = (
 )
 
 
+#: Messages that are hard to *receive*, which is a different question from the
+#: one `_needs_model` answers.
+#:
+#: The send-side gate looks for contempt — blame, absolutes, second person —
+#: because it asks "will this wound whoever reads it". Reusing it here asked
+#: the wrong question: it fired on "you always do this", which is unpleasant
+#: but survivable, and stayed silent on "I don't know if I want to keep doing
+#: this", which is the hardest thing a partner can open. The two vocabularies
+#: barely overlap, so read-coaching was loudest exactly where it mattered least.
+#:
+#: Distance and withdrawal, not sharpness. Deliberately specific phrases: "I
+#: don't know" on its own is someone choosing a restaurant.
+_HARD_TO_RECEIVE = (
+    "keep doing this",
+    "take a break",
+    "i'm done", "im done",
+    "given up", "give up on",
+    "stopped expecting",
+    "alone in this",
+    "nothing ever changes", "nothing changes",
+    "can't do this anymore", "cant do this anymore",
+    "tired of trying",
+    "not sure this is working",
+    "don't know if i want", "dont know if i want",
+)
+
+
+def _needs_read_coaching(incoming: str) -> bool:
+    """Whether a received message is worth offering the reader help with.
+
+    Sharpness still counts — being on the end of contempt is hard. But so does
+    withdrawal, which the sharpness gate cannot see at all.
+
+    Deliberately excludes hopelessness that reads as being about the person
+    rather than the relationship. "What's the point" is not a message to coach
+    a warm reply to; that belongs to the safety layer, which has its own path
+    and its own escalation.
+    """
+    lowered = incoming.lower()
+    return _needs_model(incoming) or any(m in lowered for m in _HARD_TO_RECEIVE)
+
+
 def coach_response(relationship, user, incoming: str) -> dict:
     """Private guidance for the partner who just received a hard message.
 
@@ -756,9 +798,7 @@ def coach_response(relationship, user, incoming: str) -> dict:
             # Not a communication problem. Do not coach accommodation.
             return {"guidance": None, "defer_to_support": True}
 
-        # Same local gate as the send path: if the message is not actually
-        # hard, there is nothing to coach and no call worth paying for.
-        if not _needs_model(incoming):
+        if not _needs_read_coaching(incoming):
             return blank
 
         context = _thread_context(relationship, limit=6)

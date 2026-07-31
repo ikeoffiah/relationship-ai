@@ -96,6 +96,49 @@ class ContemptHeuristicTests(TestCase):
         self.assertFalse(assist._needs_model("I see it differently"))
 
 
+class ReadCoachGateTests(TestCase):
+    """What counts as a message worth helping someone receive.
+
+    The send gate and the read gate ask opposite questions, and for a while
+    this used the send one — so coaching fired on sharpness and went silent on
+    withdrawal, which is the harder thing to be on the end of.
+    """
+
+    def test_withdrawal_is_hard_to_receive(self):
+        for message in [
+            "I honestly do not know if I want to keep doing this",
+            "maybe we should take a break",
+            "I have stopped expecting anything to change",
+            "I feel completely alone in this",
+            "I am tired of trying",
+        ]:
+            self.assertTrue(
+                assist._needs_read_coaching(message),
+                f"{message!r} should be worth coaching",
+            )
+
+    def test_sharpness_still_counts(self):
+        # Being on the end of contempt is hard too; this widens the gate rather
+        # than swapping it.
+        self.assertTrue(assist._needs_read_coaching("you always do this"))
+
+    def test_an_ordinary_message_is_left_alone(self):
+        for message in [
+            "picking up milk on the way home",
+            "I don't know if we should get the blue one or the green one",
+            "running ten minutes late",
+        ]:
+            self.assertFalse(
+                assist._needs_read_coaching(message),
+                f"{message!r} should not trigger coaching",
+            )
+
+    def test_hopelessness_about_the_person_is_not_coached_here(self):
+        # "What's the point" is not a message to coach a warm reply to. It
+        # belongs to the safety layer, which has its own escalation.
+        self.assertFalse(assist._needs_read_coaching("what is the point of any of it"))
+
+
 class PartnerNotesTests(TestCase):
     def setUp(self):
         self.alex = User.objects.create_user(email="a@test.local", password="pw12345!")
