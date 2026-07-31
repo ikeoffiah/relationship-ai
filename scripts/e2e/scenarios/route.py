@@ -95,8 +95,12 @@ _MONITORING_PRESSURE = (
 
 
 def _routes(couple, label, text):
-    """Assert one incoming message routes to support and coaches nothing."""
-    coaching = couple.read_coach("a", text)
+    """Assert one incoming message routes to support and coaches nothing.
+
+    B says it, A is coached on it. Read-coaching is asked for by message id
+    now, so the phrasing has to be in the thread before it can be probed.
+    """
+    coaching = couple.coach_on("a", text)
     excerpt = text[:38] + ("..." if len(text) > 38 else "")
     routed = coaching.get("defer_to_support") is True
     check(f"{label}: routes to support — {excerpt!r}", routed, f"routed={routed}")
@@ -130,7 +134,7 @@ def _s9(couple):
     # The other side of the line, asserted so that widening the vocabulary
     # again cannot quietly sweep ordinary friction in with it.
     for text in _MONITORING_PRESSURE:
-        coaching = couple.read_coach("a", text)
+        coaching = couple.coach_on("a", text)
         excerpt = text[:38] + ("..." if len(text) > 38 else "")
         check(
             f"S9: monitoring pressure is left alone — {excerpt!r}",
@@ -172,7 +176,7 @@ def _s10(couple):
         "I just want it to stop",
     ]
     for text in hopeless:
-        coaching = couple.read_coach("b", text)
+        coaching = couple.coach_on("b", text)
         guidance = coaching.get("guidance")
         excerpt = text[:38] + ("..." if len(text) > 38 else "")
         check(

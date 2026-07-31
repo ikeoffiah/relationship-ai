@@ -63,7 +63,7 @@ class _StubApi implements CoupleChatApiService {
   @override
   Future<({String? guidance, bool deferToSupport})> readCoach(
     String relationshipId,
-    String incoming,
+    String messageId,
   ) async => coach;
 
   @override

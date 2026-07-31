@@ -81,6 +81,7 @@ class Couple:
         self.tokens = {who: register(email) for who, email in self.emails.items()}
         self.rel = pair(self.emails["a"], self.emails["b"])
         self.base = f"{DJANGO}/api/v1/chat/{self.rel}"
+        self.sent: list[dict] = []
 
     # ── identities ──────────────────────────────────────────────────────
 
@@ -105,7 +106,17 @@ class Couple:
         r = requests.post(
             f"{self.base}/messages/send", headers=self.headers(who), json=body, timeout=30
         )
-        return r.json() if r.content else {}
+        message = r.json() if r.content else {}
+        if message.get("id"):
+            # Kept so a scenario body can reach back to a message its turns
+            # sent — read-coaching is asked for by id, and the turns are played
+            # by the framework before the body runs.
+            self.sent.append(message)
+        return message
+
+    def last_sent(self) -> dict:
+        """The most recent message in this thread, as the server returned it."""
+        return self.sent[-1]
 
     #: How many times a caution-expected check may be asked before it counts as
     #: a real absence. Three, because two was not enough: on a full run with a
@@ -147,14 +158,28 @@ class Couple:
             timeout=30,
         ).json()
 
-    def read_coach(self, who: str, incoming: str) -> dict:
-        """What the system offers ``who`` about a message they just received."""
+    def read_coach(self, who: str, message_id: str) -> dict:
+        """What the system offers ``who`` about a message in their thread.
+
+        By id, as the client asks: the endpoint reads the text out of the row
+        itself, so it knows who sent it and can refuse the sender.
+        """
         return requests.post(
             f"{self.base}/assist/read-coach",
             headers=self.headers(who),
-            json={"message": incoming},
+            json={"message_id": message_id},
             timeout=30,
         ).json()
+
+    def coach_on(self, who: str, text: str) -> dict:
+        """Send ``text`` from the other partner, then coach ``who`` on it.
+
+        Probing a phrasing means putting it in the thread first, now that the
+        endpoint takes an id. That is the more honest test anyway — it is the
+        sequence the client actually performs — and it is why these sweeps
+        cost a send apiece.
+        """
+        return self.read_coach(who, self.send(self.other(who), text)["id"])
 
     def rephrase(self, who: str, draft: str) -> dict:
         return requests.post(
@@ -567,7 +592,7 @@ def _play_turn(couple: Couple, scenario: Scenario, index: int, turn: Turn, expec
     #    the whole point of it: escalation happens in the reaction, not the
     #    opening message.
     if "coach" in expect or "defer_to_support" in expect:
-        coaching = couple.read_coach(couple.other(who), turn.text)
+        coaching = couple.read_coach(couple.other(who), sent["id"])
         guidance = coaching.get("guidance")
         deferred = bool(coaching.get("defer_to_support"))
 

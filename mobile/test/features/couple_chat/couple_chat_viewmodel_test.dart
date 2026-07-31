@@ -13,6 +13,7 @@ class _FakeApi implements CoupleChatApiService {
   DraftVerdict verdict = DraftVerdict.ok;
   int sendCalls = 0;
   int readCoachCalls = 0;
+  final List<String> readCoachIds = [];
   ({String? guidance, bool deferToSupport}) coachResult = (
     guidance: null,
     deferToSupport: false,
@@ -92,9 +93,10 @@ class _FakeApi implements CoupleChatApiService {
   @override
   Future<({String? guidance, bool deferToSupport})> readCoach(
     String relationshipId,
-    String message,
+    String messageId,
   ) async {
     readCoachCalls++;
+    readCoachIds.add(messageId);
     return coachResult;
   }
 
@@ -258,6 +260,9 @@ void main() {
       vm.onIncoming(_message(id: 'theirs', body: 'you never listen'));
       await Future<void>.delayed(Duration.zero);
 
+      // By id: the server reads the text out of the thread, which is what
+      // lets it refuse to coach anyone on a message they sent themselves.
+      expect(api.readCoachIds, ['theirs']);
       expect(vm.coachGuidance, 'Take a breath first.');
       vm.dismissCoach();
       expect(vm.coachGuidance, isNull);

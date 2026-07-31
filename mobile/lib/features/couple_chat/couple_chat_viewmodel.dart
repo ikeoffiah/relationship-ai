@@ -489,13 +489,18 @@ class CoupleChatViewModel extends ChangeNotifier {
       unawaited(_api.markDelivered(relationshipId).catchError((_) {}));
     }
     if (!message.isMine(userId) && message.body.isNotEmpty) {
-      _maybeCoach(message.body);
+      _maybeCoach(message.id);
     }
   }
 
   /// Ask, privately, whether this message is worth a word of guidance.
-  Future<void> _maybeCoach(String incoming) async {
-    final result = await _api.readCoach(relationshipId, incoming);
+  ///
+  /// By id: the server reads the text from the thread, and refuses to coach
+  /// anyone on a message they sent themselves. The `isMine` guard above is
+  /// still the right thing to do — it saves a round trip — but it is no longer
+  /// the only thing standing between a sender and their partner's guidance.
+  Future<void> _maybeCoach(String messageId) async {
+    final result = await _api.readCoach(relationshipId, messageId);
     _coachGuidance = result.guidance;
     _coachDefersToSupport = result.deferToSupport;
     if (_coachGuidance != null || _coachDefersToSupport) notifyListeners();

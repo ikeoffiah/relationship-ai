@@ -16,7 +16,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.chat import assist
-from apps.chat.models import AssistNudge, ChatAssistSettings, CoupleMessage
+from apps.chat.models import AssistNudge, ChatAssistSettings, CoupleMessage, MessageMedia
 from apps.relationships.models import Relationship
 
 User = get_user_model()
@@ -532,15 +532,18 @@ class ReadCoachTests(AssistTestCase):
     def url(self):
         return reverse("chat-assist-read-coach", args=[self.relationship.id])
 
+    def coach_on(self, body, **kw):
+        """Ask, as Alex, about a message Sam just sent."""
+        message = self.say(self.sam, body, **kw)
+        return self.client.post(self.url(), {"message_id": str(message.id)}, format="json")
+
     def test_guidance_is_returned_for_a_hard_message(self):
         with patch(
             "apps.chat.assist._complete",
             return_value="Take a breath before answering — you can name the "
             "part that stung without matching it.",
         ):
-            response = self.client.post(
-                self.url(), {"message": "you never listen, you always do this"}, format="json"
-            )
+            response = self.coach_on("you never listen, you always do this")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("Take a breath", response.data["guidance"])
@@ -550,11 +553,7 @@ class ReadCoachTests(AssistTestCase):
         """Coaching someone to respond 'better' to coercive control would be
         coaching them to accommodate it."""
         with patch("apps.chat.assist._complete") as complete:
-            response = self.client.post(
-                self.url(),
-                {"message": "you're not allowed to see your friends this weekend"},
-                format="json",
-            )
+            response = self.coach_on("you're not allowed to see your friends this weekend")
 
         self.assertTrue(response.data["defer_to_support"])
         self.assertIsNone(response.data["guidance"])
@@ -563,34 +562,115 @@ class ReadCoachTests(AssistTestCase):
 
     def test_threats_defer_to_support(self):
         with patch("apps.chat.assist._complete") as complete:
-            response = self.client.post(
-                self.url(), {"message": "if you leave I'll take the kids"}, format="json"
-            )
+            response = self.coach_on("if you leave I'll take the kids")
         self.assertTrue(response.data["defer_to_support"])
         complete.assert_not_called()
 
     def test_an_ordinary_message_gets_no_coaching(self):
         with patch("apps.chat.assist._complete") as complete:
-            response = self.client.post(
-                self.url(), {"message": "can you grab milk on the way home?"}, format="json"
-            )
+            response = self.coach_on("can you grab milk on the way home?")
         self.assertIsNone(response.data["guidance"])
         complete.assert_not_called()
 
     def test_model_saying_NONE_shows_nothing(self):
         with patch("apps.chat.assist._complete", return_value="NONE"):
-            response = self.client.post(
-                self.url(), {"message": "you always do this"}, format="json"
-            )
+            response = self.coach_on("you always do this")
         self.assertIsNone(response.data["guidance"])
 
     def test_coaching_fails_open_and_silent(self):
         with patch("apps.chat.assist._complete", side_effect=Exception("down")):
+            response = self.coach_on("you always do this")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["guidance"])
+
+    # ── who may ask, and about what ─────────────────────────────────────────
+
+    def test_the_sender_is_not_coached_on_their_own_message(self):
+        """The endpoint's contract is guidance for the partner who *received*
+        this. Asking about your own message is outside it.
+
+        Not a leak — the guidance is built from this text and the shared
+        thread, never from Sam's profile, so an answer would give away nothing
+        of theirs. It is that someone who has just said a hard thing should not
+        be able to discover that the system stepped in to help their partner
+        handle it, and that the endpoint should know who sent what rather than
+        trusting the client to only ask about messages it received.
+        """
+        mine = self.say(self.alex, "you never listen, you always do this")
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(), {"message_id": str(mine.id)}, format="json"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["guidance"])
+        self.assertFalse(response.data["defer_to_support"])
+        complete.assert_not_called()
+
+    def test_a_message_from_another_couples_thread_is_a_404(self):
+        other = Relationship.objects.create(
+            partner_a=self.sam, partner_b=self.stranger, status="active"
+        )
+        elsewhere = CoupleMessage(relationship=other, sender=self.stranger)
+        elsewhere.body = "you always do this"
+        elsewhere.save()
+
+        with patch("apps.chat.assist._complete") as complete:
+            response = self.client.post(
+                self.url(), {"message_id": str(elsewhere.id)}, format="json"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        complete.assert_not_called()
+
+    def test_an_unknown_or_malformed_id_is_a_404_not_a_500(self):
+        """The id arrives in a JSON body, so it is whatever the caller typed."""
+        for message_id in ("11111111-1111-1111-1111-111111111111", "not-a-uuid", "", 7, None):
+            with patch("apps.chat.assist._complete") as complete:
+                response = self.client.post(
+                    self.url(), {"message_id": message_id}, format="json"
+                )
+            self.assertEqual(
+                response.status_code, status.HTTP_404_NOT_FOUND, repr(message_id)
+            )
+            complete.assert_not_called()
+
+    def test_a_voice_note_is_coached_on_its_transcript(self):
+        """The text of a spoken message lives on the media row.
+
+        Reading it from the row rather than the request body is most of the
+        point of taking an id: a caller passing a string would never have found
+        this, so voice — where the loaded messages go — was uncoachable.
+        """
+        media = MessageMedia.objects.create(
+            relationship=self.relationship,
+            uploader=self.sam,
+            kind=MessageMedia.KIND_VOICE,
+            storage_key="k",
+            byte_size=1,
+        )
+        media.transcript = "you never listen, you always do this"
+        media.save(update_fields=["transcript_ciphertext"])
+        voice = self.say(self.sam, "", kind=CoupleMessage.KIND_VOICE, media=media)
+
+        with patch("apps.chat.assist._complete", return_value="Take a breath.") as complete:
+            response = self.client.post(
+                self.url(), {"message_id": str(voice.id)}, format="json"
+            )
+
+        self.assertEqual(response.data["guidance"], "Take a breath.")
+        self.assertIn("you always do this", complete.call_args.args[1])
+
+    def test_the_deprecated_free_text_body_still_answers(self):
+        """One release of overlap for a client that has not shipped the id yet.
+
+        Delete this test with the branch it covers.
+        """
+        with patch("apps.chat.assist._complete", return_value="Take a breath."):
             response = self.client.post(
                 self.url(), {"message": "you always do this"}, format="json"
             )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsNone(response.data["guidance"])
+        self.assertEqual(response.data["guidance"], "Take a breath.")
 
     def test_disabled_assist_means_no_coaching(self):
         ChatAssistSettings.objects.create(
@@ -602,8 +682,11 @@ class ReadCoachTests(AssistTestCase):
         self.assertIsNone(result["guidance"])
 
     def test_a_stranger_cannot_request_coaching_on_this_thread(self):
+        theirs = self.say(self.sam, "you always do this")
         self.client.force_authenticate(user=self.stranger)
-        response = self.client.post(self.url(), {"message": "you always"}, format="json")
+        response = self.client.post(
+            self.url(), {"message_id": str(theirs.id)}, format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_the_prompt_forbids_characterising_the_partner(self):
