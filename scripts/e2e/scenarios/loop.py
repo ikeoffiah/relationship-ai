@@ -39,7 +39,7 @@ def _s11(couple):
     at all from the endpoint the client actually calls, which is what the
     bucket mismatch made false.
     """
-    first = couple.check_draft("a", SHARP)
+    first = couple.check_draft("a", SHARP, expect_caution=True)
     check(
         "S11: the draft cautions to begin with",
         first.get("verdict") == "caution",
@@ -79,7 +79,7 @@ def _s11(couple):
         not couple.suppressed("caution"),
         f"weights={couple.policy_weights()}",
     )
-    restored = couple.check_draft("a", SHARP)
+    restored = couple.check_draft("a", SHARP, expect_caution=True)
     check(
         "S11: and the draft cautions again",
         restored.get("verdict") == "caution",

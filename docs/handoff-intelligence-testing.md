@@ -156,3 +156,112 @@ Known open items, unchanged: the connection score has an endpoint
 mobile is at 91.9% with the `@bliss` and calendar-invite paths in
 `couple_chat_screen.dart` uncovered; voice *recording* has never run on real
 hardware (the simulator has no microphone).
+
+---
+
+## 6. The scenario suite exists now — and what it found
+
+Built to the plan in `docs/intelligence-test-plan.md`. All eighteen scenarios,
+187 assertions, ~7 minutes, ~40 model calls.
+
+```bash
+make scenarios                    # all
+make scenarios ARGS="S1 quiet"    # one scenario, or one group
+```
+
+`scripts/e2e/harness.py` holds what it shares with `couple_thread.py`;
+`scripts/e2e/scenarios/` holds the runner and the six groups.
+
+**Deliberately not in `make validate` yet.** Three assertions describe
+behaviour we think is wrong rather than behaviour that broke, and they are
+meant to stay red until someone decides what to do about them. A
+permanently-failing suite in `validate` teaches people to ignore `validate`.
+
+### Fixed while building it
+
+- **`_sharp_before` read `msg.body`, so every spoken rupture was invisible.**
+  `_thread_context` already went through `message_text`; this did not. No
+  repair opening after an argument that happened out loud, and no withdrawal
+  signal either, since that is gated on the same function. Third instance of
+  this exact shape — the vocabulary is fixed in one reader and not the next.
+  S18 covers it.
+- **Celery could not boot at all.** `apps/insights/tasks.py` imported a
+  renamed model, and beneath it `apps.insights.jobs` and `apps.core`, neither
+  of which has ever existed in this repository. Celery autodiscovers a `tasks`
+  module from every installed app, so the worker died during autodiscovery
+  before registering a single task: transcription, media moderation and the
+  nightly connection score all silently did nothing. The imports are now
+  function-local so an unfinished file cannot take down the worker;
+  `insight_synthesis_job` still raises ImportError, which is true. **Someone
+  needs to finish or delete that module.**
+- Note: the `celery` service has no source volume in `docker-compose.yml`,
+  unlike `django`. Editing a task and restarting does nothing — it needs
+  `--build`.
+
+### Left failing, on purpose — these need a decision
+
+1. **S2 — warm banter is cautioned.** Three of six turns. See §7 below.
+2. **S9 — coercive control does not route to support.** `_ABUSE_SIGNALS`
+   catches threats, isolation and discrediting. It does not catch
+   surveillance, monitoring pressure, control of movement or appearance,
+   financial control, or enforced secrecy. There is no second net —
+   `apps/safety` is minors-only guardian-consent code. The list also contains
+   `"check your phone"`, which is nobody's sentence; people write "give me
+   your phone".
+3. **S6 — one distressed evening becomes a tendency.** Pursuit fires once per
+   message past the third, so a single unbroken run of seven banks four
+   observations inside a minute against a `MIN_OBSERVATIONS` of four. The
+   threshold counts messages where it means occasions, and the evening it
+   fires on is the one where somebody was frightened and could not stop
+   typing.
+
+### Smaller things worth knowing
+
+- **`/assist/nudge` costs a model call every time it is asked.** The
+  opportunity probe answers NONE most of the time by design, no row is
+  written, so the 20h cooldown never applies and the next thread-open pays
+  again. Five fetches, five calls. Recording the declined probe would fix it.
+- **`/assist/read-coach` takes a free string and cannot tell who sent it**, so
+  it cannot distinguish "help me receive this" from "show me what my partner
+  would be told". It should take a message id and refuse the sender.
+- The suite is mildly flaky under its own load: the pre-send check has a 2.5s
+  budget and fails open, so a caution assertion can go red because the system
+  worked as designed. Caution-expected assertions retry once, in that
+  direction only.
+
+---
+
+## 7. The S2 recommendation
+
+`docs/intelligence-test-plan.md` §5 predicted this would fail and it does, but
+not where expected. **The local gate is not the problem.** `_needs_model`
+escalates three of the six banter turns, which is a deliberately generous gate
+working as intended — escalating costs one cheap call, and the plan's
+suggestion of softening the heuristic would buy nothing while making real
+contempt easier to miss.
+
+The false positive is the **model's** decision, against a prompt that already
+forbids it. On two of the three it wrote a REASON arguing against its own
+verdict — "Could be hurtful, but not necessarily contemptuous", "Expresses
+strong emotion but not outright contempt or threats" — and returned
+`VERDICT: caution` anyway.
+
+Recommended, in order:
+
+1. **Give the check an out.** The format demands VERDICT, REASON and
+   SUGGESTION; a model that has decided to say something has nowhere to put
+   "this is fine". Requiring `VERDICT: ok` and nothing else for the ok case —
+   and making that the majority-case example in the prompt — costs nothing.
+2. **Tell it about affection.** The prompt has no concept of a couple who talk
+   like this. One line — emoji, hyperbole and running jokes between partners
+   are not contempt; flag the sentence someone would still be hurt by tomorrow
+   — is the smallest change that addresses the actual failure.
+3. **Do not relax `_needs_model`.** It is doing its job.
+4. **Fix read-coaching's inheritance separately.** `_needs_read_coaching` calls
+   `_needs_model`, so the receiver of "you're the worst 😂" gets privately
+   coached on handling a hurtful message. That is worse than the caution: it
+   tells someone their partner hurt them when their partner was joking.
+
+The reason this matters more than its severity suggests: this is the false
+positive that makes a couple turn the feature off, and every override spends a
+little of the credibility the caution that matters will need.

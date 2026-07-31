@@ -69,6 +69,14 @@ def main():
     # rather than on a bill. The check path is tiered specifically so that
     # ordinary chat costs nothing; if that gate ever widens, this is the
     # number that moves.
+    #
+    # It counts every completion attempted anywhere in the stack while the
+    # scenario ran, which with a live Celery worker includes the rolling
+    # thread summaries the scenario's own messages queued. That is the right
+    # number — those summaries are real spend caused by that conversation —
+    # but it is not attributable line by line, and the tail of one scenario's
+    # summaries can land inside the next one's window. Read it as the cost of
+    # a conversation of that shape, not as an exact per-endpoint tally.
     print("\n== cost and latency ==")
     print(f"  {'scenario':<6} {'seconds':>8} {'model calls':>12}")
     for row in stats:

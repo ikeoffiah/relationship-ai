@@ -21,13 +21,16 @@ import requests
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+# Scenario modules import everything from here rather than reaching into
+# `harness` themselves, so there is one place that knows how the two fit
+# together. `repo_root` is re-exported for that reason and used by callers.
 from harness import (  # noqa: E402
     DJANGO,
     auth,
     check,
     pair,
     register,
-    repo_root,
+    repo_root,  # noqa: F401 — re-exported for the scenario modules
     shell,
     shell_json,
     stamp,
@@ -104,7 +107,29 @@ class Couple:
         )
         return r.json() if r.content else {}
 
-    def check_draft(self, who: str, text: str) -> dict:
+    def check_draft(self, who: str, text: str, expect_caution: bool = False) -> dict:
+        """The pre-send check, as the client runs it.
+
+        ``expect_caution`` buys one retry, and only in that direction. The
+        check has a 2.5s budget and fails open — correctly, since trapping
+        someone's message behind a slow classifier is far worse than missing a
+        warning — and a fail-open is deliberately indistinguishable from "ok"
+        to everything outside, including this suite. So under load (a full run
+        with Celery draining summaries behind it) a caution assertion goes red
+        for a reason that is the system working as designed.
+
+        Retrying only when a caution was expected is the asymmetry that keeps
+        this honest: it can turn a timeout into the caution that was really
+        there, and it can never turn a false positive into a pass. A draft that
+        does not caution twice is a draft that does not caution.
+        """
+        verdict = self._check_once(who, text)
+        if expect_caution and verdict.get("verdict") != "caution":
+            verdict = self._check_once(who, text)
+            verdict["retried"] = True
+        return verdict
+
+    def _check_once(self, who: str, text: str) -> dict:
         return requests.post(
             f"{self.base}/assist/check",
             headers=self.headers(who),
@@ -484,13 +509,14 @@ def _play_turn(couple: Couple, scenario: Scenario, index: int, turn: Turn, expec
     #    message exists. Asked first so the verdict is about the thread as it
     #    stood when the person was typing.
     if "caution" in expect:
-        verdict = couple.check_draft(who, turn.text)
+        verdict = couple.check_draft(who, turn.text, expect_caution=expect["caution"])
         cautioned = verdict.get("verdict") == "caution"
         if expect["caution"]:
             check(
                 f"{label}: caution on {excerpt!r}",
                 cautioned,
-                verdict.get("reason") or "no caution",
+                (verdict.get("reason") or "no caution")
+                + (" (on retry)" if verdict.get("retried") and cautioned else ""),
             )
             if cautioned:
                 faults = rewrite_faults(turn.text, verdict.get("suggestion") or "")

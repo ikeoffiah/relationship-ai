@@ -196,6 +196,16 @@ def _real_m4a(text: str) -> bytes | None:
         return None
 
 
+def _upload_voice(couple, audio):
+    return requests.post(
+        f"{couple.base}/media",
+        headers=couple.headers("a"),
+        files={"file": ("note.m4a", audio, "audio/mp4")},
+        data={"kind": "voice", "duration_ms": 6000},
+        timeout=120,
+    )
+
+
 def _celery_workers() -> int:
     """How many workers answer a ping. Zero means the queue goes nowhere."""
     try:
@@ -265,14 +275,19 @@ def _s18(couple):
         )
         return
 
-    upload = requests.post(
-        f"{couple.base}/media",
-        headers=couple.headers("a"),
-        files={"file": ("note.m4a", audio, "audio/mp4")},
-        data={"kind": "voice", "duration_ms": 6000},
-        timeout=120,
+    # One retry on a 5xx. The upload goes through a real vendor, and a
+    # transient there is a fact about the afternoon rather than about the
+    # code — a suite that goes red on it teaches people to rerun it without
+    # reading it. A 4xx is never retried: that would be the server saying no.
+    upload = _upload_voice(couple, audio)
+    if upload.status_code >= 500:
+        time.sleep(3.0)
+        upload = _upload_voice(couple, audio)
+    check(
+        "S18: the voice note uploads",
+        upload.status_code == 201,
+        f"{upload.status_code} {upload.text[:70]}",
     )
-    check("S18: the voice note uploads", upload.status_code == 201, str(upload.status_code))
     if upload.status_code != 201:
         return
     media = upload.json()
