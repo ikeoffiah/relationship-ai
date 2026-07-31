@@ -185,20 +185,23 @@ def _partner_notes(relationship, user) -> str:
     )
     if not partner_id:
         return ""
+
+    notes = []
+
     try:
         from apps.personalization.models import UserProfile
 
         profile = UserProfile.objects.filter(user_id=partner_id).first()
     except Exception:
         profile = None
-    if profile is None:
-        return ""
 
-    notes = []
-    if getattr(profile, "attachment_style", ""):
-        notes.append(f"attachment style: {profile.attachment_style}")
-    if getattr(profile, "communication_style_preference", ""):
-        notes.append(f"prefers {profile.communication_style_preference} communication")
+    if profile is not None:
+        if getattr(profile, "attachment_style", ""):
+            notes.append(f"attachment style: {profile.attachment_style}")
+        if getattr(profile, "communication_style_preference", ""):
+            notes.append(
+                f"prefers {profile.communication_style_preference} communication"
+            )
 
     # What they actually do, alongside what they said about themselves. This
     # qualifies the self-report rather than replacing it: the RSQ answer stays
@@ -206,10 +209,17 @@ def _partner_notes(relationship, user) -> str:
     # instructions, never as a label — "tends to go quiet when things get
     # sharp", not "avoidant", because the observable is evidence and the label
     # is a leap.
+    #
+    # Gathered whether or not there is a self-report to sit beside. Returning
+    # early on a missing UserProfile used to drop the observed tendencies
+    # entirely, which inverted the point of watching in the first place: the
+    # behaviour layer exists *because* self-report is the weakest evidence, and
+    # it was only being consulted for people who had filled in the
+    # questionnaire.
     try:
-        from apps.personalization.behaviour import guidance_for
+        from apps.personalization import boundary
 
-        notes.extend(guidance_for(partner_id))
+        notes.extend(boundary.phrasing_guidance_for(partner_id))
     except Exception:
         pass
     return "; ".join(notes)
