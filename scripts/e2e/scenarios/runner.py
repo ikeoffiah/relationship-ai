@@ -473,6 +473,24 @@ def play(scenario: Scenario) -> dict:
 
     started = time.perf_counter()
     _reset_model_calls()
+    try:
+        return _play(scenario, started)
+    except Exception as exc:
+        # One scenario failing must not take the other seventeen with it. This
+        # drives a real server over a real network for ten minutes; a dropped
+        # connection is a fact about the afternoon, and a suite that aborts on
+        # it throws away every result after the one that broke — including the
+        # findings somebody is waiting on. Recorded as a failed check so it
+        # still counts against the tally rather than vanishing.
+        check(f"{scenario.key}: ran to completion", False, f"{type(exc).__name__}: {exc}")
+        return {
+            "key": scenario.key,
+            "seconds": time.perf_counter() - started,
+            "model_calls": model_calls(),
+        }
+
+
+def _play(scenario: Scenario, started: float) -> dict:
     couple = Couple(scenario.key.lower())
 
     # The leak sweep runs after every turn but reports once. Per-turn PASS
