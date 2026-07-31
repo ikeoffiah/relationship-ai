@@ -184,6 +184,27 @@ class Couple:
             "print(json.dumps(p.weights if p else {}))"
         )
 
+    def score_components(self) -> dict:
+        """The parts the score is built from, before weighting.
+
+        Read directly because no endpoint exposes them and none should — the
+        components are the couple's behaviour broken down, and a breakdown is
+        a more pointed thing to publish than the number. The suite needs them
+        to assert that a component moved for the reason it was supposed to
+        rather than because some other part of the sum happened to rise.
+        """
+        return shell_json(
+            "import json;"
+            "from datetime import timedelta;"
+            "from django.utils import timezone;"
+            "from apps.personalization import connection;"
+            "from apps.relationships.models import Relationship;"
+            f"r=Relationship.objects.get(id='{self.rel}');"
+            "since=timezone.now() - timedelta(days=connection.WINDOW_DAYS);"
+            "parts,events=connection._components(r, since);"
+            "print(json.dumps({**parts, 'events': events}))"
+        )
+
     def refresh_score(self) -> dict:
         return shell_json(
             "import json;"
