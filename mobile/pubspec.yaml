@@ -60,7 +60,14 @@ dependencies:
   # Chat media. Voice notes are recorded to AAC on the device and played back
   # locally after the proxy decrypts them; photos are downscaled and stripped
   # before upload so the server never receives full-resolution originals.
-  record: ^5.1.2
+  #
+  # 6.x, not 5.x. The 5.x line resolves record_linux 0.7.2 against
+  # record_platform_interface 1.6.0, and those two disagree on the shape of
+  # `hasPermission` and `startStream` — which breaks `flutter build ios`, since
+  # an iOS build compiles the whole package graph including a Linux
+  # implementation this app will never run. `flutter test` passes either way,
+  # because the host build never pulls that package in.
+  record: ^6.1.1
   just_audio: ^0.9.42
   flutter_image_compress: ^2.3.0
   path_provider: ^2.1.4

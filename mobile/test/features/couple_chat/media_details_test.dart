@@ -45,7 +45,7 @@ class _AmplitudeRecorder implements AudioRecorder {
   void emit(double dbfs) => _amplitudes.add(Amplitude(current: dbfs, max: 0));
 
   @override
-  Future<bool> hasPermission() async => true;
+  Future<bool> hasPermission({bool request = true}) async => true;
 
   @override
   Future<void> start(RecordConfig config, {required String path}) async {

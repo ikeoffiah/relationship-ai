@@ -23,7 +23,7 @@ class _FakeRecorder implements AudioRecorder {
   final _amplitudes = StreamController<Amplitude>.broadcast();
 
   @override
-  Future<bool> hasPermission() async => permitted;
+  Future<bool> hasPermission({bool request = true}) async => permitted;
 
   @override
   Future<void> start(RecordConfig config, {required String path}) async {
