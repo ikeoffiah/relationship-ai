@@ -81,7 +81,7 @@ def daily_question(request):
     """Today's question, whether each partner has answered, and — once both
     have — the two answers (the two-sided reveal)."""
     relationship = _active_relationship(request.user)
-    question = services.todays_question()
+    question = services.todays_question(relationship)
     if question is None:
         return Response({"question": None})
 
@@ -129,7 +129,9 @@ def answer_daily_question(request):
     serializer = AnswerQuestionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    question = services.todays_question()
+    # The same relationship, so both partners resolve to the same question and
+    # the two-sided reveal has something to reveal.
+    question = services.todays_question(relationship)
     if question is None:
         return Response({"message": "No question available today."}, status=status.HTTP_404_NOT_FOUND)
 

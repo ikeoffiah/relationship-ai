@@ -29,9 +29,13 @@ from apps.relationships.models import Relationship, SharedRelationshipContext
 User = get_user_model()
 
 
-def make_couple():
-    a = User.objects.create_user(email="a@example.com", password="pw", full_name="Alex")
-    b = User.objects.create_user(email="b@example.com", password="pw", full_name="Blake")
+def make_couple(suffix=""):
+    a = User.objects.create_user(
+        email=f"a{suffix}@example.com", password="pw", full_name="Alex"
+    )
+    b = User.objects.create_user(
+        email=f"b{suffix}@example.com", password="pw", full_name="Blake"
+    )
     rel = Relationship.objects.create(partner_a=a, partner_b=b, status="active")
     return a, b, rel
 
@@ -417,3 +421,120 @@ class RollingConsistencyTests(DjangoTestCase):
         self._active_on(1)
 
         self.assertEqual(services.days_active_in_window(other), 0)
+
+
+class QuestionSelectionTests(APITestCase):
+    """Which question a couple gets, and why it is not the same one as everybody
+    else's.
+
+    The catalog used to be fourteen questions rotated by the date's ordinal, so
+    every couple on the platform got the same one on the same day and met it
+    again a fortnight later. Repetition is what makes a feature feel
+    mechanical, and it is fixed by having more questions and a per-couple
+    order rather than by having a model write them.
+    """
+
+    def setUp(self):
+        self.a, self.b, self.rel = make_couple()
+        self.c, self.d, self.other_rel = make_couple(suffix="2")
+
+    def test_both_partners_get_the_same_question(self):
+        """The two-sided reveal has nothing to reveal otherwise."""
+        self.assertEqual(
+            services.todays_question(self.rel).id,
+            services.todays_question(self.rel).id,
+        )
+
+    def test_two_couples_get_different_questions(self):
+        """The order is seeded on the relationship, so the product stops
+        feeling like a broadcast."""
+        mine = [
+            services.todays_question(self.rel, date(2026, 8, 1) + timedelta(days=n)).id
+            for n in range(10)
+        ]
+        theirs = [
+            services.todays_question(self.other_rel, date(2026, 8, 1) + timedelta(days=n)).id
+            for n in range(10)
+        ]
+        self.assertNotEqual(mine, theirs)
+
+    def test_the_order_is_stable_across_processes(self):
+        """Seeded from the id rather than from `hash()`, which is salted per
+        process and would reshuffle every couple on every deploy."""
+        first = services.todays_question(self.rel, date(2026, 8, 1)).id
+        again = services.todays_question(self.rel, date(2026, 8, 1)).id
+        self.assertEqual(first, again)
+
+    def test_a_couple_does_not_meet_the_same_question_twice_in_a_season(self):
+        total = DailyQuestion.objects.filter(is_active=True).count()
+        self.assertGreater(total, 100, "the catalog is the whole point")
+
+        start = date(2026, 8, 1)
+        seen = [
+            services.todays_question(self.rel, start + timedelta(days=n)).id
+            for n in range(total)
+        ]
+        self.assertEqual(len(set(seen)), total, "a question came round twice")
+
+    def test_a_solo_user_still_gets_a_question(self):
+        self.assertIsNotNone(services.todays_question(None))
+
+
+class QuestionAfterARuptureTests(APITestCase):
+    """The rule that matters more than the variety.
+
+    One intimacy question in a catalog of fourteen, served by a deterministic
+    rotation, landed on roughly one day in fourteen regardless of what was
+    happening between them — including the morning after a fight.
+    """
+
+    def setUp(self):
+        self.a, self.b, self.rel = make_couple()
+
+    def fight(self):
+        from apps.chat.models import CoupleMessage
+
+        CoupleMessage.objects.create(
+            relationship=self.rel, sender=self.a, body="you're pathetic"
+        )
+
+    def intimacy_days(self, days=60):
+        start = date(2026, 8, 1)
+        return [
+            n
+            for n in range(days)
+            if services.todays_question(self.rel, start + timedelta(days=n)).category
+            == "intimacy"
+        ]
+
+    def test_intimacy_questions_are_asked_at_all_normally(self):
+        self.assertTrue(self.intimacy_days(), "otherwise the next test proves nothing")
+
+    def test_but_never_in_the_days_after_a_fight(self):
+        self.fight()
+        self.assertEqual(self.intimacy_days(), [])
+
+    def test_the_couple_still_gets_a_question(self):
+        """Held back, not switched off. A couple who argued should still be
+        asked something — just not that."""
+        self.fight()
+        question = services.todays_question(self.rel)
+        self.assertIsNotNone(question)
+        self.assertNotEqual(question.category, "intimacy")
+
+    def test_one_sharp_line_is_not_enough_to_hold_anything_back(self):
+        """The same corroboration rule as everywhere else — being short with
+        someone is not a rupture."""
+        from apps.chat.models import CoupleMessage
+
+        CoupleMessage.objects.create(
+            relationship=self.rel, sender=self.a, body="whatever."
+        )
+        self.assertTrue(self.intimacy_days())
+
+    def test_it_fails_open(self):
+        """A broken detector must not be able to narrow what a couple is asked."""
+        from unittest.mock import patch
+
+        with patch("apps.chat.assist.is_rupture", side_effect=RuntimeError("boom")):
+            self.assertIsNotNone(services.todays_question(self.rel))

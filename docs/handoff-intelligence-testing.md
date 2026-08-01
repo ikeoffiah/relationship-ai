@@ -51,7 +51,7 @@ Test couple already paired on the local stack: `ada@example.com` /
 |---|---|
 | `apps/chat` | 100% coverage |
 | `personalization/{boundary,outcomes,connection}.py` | 100% each |
-| Backend | 872 tests passing |
+| Backend | 883 tests passing |
 | Mobile `couple_chat` | 558 tests |
 | e2e | 67/67 against the live stack |
 

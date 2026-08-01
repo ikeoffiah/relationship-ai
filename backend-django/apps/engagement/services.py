@@ -6,6 +6,7 @@ Kept out of the views so the reveal/points/streak rules live in one place and
 are unit-testable without HTTP.
 """
 
+import hashlib
 from datetime import date, timedelta
 from typing import Optional
 
@@ -94,15 +95,109 @@ def _day_ordinal(day: Optional[date] = None) -> int:
     return (day or timezone.now().date()).toordinal()
 
 
-def todays_question(day: Optional[date] = None) -> Optional[DailyQuestion]:
+#: Categories held back while a couple is in the middle of something.
+#:
+#: One intimacy question in the original catalog of fourteen, served by a
+#: deterministic rotation, meant it landed on roughly one day in fourteen
+#: *regardless of what was happening between them* — including the morning
+#: after a fight. "When did you last feel really desired?" over breakfast after
+#: an unresolved row is the single worst thing this feature can do, and it was
+#: reachable by the calendar alone.
+_HELD_BACK_AFTER_A_RUPTURE = ("intimacy",)
+
+#: How long a rupture holds them back for.
+RUPTURE_QUIET_DAYS = 3
+
+
+def _allowed_categories(relationship, day: Optional[date] = None) -> Optional[set]:
+    """Which categories are appropriate for this couple today, or None for all.
+
+    Reads the same rupture detection the connection score and the repair nudge
+    use, so "were they fighting" has one answer across the product rather than
+    three. Fails open: if anything at all goes wrong, every category is allowed
+    and the couple gets the question they would have got anyway.
     """
-    The one question for today, the same for both partners, chosen by rotating
-    through the active catalog by date ordinal. No scheduler needed.
+    if relationship is None:
+        return None
+    try:
+        from apps.chat.assist import is_rupture, message_text
+        from apps.chat.models import CoupleMessage
+
+        since = timezone.now() - timedelta(days=RUPTURE_QUIET_DAYS)
+        recent = (
+            CoupleMessage.objects.filter(
+                relationship=relationship, created_at__gte=since, deleted_at__isnull=True
+            )
+            .select_related("media")
+            .order_by("-created_at")[:40]
+        )
+        if not is_rupture([message_text(m) for m in recent]):
+            return None
+    except Exception:
+        return None
+
+    return {
+        value
+        for value, _ in DailyQuestion.CATEGORY_CHOICES
+        if value not in _HELD_BACK_AFTER_A_RUPTURE
+    }
+
+
+def _couple_order(questions, relationship) -> list:
+    """The catalog in this couple's own order, stably.
+
+    A permutation seeded on the relationship id rather than a shared rotation.
+    Two things fall out of that: both partners get the same question, because
+    it is the same seed; and different couples get different questions on the
+    same day, so the product stops feeling like a broadcast.
+
+    It is also why no state is needed to avoid repeats — walking a permutation
+    by the date's ordinal visits every question once before it visits any
+    twice, which for a catalog this size is four months.
+
+    ``hash()`` is salted per process and would give a couple a different order
+    on every deploy, so the seed comes from the id itself.
+    """
+    if relationship is None:
+        return questions
+
+    import random
+
+    seed = int(hashlib.sha256(str(relationship.id).encode()).hexdigest()[:16], 16)
+    shuffled = list(questions)
+    random.Random(seed).shuffle(shuffled)
+    return shuffled
+
+
+def todays_question(
+    relationship=None, day: Optional[date] = None
+) -> Optional[DailyQuestion]:
+    """The one question for today — the same one for both partners.
+
+    Still deterministic and still needs no scheduler; it is the *ordering* that
+    is now per couple rather than global, and the categories that are filtered
+    by what has been happening between them.
     """
     questions = list(DailyQuestion.objects.filter(is_active=True).order_by("order", "created_at"))
     if not questions:
         return None
-    return questions[_day_ordinal(day) % len(questions)]
+
+    ordered = _couple_order(questions, relationship)
+    index = _day_ordinal(day) % len(ordered)
+
+    allowed = _allowed_categories(relationship, day)
+    if allowed is None:
+        return ordered[index]
+
+    # Walk forward to the next question that suits today. Deliberately a walk
+    # rather than a filtered rotation: filtering would renumber the whole
+    # sequence whenever a couple's circumstances changed, and hand them
+    # questions they had already answered.
+    for offset in range(len(ordered)):
+        candidate = ordered[(index + offset) % len(ordered)]
+        if candidate.category in allowed:
+            return candidate
+    return ordered[index]
 
 
 def todays_micro_action(user, day: Optional[date] = None) -> Optional[MicroActionTemplate]:
