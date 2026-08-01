@@ -416,7 +416,10 @@ class RuptureAndRepairTests(ConnectionTestCase):
     guards it is what these tests are really about.
     """
 
-    def sharp(self, sender, when=None, text="you always do this"):
+    # Hostile rather than dismissive, so one message is one rupture. Two
+    # dismissive lines would do as well; see the assist's own tests for the
+    # corroboration rule itself.
+    def sharp(self, sender, when=None, text="you're pathetic and I don't know why I bother"):
         message = CoupleMessage.objects.create(
             relationship=self.relationship, sender=sender, body=text
         )

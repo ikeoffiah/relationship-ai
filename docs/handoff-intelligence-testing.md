@@ -51,7 +51,7 @@ Test couple already paired on the local stack: `ada@example.com` /
 |---|---|
 | `apps/chat` | 100% coverage |
 | `personalization/{boundary,outcomes,connection}.py` | 100% each |
-| Backend | 853 tests passing |
+| Backend | 872 tests passing |
 | Mobile `couple_chat` | 558 tests |
 | e2e | 67/67 against the live stack |
 
@@ -162,7 +162,7 @@ hardware (the simulator has no microphone).
 ## 6. The scenario suite exists now — and what it found
 
 Built to the plan in `docs/intelligence-test-plan.md`. All nineteen scenarios,
-203 assertions, ~6 minutes, ~36 model calls. Currently **203/203**.
+213 assertions, ~6 minutes, ~36 model calls. Currently **213/213**.
 
 ```bash
 make scenarios                    # all

@@ -356,7 +356,9 @@ S20 = Scenario(
 )
 
 
-def _sharp(couple, who, days_ago, text="you always do this"):
+# Hostile rather than dismissive, so one message is one rupture. The
+# corroboration rule itself is covered in the assist's unit tests.
+def _sharp(couple, who, days_ago, text="you're pathetic and I don't know why I bother"):
     message = couple.send(who, text)
     backdate_messages(couple, [message["id"]], days_ago * 24 * 3600)
     return message
@@ -386,9 +388,9 @@ def _s20(couple):
     # Two arguments, four days apart, neither mended: nobody comes back to the
     # thread afterwards.
     _sharp(couple, "a", days_ago=11)
-    _sharp(couple, "b", days_ago=11, text="forget it")
+    _sharp(couple, "b", days_ago=11, text="grow up")
     _sharp(couple, "a", days_ago=6)
-    _sharp(couple, "b", days_ago=6, text="whatever")
+    _sharp(couple, "b", days_ago=6, text="shut up")
 
     parts = couple.score_components()
     check(

@@ -74,3 +74,87 @@ EVAL_DRAFTS: list[tuple[str, bool]] = [
 def counts() -> tuple[int, int]:
     flagged = sum(1 for _, should in EVAL_DRAFTS if should)
     return len(EVAL_DRAFTS) - flagged, flagged
+
+
+# ── Rupture detection ───────────────────────────────────────────────────────
+#
+# A different question from the one above, with a different asymmetry, so it
+# needs its own labels.
+#
+# The pre-send check asks "will this wound the person reading it" and is
+# generous, because escalating costs one cheap call. Rupture detection asks
+# "were these two fighting", and its answers feed the connection score and the
+# repair nudge. A false positive there is the product telling a couple their
+# relationship went badly on the strength of a string match; a false negative
+# is a fight nobody counted, which costs nothing because everything downstream
+# fails toward "no rupture" and "already repaired".
+#
+# Three classes rather than two, because the single most useful thing a
+# detector can say about most sharp-sounding messages is "on its own, this
+# means nothing":
+#
+#   None          ordinary, however blunt or negative.
+#   "dismissive"  stonewalling, sweeping, shutting down. Real when it recurs,
+#                 meaningless alone — half these phrasings are also how people
+#                 agree to things ("whatever's easiest", "I don't care, you
+#                 pick"). Needs corroboration.
+#   "hostile"     contempt, name-calling, threats. A rupture on its own.
+#
+# (text, class)
+EVAL_SHARP: list[tuple[str, str | None]] = [
+    # ── Ordinary, including the phrasings the old detector fired on ─────────
+    ("I don't care what we watch tonight", None),
+    ("whatever you want is fine", None),
+    ("whatever's easiest for you", None),
+    ("do whatever works for your schedule", None),
+    ("I don't care either way, you pick", None),
+    ("forget it, I already grabbed one", None),
+    ("I'm done with dinner, are you ready?", None),
+    ("running 10 late", None),
+    ("can you grab milk on the way home", None),
+    ("night x", None),
+    # ── Blunt, upset, disagreeing. Not a rupture. ───────────────────────────
+    ("I'm frustrated and I want to talk about it properly", None),
+    ("I felt hurt when you left without saying anything", None),
+    ("I don't agree with you on this at all", None),
+    ("that annoyed me, honestly", None),
+    ("this is the third time and it's wearing me down", None),
+    ("I need some space this evening, not upset with you", None),
+    ("I think you were wrong to say that", None),
+    ("can we not do this right now, I'm exhausted", None),
+    # ── Playful. Emphatically not a rupture. ────────────────────────────────
+    ("you're the worst 😂", None),
+    ("I hate you so much right now 😂😂", None),
+    ("stop it 😭", None),
+    # ── Dismissive: real when it recurs, nothing on its own ─────────────────
+    ("whatever.", "dismissive"),
+    ("whatever, fine", "dismissive"),
+    ("forget it", "dismissive"),
+    ("forget it then", "dismissive"),
+    ("I'm done", "dismissive"),
+    ("I'm done talking about this", "dismissive"),
+    ("don't talk to me", "dismissive"),
+    ("leave me alone", "dismissive"),
+    ("I'm not doing this", "dismissive"),
+    ("you always do this", "dismissive"),
+    ("you never listen to me", "dismissive"),
+    ("I don't care anymore", "dismissive"),
+    ("I don't care what you do", "dismissive"),
+    # ── Hostile: a rupture on its own ───────────────────────────────────────
+    ("you're pathetic and I don't know why I bother", "hostile"),
+    ("you are so selfish it is unbelievable", "hostile"),
+    ("grow up", "hostile"),
+    ("oh please, spare me", "hostile"),
+    ("this is why nobody can talk to you", "hostile"),
+    ("fuck you", "hostile"),
+    ("shut up", "hostile"),
+    ("stop being so dramatic", "hostile"),
+    ("you're overreacting as usual", "hostile"),
+    ("I want a divorce", "hostile"),
+    ("you're a complete idiot", "hostile"),
+    ("that's just typical you", "hostile"),
+    ("why am I not surprised", "hostile"),
+    ("you'll never change", "hostile"),
+    ("here we go again", "hostile"),
+    ("calm down", "hostile"),
+]

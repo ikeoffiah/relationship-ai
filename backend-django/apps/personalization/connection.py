@@ -34,10 +34,11 @@ reciprocity rewards, so this used to produce a couple's *highest* reading during
 their worst week — a number saying the opposite of the truth, which is worse
 than one saying nothing. Now a fight simply does not count as connection: it
 neither raises the score nor lowers it, and what is left is what the fortnight
-looked like apart from the fight. Rupture detection is eight keyword phrases,
-and a penalty built on that would be telling couples their relationship got
-worse on the strength of a string match. Failing to notice a fight costs
-nothing; inventing one is not recoverable.
+looked like apart from the fight. Rupture detection is a graded lexicon with a
+corroboration rule (``assist.is_rupture``), measured against a labelled set —
+but it is still a lexicon, and a penalty built on one would be telling couples
+their relationship got worse on the strength of a string match. Failing to
+notice a fight costs nothing; inventing one is not recoverable.
 
 **Slow.** A behaviour-derived score has maybe eight genuinely distinguishable
 states; rendering that as /100 invites people to read a three-point wobble as a
@@ -125,12 +126,12 @@ RUPTURE_PAD = timedelta(hours=1)
 
 #: Below this many ruptures in a fortnight, the repair balance stays at 1.0.
 #:
-#: This is the whole confidence story, and it is structural rather than a knob.
-#: Rupture detection is eight keyword phrases; a single false positive must not
-#: be able to move anybody's score, so it takes two independent detections
-#: *and* an absence of any repair before the component falls at all. Failing to
-#: notice a fight costs nothing; inventing one and telling a couple their
-#: relationship got worse is not recoverable.
+#: The second half of the confidence story, and structural rather than a knob.
+#: The first half is `assist.is_rupture`, which already needs one hostile
+#: message or two dismissive ones before it calls an exchange a fight. This
+#: then needs *two such exchanges* and an absence of any repair before the
+#: component falls at all. Failing to notice a fight costs nothing; inventing
+#: one and telling a couple their relationship got worse is not recoverable.
 MIN_RUPTURES = 2
 
 
@@ -145,17 +146,23 @@ def _ruptures(messages) -> list[tuple]:
     however many times somebody said "forget it" during it, and counting each
     utterance would make a long argument look like a failing fortnight.
     """
-    from apps.chat.assist import is_sharp, message_text
+    from apps.chat.assist import is_rupture, message_text, sharpness
 
     spans: list[list] = []
     for message in messages:
-        if not is_sharp(message_text(message)):
+        text = message_text(message)
+        if sharpness(text) is None:
             continue
         if spans and message.created_at - spans[-1][1] <= RUPTURE_GAP:
             spans[-1][1] = message.created_at
+            spans[-1][2].append(text)
         else:
-            spans.append([message.created_at, message.created_at])
-    return [(start, end) for start, end in spans]
+            spans.append([message.created_at, message.created_at, [text]])
+
+    # A cluster only becomes a rupture if what was said in it clears the
+    # corroboration rule — one hostile message, or two dismissive ones. A
+    # single "whatever." is somebody being short, not a fight.
+    return [(start, end) for start, end, texts in spans if is_rupture(texts)]
 
 
 def _was_repaired(rupture, next_rupture, messages, gestures) -> bool:

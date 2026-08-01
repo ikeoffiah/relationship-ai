@@ -788,33 +788,183 @@ def _recent_nudge(relationship, user, kind: str) -> bool:
     ).exists()
 
 
-_SHARP_MARKERS = (
-    "you always",
-    "you never",
-    "whatever",
-    "forget it",
-    "i'm done",
-    "im done",
-    "don't care",
-    "dont care",
+# ── Was this a rupture? ─────────────────────────────────────────────────────
+#
+# A different question from `_needs_model`, and it took a while to notice they
+# are different. That one asks "will this wound whoever reads it" about a draft
+# somebody is holding. This asks "were these two fighting" about a conversation
+# that already happened, and its answers feed the connection score and the
+# repair nudge rather than a sheet the sender can dismiss.
+#
+# It used to be eight substrings — "you always", "you never", "whatever",
+# "forget it", "i'm done", "don't care" — and measured against the labelled
+# set in `evalset.py` it was close to inverted. Every one of "whatever's
+# easiest for you", "I don't care what we watch" and "forget it, I already
+# grabbed one" registered as a rupture, while "fuck you", "you're pathetic",
+# "grow up" and "I want a divorce" did not. The vocabulary that catches all
+# four of those was already in this file, twenty lines up, wired to the other
+# question.
+#
+# Three classes, because the most useful thing a detector can say about most
+# sharp-sounding messages is that on their own they mean nothing:
+#
+#   None          ordinary, however blunt.
+#   DISMISSIVE    stonewalling or sweeping. Real when it recurs; meaningless
+#                 alone, because half these phrasings are also how people
+#                 agree to things.
+#   HOSTILE       contempt, name-calling, threats. A rupture by itself.
+#
+# The corroboration rule lives in `is_rupture`: one hostile message, or two
+# dismissive ones. That is what makes it safe to build a score on — a single
+# ambiguous phrase cannot move anybody's number, and it fails toward "no
+# rupture", which costs nothing.
+
+HOSTILE = "hostile"
+DISMISSIVE = "dismissive"
+
+#: Shutting the conversation down. Ambiguous by nature: "I'm done" is as often
+#: about dinner as about the relationship.
+_STONEWALL = (
+    "done talking",
+    "not doing this",
+    "don't talk to me", "dont talk to me",
+    "leave me alone",
+)
+
+#: "forget it" only when it closes the message. "Forget it, I already grabbed
+#: one" is somebody being helpful; "forget it then" is somebody giving up.
+_FORGET_IT_RE = re.compile(r"\bforget it\b\s*(?:then\b)?\s*[.!…]*\s*$", re.IGNORECASE)
+
+#: Contextual contempt splits in two once you ask whether it is a rupture.
+#: A verdict on who somebody *is* is hostile; a reaction to what they did is
+#: how couples also tease, so it corroborates rather than concludes.
+_CHARACTER_ATTACK = (
+    "selfish", "lazy", "useless", "manipulative", "toxic", "controlling",
+    "childish", "immature", "stupid", "dumb",
+)
+_CHARACTER_ATTACK_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in _CHARACTER_ATTACK) + r")\b"
+)
+
+#: "whatever" only when it closes a thought — "whatever." and "whatever, fine"
+#: are dismissals; "whatever you want" and "whatever's easiest" are agreement,
+#: and the old detector could not tell them apart.
+_WHATEVER_RE = re.compile(r"\bwhatever\b\s*(?:[.!,…]|$)", re.IGNORECASE)
+
+#: "I'm done" as a full stop, not as a description of finishing something.
+_IM_DONE_RE = re.compile(r"\bi\s*'?m done\b(?!\s+(?:with|eating|cooking|packing))", re.IGNORECASE)
+
+#: "don't care" only when it is about them or about everything — "I don't care
+#: what we watch" is somebody being easy-going.
+_DONT_CARE_RE = re.compile(
+    r"\b(?:do\s*not|don\s*'?t)\s+(?:even\s+)?care\b"
+    r"(?!\s+(?:either|much|which|what\s+we|what\s+to|where\s+we|when\s+we)\b)",
+    re.IGNORECASE,
+)
+
+#: Contempt phrases that are hostile wherever they appear. Drawn from the same
+#: list the pre-send gate uses, minus the entries that are only stonewalling —
+#: those are graded below, where their ambiguity can be handled.
+_STONEWALL_IN_CONTEMPT = _STONEWALL + ("forget it",)
+_HOSTILE_PHRASES = tuple(
+    phrase for phrase in _CONTEMPT_PHRASES if phrase not in _STONEWALL_IN_CONTEMPT
+)
+
+#: The threat list minus the two entries that are really "I have finished
+#: eating". `_IM_DONE_RE` grades those, with the context they need.
+_HOSTILE_THREATS = tuple(
+    marker for marker in _THREAT_MARKERS if marker not in ("i'm done", "im done")
 )
 
 
-def is_sharp(text: str) -> bool:
-    """Whether this reads as part of a rupture rather than an ordinary message.
+def _grade(text: str) -> tuple[str | None, int]:
+    """The grade for one message, and how many dismissive signals it carried.
 
-    Public because the connection score needs the same reading, and two
-    definitions of "were they fighting" drifting apart is how the number would
-    start disagreeing with the nudge about the same afternoon.
-
-    Deliberately thin, and worth being honest about the limit: eight phrases
-    catch the arguments people have in the words people reuse, and miss a
-    couple who fight without ever typing one of them. Everything downstream is
-    built to fail safe on that — a rupture nobody detects is treated as no
-    rupture, never as a repaired one.
+    The count is the part that is easy to miss. Corroboration is about
+    *signals*, not messages — "you never listen, you are being ridiculous" is a
+    sweeping accusation and a verdict on their character in one breath, and
+    treating it as a single ambiguous strike because it arrived as one message
+    would let a plainly hostile line sit under the threshold.
     """
-    lowered = (text or "").lower()
-    return any(marker in lowered for marker in _SHARP_MARKERS)
+    if not text:
+        return None, 0
+    lowered = text.lower()
+
+    # ── Hostile: contempt aimed at a person ─────────────────────────────
+    if _STRONG_RE.search(lowered):
+        return HOSTILE, 0
+    if any(phrase in lowered for phrase in _HOSTILE_PHRASES):
+        return HOSTILE, 0
+    if any(marker in lowered for marker in _HOSTILE_THREATS):
+        return HOSTILE, 0
+
+    second_person = bool(_SECOND_PERSON_RE.search(lowered))
+    if second_person and _CHARACTER_ATTACK_RE.search(lowered):
+        return HOSTILE, 0
+
+    # ── Dismissive: shutting down, or a verdict on the whole of them ────
+    signals = 0
+    if second_person and _CONTEXTUAL_RE.search(lowered):
+        # "you are being ridiculous" — sharp, but the same words are also how
+        # couples tease, so it corroborates rather than concludes.
+        signals += 1
+    if any(phrase in lowered for phrase in _STONEWALL):
+        signals += 1
+    if (
+        _WHATEVER_RE.search(lowered)
+        or _IM_DONE_RE.search(lowered)
+        or _FORGET_IT_RE.search(lowered)
+    ):
+        signals += 1
+    if _DONT_CARE_RE.search(lowered):
+        signals += 1
+    if second_person and any(marker in lowered for marker in _ABSOLUTE_MARKERS):
+        signals += 1
+
+    return (DISMISSIVE, signals) if signals else (None, 0)
+
+
+def sharpness(text: str) -> str | None:
+    """How sharp this one message is: HOSTILE, DISMISSIVE, or nothing.
+
+    Per message and deliberately context-free. Whether an exchange was a
+    rupture is :func:`is_rupture`'s question, and keeping the two apart is what
+    lets a phrase be counted as evidence without being counted as a verdict.
+    """
+    return _grade(text)[0]
+
+
+#: How many dismissive signals, with no hostile message, add up to a rupture.
+DISMISSIVE_FOR_RUPTURE = 2
+
+
+def is_rupture(texts) -> bool:
+    """Whether this exchange was a fight.
+
+    One hostile message settles it. Otherwise it takes two dismissive signals —
+    from either partner and possibly from the same sentence, since a rupture is
+    between them and it does not matter who said the second thing or whether
+    they paused for breath first.
+    """
+    signals = 0
+    for text in texts:
+        grade, count = _grade(text)
+        if grade == HOSTILE:
+            return True
+        signals += count
+        if signals >= DISMISSIVE_FOR_RUPTURE:
+            return True
+    return False
+
+
+def is_sharp(text: str) -> bool:
+    """Whether one message carries any sharpness at all.
+
+    Kept because callers want a per-message reading — the score uses it to
+    decide which messages belong to an argument rather than to the
+    relationship. It is not a rupture on its own; see :func:`is_rupture`.
+    """
+    return sharpness(text) is not None
 
 
 def _sharp_before(relationship, before, window: timedelta) -> bool:
@@ -849,7 +999,20 @@ def _sharp_before(relationship, before, window: timedelta) -> bool:
     # function. Voice is exactly where the loaded messages go, so the blind
     # spot sat precisely where it did the most damage — which is the same
     # sentence transcription.py opens with, about the bug this one survived.
-    return any(is_sharp(message_text(msg)) for msg in recent)
+    # The corroboration rule, the same one the score uses.
+    #
+    # This was briefly the looser "any sharpness at all", on the reasoning that
+    # a false positive here only costs a suggestion somebody can ignore. S2
+    # settled it: with a wider vocabulary, "you're ridiculous" inside a thread
+    # full of 😂 grades as dismissive, and a couple in the middle of teasing
+    # each other were offered a way back from a fight they had not had. That is
+    # the same false positive the whole stay-quiet group exists to prevent, and
+    # a cheap intervention at the wrong moment is not cheap — it is how somebody
+    # learns the assist does not understand them.
+    #
+    # One sweeping line on its own no longer opens a repair nudge. "Stay rare"
+    # is this module's own discipline and it applies here.
+    return is_rupture([message_text(msg) for msg in recent])
 
 
 def _had_sharp_exchange(relationship) -> bool:

@@ -193,7 +193,11 @@ class NudgeTests(AssistTestCase):
 
     def test_repair_outranks_the_night_suggestion(self):
         """A warm goodnight on top of an unresolved row reads as tone-deaf."""
+        # Two dismissive lines rather than one: a single sweeping sentence is
+        # no longer treated as a rupture, because with the wider vocabulary
+        # that fired on couples who were teasing each other.
         self.say(self.alex, "you never listen to me")
+        self.say(self.sam, "forget it")
         with patch("apps.chat.assist._complete", return_value="Can we start over tomorrow?"):
             nudge = assist.nudge_for(self.relationship, self.alex, local_hour=22)
 
@@ -361,11 +365,21 @@ class ContextTests(AssistTestCase):
 
     def test_sharp_exchange_detection(self):
         self.assertFalse(assist._had_sharp_exchange(self.relationship))
+
+        # One sweeping line is not yet an argument — it is also how people
+        # tease. It takes a second sign, or one unambiguously hostile message.
         self.say(self.alex, "honestly, you always do this")
+        self.assertFalse(assist._had_sharp_exchange(self.relationship))
+
+        self.say(self.sam, "whatever.")
+        self.assertTrue(assist._had_sharp_exchange(self.relationship))
+
+    def test_one_hostile_message_is_enough(self):
+        self.say(self.alex, "you're pathetic")
         self.assertTrue(assist._had_sharp_exchange(self.relationship))
 
     def test_old_sharp_exchanges_do_not_count(self):
-        msg = self.say(self.alex, "you always do this")
+        msg = self.say(self.alex, "you're pathetic")
         CoupleMessage.objects.filter(id=msg.id).update(
             created_at=timezone.now() - timedelta(hours=12)
         )
@@ -1006,3 +1020,74 @@ class RewriteSofteningTests(AssistTestCase):
             )
         self.assertNotIn("always", result["suggestion"])
         self.assertEqual(result["verdict"], "caution")
+
+
+class SharpnessTests(AssistTestCase):
+    """Grading one message, and deciding whether an exchange was a fight.
+
+    These are separate questions and conflating them is what the previous
+    detector did. It graded eight substrings and treated any hit as a rupture,
+    which made "whatever's easiest for you" a fight and "fuck you" not one.
+    """
+
+    def test_the_labelled_set(self):
+        """The regression that matters. Every phrasing here is in
+        `evalset.py` with its class, so a future edit that trades recall for
+        precision or the reverse shows up as a number rather than a feeling."""
+        from apps.chat.evalset import EVAL_SHARP
+
+        wrong = [
+            (text, want, assist.sharpness(text))
+            for text, want in EVAL_SHARP
+            if assist.sharpness(text) != want
+        ]
+        self.assertEqual(wrong, [], f"{len(wrong)}/{len(EVAL_SHARP)} misgraded")
+
+    def test_agreement_is_not_a_rupture(self):
+        """The old detector's worst failure: six for six on these."""
+        for text in (
+            "whatever you want is fine",
+            "whatever's easiest for you",
+            "I don't care what we watch tonight",
+            "I don't care either way, you pick",
+            "forget it, I already grabbed one",
+            "I'm done with dinner, are you ready?",
+        ):
+            self.assertIsNone(assist.sharpness(text), text)
+            self.assertFalse(assist.is_rupture([text]), text)
+
+    def test_contempt_is_a_rupture_on_its_own(self):
+        for text in ("fuck you", "you're pathetic", "grow up", "I want a divorce"):
+            self.assertEqual(assist.sharpness(text), assist.HOSTILE, text)
+            self.assertTrue(assist.is_rupture([text]), text)
+
+    def test_one_dismissive_message_is_not_a_fight(self):
+        self.assertFalse(assist.is_rupture(["whatever."]))
+        self.assertFalse(assist.is_rupture(["you always do this"]))
+
+    def test_two_are(self):
+        self.assertTrue(assist.is_rupture(["you always do this", "whatever."]))
+
+    def test_they_may_come_from_either_partner(self):
+        """A rupture is between them; it does not matter who said the second
+        thing."""
+        self.assertTrue(assist.is_rupture(["forget it", "I'm done"]))
+
+    def test_ordinary_upset_is_still_not_a_rupture(self):
+        """Being angry is not the same as contempt, and the whole product
+        rests on not confusing them."""
+        self.assertFalse(
+            assist.is_rupture(
+                [
+                    "I'm frustrated and I want to talk about it properly",
+                    "I felt hurt when you left without saying anything",
+                    "that annoyed me, honestly",
+                    "I think you were wrong to say that",
+                ]
+            )
+        )
+
+    def test_banter_is_not_a_rupture(self):
+        self.assertFalse(
+            assist.is_rupture(["you're the worst 😂", "I hate you so much right now 😂😂"])
+        )
