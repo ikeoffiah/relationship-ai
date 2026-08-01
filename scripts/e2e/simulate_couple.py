@@ -39,6 +39,7 @@ from harness import DJANGO, check, report, shell, shell_json  # noqa: E402
 from scenarios.loop import policy_call_sites  # noqa: E402
 from scenarios.runner import (  # noqa: E402
     Couple,
+    age_score,
     backdate_messages,
     bad_night,
     leak_offenders,
@@ -336,6 +337,10 @@ WEEKS = [
 
 def snapshot(couple, label, log, spent):
     """Print where the couple is, and check the things that must always hold."""
+    # A phase is a day passing as far as the score is concerned. Smoothing is
+    # proportional to elapsed time rather than to call count, so without this
+    # every snapshot after the first would read the same number — correctly.
+    age_score(couple, days=1)
     presentation = couple.refresh_score()
     parts = couple.score_components()
 
@@ -439,10 +444,9 @@ def main():
         print(f"  {who}: {couple.tendencies(who) or 'no tendencies reported'}")
     print(f"  total model calls: {model_calls()}")
     print(
-        "\n  note: the score is smoothed per *call* to connection.update(), not\n"
-        "  per day, so this simulation deliberately refreshes once per phase —\n"
-        "  the same cadence as the nightly job. Two runs in one day would move\n"
-        "  the number twice as far as one."
+        "\n  note: the score is smoothed in proportion to elapsed time, so each\n"
+        "  phase ages the stored reading by a day before refreshing. Refreshing\n"
+        "  twice in one instant is correctly no refresh at all."
     )
 
     return report("invariants held")

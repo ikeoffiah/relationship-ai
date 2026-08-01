@@ -12,7 +12,7 @@ into a shared number publishes one partner's answer to the other by arithmetic.
 
 import requests
 
-from .runner import DJANGO, Couple, Scenario, check, shell, shell_json
+from .runner import DJANGO, Couple, Scenario, age_score, check, shell, shell_json
 
 # ── S14 — Mutual vs one-sided ───────────────────────────────────────────────
 
@@ -228,9 +228,12 @@ def _s16(couple):
     _seed_recovery(couple)
 
     # The score is smoothed at 0.85, so it takes several nightly runs to move —
-    # which is the design, not a delay to work around. Running the job a few
-    # times is running a few days.
+    # which is the design, not a delay to work around. A day is aged between
+    # each, because `update` now folds in one step per day rather than per
+    # call: running the job eight times in an afternoon is one day passing,
+    # not eight.
     for _ in range(8):
+        age_score(couple, days=1)
         recovered = couple.refresh_score()
 
     check(

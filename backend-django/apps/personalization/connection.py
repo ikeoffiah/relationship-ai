@@ -36,6 +36,7 @@ not a low number. The score is still there; it is just not the headline.
 from __future__ import annotations
 
 import logging
+import math
 from datetime import timedelta
 
 from django.utils import timezone
@@ -208,7 +209,28 @@ def update(relationship) -> int | None:
         if row.value is None:
             smoothed = float(raw)
         else:
-            smoothed = SMOOTHING * row.value + (1 - SMOOTHING) * raw
+            # Smoothed in proportion to the time that has passed, not to the
+            # number of times this has run.
+            #
+            # SMOOTHING is what turns a jittery measurement into something
+            # worth putting on a home screen, and that only holds if the steps
+            # are days. Folded in twice in an afternoon the old form moved the
+            # number twice as far, so its inertia was a property of scheduler
+            # behaviour rather than of the relationship. One nightly job made
+            # that invisible; a manual refresh, a retry, or a second worker
+            # would have made it visible in the worst way — as a number that
+            # lurched for no reason the couple could see.
+            #
+            # Exactly equivalent at one day (0.85 and 0.15, as before), does
+            # nothing at all when no time has passed, and catches up correctly
+            # after a missed run instead of pretending the gap did not happen.
+            elapsed_days = 0.0
+            if row.updated_at:
+                elapsed_days = max(
+                    0.0, (timezone.now() - row.updated_at).total_seconds() / 86400.0
+                )
+            weight = 1.0 - math.pow(SMOOTHING, elapsed_days)
+            smoothed = row.value + weight * (raw - row.value)
             if abs(smoothed - row.value) < DEADBAND:
                 return int(round(row.value))
 

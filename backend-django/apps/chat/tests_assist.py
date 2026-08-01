@@ -961,3 +961,48 @@ class CoachingReplyParsingTests(AssistTestCase):
             self.parse("NEEDED: yes\nGUIDANCE: One thought.\nAnd a second."),
             "One thought. And a second.",
         )
+
+
+class RewriteSofteningTests(AssistTestCase):
+    """A rewrite must not hand back the pattern the check just flagged."""
+
+    def test_an_absolute_the_sender_did_not_use_is_softened(self):
+        self.assertEqual(
+            assist._soften_absolutes("you are impossible", "It's always me picking up"),
+            "It's often me picking up",
+        )
+        self.assertEqual(
+            assist._soften_absolutes("you are impossible", "You never listen to me"),
+            "You rarely listen to me",
+        )
+
+    def test_the_senders_own_words_are_left_alone(self):
+        """Echoing what they wrote is quoting them, not editorialising."""
+        self.assertEqual(
+            assist._soften_absolutes(
+                "you always do this", "I feel like you always do this"
+            ),
+            "I feel like you always do this",
+        )
+
+    def test_it_is_case_insensitive_and_word_bounded(self):
+        self.assertEqual(
+            assist._soften_absolutes("hey", "Always late. Alwaysland is fine."),
+            "often late. Alwaysland is fine.",
+        )
+
+    def test_an_ordinary_rewrite_is_untouched(self):
+        rewrite = "I felt unheard when that happened."
+        self.assertEqual(assist._soften_absolutes("you are impossible", rewrite), rewrite)
+
+    def test_the_check_applies_it(self):
+        raw = (
+            "VERDICT: caution\nREASON: sweeping\n"
+            "SUGGESTION: I feel like it's always me sorting this."
+        )
+        with patch("apps.chat.assist._complete", return_value=raw):
+            result = assist.check_before_send(
+                self.relationship, self.alex, "you are pathetic and this is typical you"
+            )
+        self.assertNotIn("always", result["suggestion"])
+        self.assertEqual(result["verdict"], "caution")

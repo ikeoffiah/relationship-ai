@@ -198,6 +198,13 @@ class ColdStartTests(ConnectionTestCase):
 
 
 class SmoothingTests(ConnectionTestCase):
+    def a_day_passes(self):
+        """Age the stored reading. ``updated_at`` is auto_now, so this has to
+        go through the queryset rather than through save()."""
+        ConnectionScore.objects.filter(relationship=self.relationship).update(
+            updated_at=timezone.now() - timedelta(days=1)
+        )
+
     def test_the_first_reading_is_taken_as_is(self):
         self.mutual()
         self.assertEqual(connection.update(self.relationship), connection.compute(self.relationship))
@@ -218,6 +225,10 @@ class SmoothingTests(ConnectionTestCase):
         for i in range(10):
             self.check_in(self.sam, days_ago=i + 5)
 
+        # A day later. The smoothing is proportional to elapsed time, so a
+        # second reading taken in the same instant is correctly no reading at
+        # all — the number moves with the week, not with the job.
+        self.a_day_passes()
         raised = connection.update(self.relationship)
 
         self.assertGreater(raised, low)
@@ -228,6 +239,7 @@ class SmoothingTests(ConnectionTestCase):
         self.mutual()
 
         raw = connection.compute(self.relationship)
+        self.a_day_passes()
         smoothed = connection.update(self.relationship)
 
         # Smoothing is what makes a /100 number honest: the underlying
@@ -241,6 +253,7 @@ class SmoothingTests(ConnectionTestCase):
             value=50.0,
             series=[{"week": f"2026-W{i:02d}", "value": 50} for i in range(30)],
         )
+        self.a_day_passes()
         connection.update(self.relationship)
         row.refresh_from_db()
 
@@ -312,3 +325,75 @@ class PresentationTests(ConnectionTestCase):
         # Quiet, but not hidden and not sugared. The direction is true.
         self.assertEqual(shown["direction"], "down")
         self.assertEqual(shown["emphasis"], "quiet")
+
+
+class SmoothingIsPerDayTests(ConnectionTestCase):
+    """The score's inertia is a property of time, not of how often a job ran.
+
+    SMOOTHING is what turns a jittery measurement into something worth putting
+    on a home screen, and that only holds if the steps are days. Folded in
+    twice in an afternoon the old form moved the number twice as far, so it
+    depended on scheduler behaviour rather than on the relationship.
+    """
+
+    def age(self, days):
+        ConnectionScore.objects.filter(relationship=self.relationship).update(
+            updated_at=timezone.now() - timedelta(days=days)
+        )
+
+    def stored(self):
+        return ConnectionScore.objects.get(relationship=self.relationship).value
+
+    def test_a_second_run_in_the_same_instant_changes_nothing(self):
+        self.mutual()
+        connection.update(self.relationship)
+        first = self.stored()
+
+        for _ in range(5):
+            connection.update(self.relationship)
+
+        self.assertEqual(self.stored(), first)
+
+    def test_a_run_the_next_day_does_move_it(self):
+        self.mutual()
+        self.gratitude(self.alex, 10)
+        connection.update(self.relationship)
+        first = self.stored()
+
+        # One partner goes quiet, so the reading genuinely falls — but there is
+        # still plenty of evidence, so the score is a number rather than None.
+        self.message(self.alex, 60)
+        self.age(1)
+        connection.update(self.relationship)
+
+        self.assertLess(self.stored(), first)
+
+    def test_a_missed_day_catches_up_rather_than_pretending_it_did_not_happen(self):
+        """Four days of drift should not leave the number where one day would.
+
+        The old form could not tell the difference: it applied one step per
+        call, so a job that missed three nights quietly under-corrected for
+        ever after.
+        """
+        self.mutual()
+        self.gratitude(self.alex, 10)
+        connection.update(self.relationship)
+        start = self.stored()
+
+        self.message(self.alex, 60)
+
+        self.age(1)
+        connection.update(self.relationship)
+        after_one_day = self.stored()
+
+        ConnectionScore.objects.filter(relationship=self.relationship).update(value=start)
+        self.age(4)
+        connection.update(self.relationship)
+        after_four_days = self.stored()
+
+        self.assertLess(after_four_days, after_one_day)
+
+    def test_the_first_ever_reading_is_not_blocked(self):
+        """A couple with no stored value takes the raw number, elapsed or not."""
+        self.mutual()
+        self.assertIsNotNone(connection.update(self.relationship))

@@ -35,9 +35,23 @@ from .models import AssistNudge, ChatAssistSettings, CoupleMessage, ThreadSummar
 
 log = logging.getLogger(__name__)
 
-# The inline model. Matches backend-fastapi's fast path; low latency matters
-# more than eloquence for a one-line rewrite.
-FAST_MODEL = os.environ.get("OPENAI_FAST_MODEL", "gpt-4.1-nano")
+# The inline model. Low latency matters more than eloquence for a one-line
+# rewrite, so this is deliberately a small one.
+#
+# Was `gpt-4.1-nano`, and the difference is not eloquence — it is whether an
+# explicit instruction is followed. Nano kept cautioning messages it had itself
+# just described as jokes, hedging with "could be hurtful" against a prompt
+# that says in two places that hedged reasons mean ok. Measured on the same
+# prompt and thread context over six drafts spanning both classes:
+#
+#     gpt-4.1-nano   5/6   714ms
+#     gpt-4.1-mini   6/6   782ms
+#
+# Sixty-eight milliseconds inside a 2.5s send budget, for the one false
+# positive that makes a couple turn the feature off. It costs more per call;
+# the tiering in `_needs_model` is what keeps the number of calls small, and
+# S1 is the assertion that keeps the tiering honest.
+FAST_MODEL = os.environ.get("OPENAI_FAST_MODEL", "gpt-4.1-mini")
 
 # The user is holding a finished message waiting to send, so this budget is
 # tight — past it we let the message go rather than make them wait.
@@ -45,11 +59,25 @@ CHECK_TIMEOUT_SECONDS = 2.5
 # They explicitly asked for help here, so a little more room is fine.
 REPHRASE_TIMEOUT_SECONDS = 6.0
 
+# Reading something hard is not the send path. The message has already arrived
+# and is already on screen; nobody is waiting with a finished draft, so the
+# 2.5s budget above was borrowed rather than reasoned. It cost the one thing
+# this path exists for: under load the hardest message a partner can send got
+# no coaching at all, because the call timed out and a timeout is
+# indistinguishable from "nothing needed".
+READ_COACH_TIMEOUT_SECONDS = 6.0
+
 # How much of the thread Bliss reads for context.
 CONTEXT_MESSAGES = 12
 
 # At most one unprompted suggestion of each kind per person per day.
 NUDGE_COOLDOWN = timedelta(hours=20)
+
+# How long a *declined* opportunity probe is remembered. The offer has the
+# cooldown above; the refusal had nothing, which is what made opening a quiet
+# thread cost a model call every single time. Keyed on the conversation, so
+# this is only a backstop against a stale entry outliving its usefulness.
+OPPORTUNITY_PROBE_SECONDS = 6 * 60 * 60
 
 # How long a verdict stays good for. Long enough to cover typing-pause then
 # send; short enough that an edited-and-reverted draft is re-judged in context.
@@ -344,6 +372,11 @@ _CHECK_SYSTEM = (
     "If you find yourself writing a reason that argues against your own "
     "verdict, the verdict is ok.\n"
     "\n"
+    "Your rewrite must never contain the words 'always' or 'never' — not even "
+    "if the conversation above uses them. Those are the sweeping-accusation "
+    "pattern this check exists to catch, and a rewrite carrying it forward is "
+    "the original defect with better manners.\n"
+    "\n"
     "Worked examples. Deliberately not the phrasings you are most likely to "
     "see — the point is the line between them, not the words:\n"
     "  'you are such a menace 😄' -> ok. A fond insult.\n"
@@ -361,7 +394,9 @@ _CHECK_SYSTEM = (
     "When it is not:\n"
     "VERDICT: caution\n"
     "REASON: <at most 12 words, addressed to the sender, never scolding>\n"
-    "SUGGESTION: <the same message, rewritten to say the same thing without the sting>"
+    "SUGGESTION: <the same message, rewritten to say the same thing without the\n"
+    "sting. Never use 'always' or 'never' in it — a rewrite that reintroduces\n"
+    "the sweeping-accusation pattern is the original defect with better manners>"
 )
 
 
@@ -563,6 +598,41 @@ def register_of(draft: str) -> str:
     return REGISTER_PLAIN
 
 
+#: Softenings for the sweeping-accusation pattern, applied to the *suggestion*
+#: only. Mechanical on purpose — see `_soften_absolutes`.
+_ABSOLUTE_SOFTENINGS = (("always", "often"), ("never", "rarely"))
+
+
+def _soften_absolutes(draft: str, suggestion: str) -> str:
+    """Take 'always' and 'never' back out of a rewrite that reintroduced them.
+
+    The prompt forbids this in two places and the model does it anyway about
+    half the time — not by inventing the word, but by copying it out of the
+    conversation above, which is usually the very message that got flagged one
+    turn earlier. The result is the sweeping accusation offered back as the
+    improvement on itself.
+
+    Not fixable by asking again: the check has a 2.5s budget with somebody
+    holding a finished message, and a second call would spend most of it.
+    So this is a substitution rather than a regeneration — deterministic, free,
+    and safe in a way that rewriting prose in code generally is not, because
+    "often" and "rarely" are the softenings the rewrite was reaching for, and
+    because a suggestion is only ever *offered*. Nothing is sent on anybody's
+    behalf.
+
+    Words the sender used themselves are left alone. If they wrote "you always
+    do this", echoing it back is quoting them, not editorialising.
+    """
+    lowered = draft.lower()
+    for absolute, softer in _ABSOLUTE_SOFTENINGS:
+        if absolute in lowered:
+            continue
+        suggestion = re.sub(
+            rf"\b{absolute}\b", softer, suggestion, flags=re.IGNORECASE
+        )
+    return suggestion
+
+
 def _parse_check(raw: str) -> dict:
     verdict, reason, suggestion = "ok", "", ""
     for line in raw.splitlines():
@@ -666,6 +736,8 @@ def check_before_send(relationship, user, draft: str) -> dict:
         if not raw:
             return blank
         verdict = _parse_check(raw)
+        if verdict.get("suggestion"):
+            verdict["suggestion"] = _soften_absolutes(draft, verdict["suggestion"])
         cache.set(cache_key, verdict, VERDICT_CACHE_SECONDS)
         if verdict.get("verdict") == "caution":
             # An observation, not a judgement, and free: the model call already
@@ -851,6 +923,24 @@ def _nudge_for(relationship, user, local_hour: int | None) -> AssistNudge | None
 
     # 3. An opening in what the partner just said.
     if not _recent_nudge(relationship, user, AssistNudge.KIND_OPPORTUNITY):
+        # The daily budget above only counts nudges that were *created*. This
+        # probe answers NONE most of the time by design — "most of the time
+        # they have not" is in its own prompt — and a NONE writes no row, so
+        # nothing was stopping the next thread-open paying for the same answer
+        # again. Measured: five opens of an ordinary thread, five model calls,
+        # unbounded. It was the whole cost of a quiet conversation.
+        #
+        # Keyed on the conversation rather than on the clock, because at
+        # temperature 0 the same context provably returns the same answer, so
+        # asking again before anything has been said is waste by construction.
+        # A new message changes the key and the probe runs again, which is the
+        # behaviour that was wanted in the first place.
+        probe_key = "assist:opportunity:{}:{}:{}".format(
+            relationship.id, user.id, hashlib.sha256(base.encode()).hexdigest()[:32]
+        )
+        if cache.get(probe_key):
+            return None
+
         suggestion = _complete(_OPPORTUNITY_SYSTEM, base, REPHRASE_TIMEOUT_SECONDS)
         if suggestion and suggestion.strip().upper() != "NONE":
             return AssistNudge.objects.create(
@@ -859,6 +949,9 @@ def _nudge_for(relationship, user, local_hour: int | None) -> AssistNudge | None
                 kind=AssistNudge.KIND_OPPORTUNITY,
                 suggestion=suggestion,
             )
+        # Remember the refusal, not just the offer. A TTL as a backstop so a
+        # stale cache cannot silence the probe for ever.
+        cache.set(probe_key, True, OPPORTUNITY_PROBE_SECONDS)
 
     return None
 
@@ -1104,7 +1197,9 @@ def coach_response(relationship, user, incoming: str) -> dict:
             if context
             else f"The message they just received:\n{incoming}"
         )
-        guidance = _parse_coaching(_complete(_READ_COACH_SYSTEM, prompt, CHECK_TIMEOUT_SECONDS))
+        guidance = _parse_coaching(
+            _complete(_READ_COACH_SYSTEM, prompt, READ_COACH_TIMEOUT_SECONDS)
+        )
         if not guidance:
             return blank
         return {"guidance": guidance, "defer_to_support": False}

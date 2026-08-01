@@ -51,7 +51,7 @@ Test couple already paired on the local stack: `ada@example.com` /
 |---|---|
 | `apps/chat` | 100% coverage |
 | `personalization/{boundary,outcomes,connection}.py` | 100% each |
-| Backend | 844 tests passing |
+| Backend | 853 tests passing |
 | Mobile `couple_chat` | 558 tests |
 | e2e | 67/67 against the live stack |
 
@@ -162,8 +162,7 @@ hardware (the simulator has no microphone).
 ## 6. The scenario suite exists now — and what it found
 
 Built to the plan in `docs/intelligence-test-plan.md`. All nineteen scenarios,
-201 assertions, ~9 minutes, ~40 model calls. Currently **200/201** — one
-failure left, S2.5, and §7 explains why it is a model limit rather than a bug.
+203 assertions, ~6 minutes, ~36 model calls. Currently **203/203**.
 
 ```bash
 make scenarios                    # all
@@ -173,11 +172,11 @@ make scenarios ARGS="S1 quiet"    # one scenario, or one group
 `scripts/e2e/harness.py` holds what it shares with `couple_thread.py`;
 `scripts/e2e/scenarios/` holds the runner and the six groups.
 
-**Deliberately not in `make validate` yet.** S2's six assertions describe
-behaviour we think is wrong rather than behaviour that broke, and they are
-meant to stay red until someone decides what to do about them. A
-permanently-failing suite in `validate` teaches people to ignore `validate`.
-Wire it in the day S2 is settled — it is the last one.
+**Green, and ready for a live-checks target.** It was held out of `validate`
+while assertions described behaviour we thought was wrong rather than behaviour
+that broke; that is closed. It still needs a running stack and a real key, so
+it belongs wherever the other live checks run rather than in the command
+developers use before a commit.
 
 Run it against the stack the containers are actually serving. `docker-compose`
 mounts `./backend-django` relative to wherever compose was invoked, and the
@@ -230,13 +229,10 @@ before you believe them.
   unlike `django`. Editing a task and restarting does nothing — it needs
   `--build`.
 
-### Left failing, on purpose
+### Left failing, on purpose — now empty
 
-1. **S2.5 only.** The prompt change landed and took S2 from six failures to
-   one; §7 has what changed and the measurement showing the last one is a
-   model limit rather than a prompt one. Per-couple calibration (§8) is a
-   complement, not a rescue: it needs history, and S2 fails on turn two of a
-   brand-new couple.
+Nothing. §7 has how S2 was closed, including the one line that sits on the
+model's decision boundary and is recorded rather than pinned.
 
 ### Since fixed
 

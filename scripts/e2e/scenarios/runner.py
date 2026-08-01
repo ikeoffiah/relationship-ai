@@ -40,6 +40,7 @@ from harness import (  # noqa: E402
 #: that turn lands; any key may be omitted, and an omitted key asserts nothing.
 #:
 #:   caution:          True | False    — /assist/check on this text before sending
+#:                     None            — assert nothing, overriding a default
 #:   coach:            True | False    — /assist/read-coach for the *other* partner
 #:   defer_to_support: True | False
 #:   nudge:            "repair" | "night" | "opportunity" | None
@@ -406,6 +407,27 @@ def bad_night(couple: Couple, index: int, weeks_ago: int) -> None:
     backdate_messages(couple, [repair["id"]], when)
 
 
+def age_score(couple: Couple, days: int = 1) -> None:
+    """Move the stored score's clock back, so the next update counts as a day.
+
+    ``connection.update`` folds in one smoothing step per day rather than per
+    call, which is what makes the number's inertia a property of time instead
+    of a property of how often the job ran. The cost is that a test cannot walk
+    the score forward by calling in a loop; it has to say how much time passed,
+    which is more honest about what it is simulating anyway.
+
+    ``updated_at`` is ``auto_now``, so this has to go through the queryset.
+    """
+    shell(
+        "from datetime import timedelta;"
+        "from django.utils import timezone;"
+        "from apps.personalization.models import ConnectionScore;"
+        f"ConnectionScore.objects.filter(relationship_id='{couple.rel}').update("
+        f"updated_at=timezone.now() - timedelta(days={days}));"
+        "print('ok')"
+    )
+
+
 def backdate_policy(couple: Couple, days: int) -> None:
     """Age every lesson this couple has taught the system."""
     shell(
@@ -571,7 +593,10 @@ def _play_turn(couple: Couple, scenario: Scenario, index: int, turn: Turn, expec
     # 1. The pre-send check, as the client runs it: on the draft, before the
     #    message exists. Asked first so the verdict is about the thread as it
     #    stood when the person was typing.
-    if "caution" in expect:
+    # `None` asserts nothing, which is how a turn opts out of a group default.
+    # Distinct from `nudge: None`, where None is a real expectation — hence a
+    # per-key rule rather than a blanket one.
+    if expect.get("caution") is not None:
         verdict = couple.check_draft(who, turn.text, expect_caution=expect["caution"])
         cautioned = verdict.get("verdict") == "caution"
         if expect["caution"]:
