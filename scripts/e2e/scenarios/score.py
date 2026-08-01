@@ -10,9 +10,20 @@ each partner privately how connected they feel, and averaging those two answers
 into a shared number publishes one partner's answer to the other by arithmetic.
 """
 
+import json
+
 import requests
 
-from .runner import DJANGO, Couple, Scenario, age_score, check, shell, shell_json
+from .runner import (
+    DJANGO,
+    Couple,
+    Scenario,
+    age_score,
+    backdate_messages,
+    check,
+    shell,
+    shell_json,
+)
 
 # ── S14 — Mutual vs one-sided ───────────────────────────────────────────────
 
@@ -334,4 +345,140 @@ def _seed_recovery(couple):
 S16.body = _s16
 
 
-SCENARIOS = [S14, S15, S16]
+
+
+# ── S20 — The score can fall ────────────────────────────────────────────────
+
+S20 = Scenario(
+    "S20",
+    "Deterioration is visible, and absence is admitted",
+    note="a number that can only rise during a bad fortnight is reassurance, not a reading",
+)
+
+
+def _sharp(couple, who, days_ago, text="you always do this"):
+    message = couple.send(who, text)
+    backdate_messages(couple, [message["id"]], days_ago * 24 * 3600)
+    return message
+
+
+def _calm(couple, who, days_ago, hours=0, text="what time are you back"):
+    """``hours`` moves the message *later* — fewer seconds back from now."""
+    message = couple.send(who, text)
+    backdate_messages(couple, [message["id"]], days_ago * 24 * 3600 - hours * 3600)
+    return message
+
+
+def _s20(couple):
+    """Three properties, in the order they would hurt if wrong.
+
+    Until this scenario existed the score could not go down for any reason
+    except a partner going silent — so a couple locked in high-conflict,
+    high-engagement decline saw nothing, and a couple who stopped using the
+    product entirely kept their best number for ever. Both are the number being
+    least honest exactly where honesty matters most.
+    """
+    # ── a fight is not connection ───────────────────────────────────────
+    for index, text in enumerate(_LINES[:12]):
+        couple.send("a" if index % 2 == 0 else "b", text)
+    calm_parts = couple.score_components()
+
+    # Two arguments, four days apart, neither mended: nobody comes back to the
+    # thread afterwards.
+    _sharp(couple, "a", days_ago=11)
+    _sharp(couple, "b", days_ago=11, text="forget it")
+    _sharp(couple, "a", days_ago=6)
+    _sharp(couple, "b", days_ago=6, text="whatever")
+
+    parts = couple.score_components()
+    check(
+        "S20: an unmended fortnight scores zero on repair",
+        parts.get("repair") == 0.0,
+        f"repair={parts.get('repair')} — {parts}",
+    )
+    check(
+        "S20: and the argument did not inflate reciprocity",
+        parts["mutuality"] <= calm_parts["mutuality"],
+        f"{calm_parts['mutuality']:.2f} -> {parts['mutuality']:.2f}",
+    )
+
+    # ── one detection is never enough ───────────────────────────────────
+    lonely = Couple("s20-onefight")
+    for index, text in enumerate(_LINES[:12]):
+        lonely.send("a" if index % 2 == 0 else "b", text)
+    _sharp(lonely, "a", days_ago=5)
+    check(
+        "S20: a single detected rupture cannot move anybody's score",
+        "repair" not in lonely.score_components(),
+        str(lonely.score_components()),
+    )
+
+    # ── mending it is what the component is for ─────────────────────────
+    mended = Couple("s20-mended")
+    for index, text in enumerate(_LINES[:12]):
+        mended.send("a" if index % 2 == 0 else "b", text)
+    for days_ago in (11, 6):
+        _sharp(mended, "a", days_ago=days_ago)
+        _calm(mended, "a", days_ago=days_ago, hours=2)
+        _calm(mended, "b", days_ago=days_ago, hours=3)
+    check(
+        "S20: the same two fights, talked through, score full marks",
+        mended.score_components().get("repair") == 1.0,
+        str(mended.score_components()),
+    )
+    check(
+        "S20: so the unmended couple scores lower overall",
+        _raw_score(couple) < _raw_score(mended),
+        f"unmended {_raw_score(couple)} vs mended {_raw_score(mended)}",
+    )
+
+    # ── absence is admitted, not frozen ─────────────────────────────────
+    lapsed = Couple("s20-lapsed")
+    for index, text in enumerate(_LINES):
+        lapsed.send("a" if index % 2 == 0 else "b", text)
+    for _ in range(4):
+        age_score(lapsed, days=1)
+        shown = lapsed.refresh_score()
+    check("S20: an active couple is shown a number", shown.get("score"), str(shown))
+
+    shell(
+        "from datetime import timedelta;"
+        "from django.utils import timezone;"
+        "from apps.chat.models import CoupleMessage;"
+        f"CoupleMessage.objects.filter(relationship_id='{lapsed.rel}').update("
+        "created_at=timezone.now() - timedelta(days=40));"
+        "print('ok')"
+    )
+    age_score(lapsed, days=1)
+    gone = lapsed.refresh_score()
+    check(
+        "S20: and one who stopped is shown nothing rather than their best week",
+        gone.get("score") is None and gone.get("emphasis") == "hidden",
+        str(gone),
+    )
+
+    # ── the shared number stays a shared number ─────────────────────────
+    # Attributability is only acceptable because everything the score reads is
+    # something both partners watched happen. Nothing in the payload may say
+    # which of them it was.
+    for who in ("a", "b"):
+        payload = couple.connection(who)
+        check(
+            f"S20: the score {who} sees names neither partner",
+            not any(
+                token in json.dumps(payload).lower()
+                for token in ("partner_a", "partner_b", "sender", couple.emails[who])
+            ),
+            json.dumps(payload)[:120],
+        )
+    check(
+        "S20: and both partners see exactly the same thing",
+        couple.connection("a") == couple.connection("b"),
+        f"{couple.connection('a')} vs {couple.connection('b')}",
+    )
+
+
+S20.body = _s20
+
+
+SCENARIOS = [S14, S15, S16, S20]

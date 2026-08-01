@@ -281,7 +281,16 @@ def week_two(couple, log):
 
 
 def week_three(couple, log):
-    """The rough patch. Two bad nights, then B messaging into silence."""
+    """The rough patch, as a rough patch actually looks.
+
+    The first version had them completing every daily ritual through the worst
+    week of the month — full check-ins, gratitude, micro-actions — and the
+    score duly went *up*. That was the fixture being wrong rather than the
+    score: couples in a bad patch stop doing the app's rituals, which is most
+    of what the score reads. So this leaves the ruptures unmended and lets the
+    engagement fall away, which is what the number is supposed to be able to
+    see.
+    """
     # The sharpest thing anyone says all month, and sent through the same
     # check-send-coach path a real client uses — otherwise the caution is
     # never exercised by this simulation at all, which is what happened on
@@ -301,7 +310,10 @@ def week_three(couple, log):
         couple.say("b", text, day=PHASE_DAYS[2] - 1)
 
     couple.say("b", "I don't know if I want to keep doing this", day=PHASE_DAYS[2] - 1)
-    couple.daily_rows(list(range(5, 8)), score=2)
+    # Two days of checking in out of a possible seven, no gratitude, nothing
+    # completed. Neither rupture is mended: nobody comes back to the thread
+    # warmly inside the repair window.
+    couple.daily_rows([7], score=2)
     couple.open_thread("a")
     couple.open_thread("b")
 
@@ -444,7 +456,24 @@ def main():
         print(f"  {who}: {couple.tendencies(who) or 'no tendencies reported'}")
     print(f"  total model calls: {model_calls()}")
     print(
-        "\n  note: the score is smoothed in proportion to elapsed time, so each\n"
+        "\n  how to read the score line:\n"
+        "\n"
+        "  It barely moves across the rough patch, and that is the design rather\n"
+        "  than a gap in it. The window is 14 days and the whole arc is\n"
+        "  compressed into it, so week three is one bad week sitting inside a\n"
+        "  good fortnight — and a deliberately slow number should not call that\n"
+        "  a collapse. What *is* visible is `repair`, which reads 0.50 from the\n"
+        "  moment the second argument goes unmended. Before this it would have\n"
+        "  read 1.00, because the component scored a repairing disposition\n"
+        "  rather than whether anything got repaired.\n"
+        "\n"
+        "  S20 is where the fall is demonstrated properly: two unmended\n"
+        "  arguments against the same two talked through score 35 against 55,\n"
+        "  and a couple who stop entirely go to `hidden` rather than keeping\n"
+        "  their best week. A month-long simulation cannot show a sustained\n"
+        "  decline without being a simulation of a sustained decline.\n"
+        "\n"
+        "  note: the score is smoothed in proportion to elapsed time, so each\n"
         "  phase ages the stored reading by a day before refreshing. Refreshing\n"
         "  twice in one instant is correctly no refresh at all."
     )

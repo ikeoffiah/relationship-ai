@@ -800,6 +800,23 @@ _SHARP_MARKERS = (
 )
 
 
+def is_sharp(text: str) -> bool:
+    """Whether this reads as part of a rupture rather than an ordinary message.
+
+    Public because the connection score needs the same reading, and two
+    definitions of "were they fighting" drifting apart is how the number would
+    start disagreeing with the nudge about the same afternoon.
+
+    Deliberately thin, and worth being honest about the limit: eight phrases
+    catch the arguments people have in the words people reuse, and miss a
+    couple who fight without ever typing one of them. Everything downstream is
+    built to fail safe on that — a rupture nobody detects is treated as no
+    rupture, never as a repaired one.
+    """
+    lowered = (text or "").lower()
+    return any(marker in lowered for marker in _SHARP_MARKERS)
+
+
 def _sharp_before(relationship, before, window: timedelta) -> bool:
     """Was the exchange ending at `before` a sharp one?
 
@@ -832,9 +849,7 @@ def _sharp_before(relationship, before, window: timedelta) -> bool:
     # function. Voice is exactly where the loaded messages go, so the blind
     # spot sat precisely where it did the most damage — which is the same
     # sentence transcription.py opens with, about the bug this one survived.
-    return any(
-        any(m in message_text(msg).lower() for m in _SHARP_MARKERS) for msg in recent
-    )
+    return any(is_sharp(message_text(msg)) for msg in recent)
 
 
 def _had_sharp_exchange(relationship) -> bool:

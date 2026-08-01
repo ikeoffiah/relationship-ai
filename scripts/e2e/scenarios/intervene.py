@@ -335,10 +335,15 @@ def _s8(couple):
         str(couple.tendencies("b")),
     )
 
+    # Repair is a balance now — of the arguments they had, how many they
+    # mended — so a couple with one detected rupture is below the confidence
+    # floor and the question is not asked of them at all. What S8 can still
+    # assert is that reaching for repair never counts *against* them, which is
+    # the property this scenario is named for. S20 covers the balance itself.
     parts = couple.score_components()
     check(
-        "S8: the score's repair component is non-zero",
-        parts.get("repair", 0) > 0,
+        "S8: repairing is never scored against them",
+        parts.get("repair", 1.0) == 1.0,
         str(parts),
     )
 

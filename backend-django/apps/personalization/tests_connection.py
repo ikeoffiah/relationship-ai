@@ -152,13 +152,21 @@ class ComponentTests(ConnectionTestCase):
 
         self.assertGreater(connection.compute(self.relationship), before)
 
-    def test_repair_lifts_it(self):
+    def test_repair_is_not_scored_when_there_was_nothing_to_repair(self):
+        """It used to be: any repair tendency at all scored the full component,
+        whether or not the couple had had a row. That scored a calm fortnight
+        and a mended one identically, and marked down a calm couple who simply
+        never needed to repair anything. Now the question is not asked."""
         self.mutual()
+        parts, _ = connection._components(
+            self.relationship, timezone.now() - timedelta(days=connection.WINDOW_DAYS)
+        )
+        self.assertNotIn("repair", parts)
+
         before = connection.compute(self.relationship)
         for _ in range(behaviour.MIN_OBSERVATIONS + 2):
             behaviour.observe(self.alex, behaviour.REPAIRS)
-
-        self.assertGreater(connection.compute(self.relationship), before)
+        self.assertEqual(connection.compute(self.relationship), before)
 
     def test_old_activity_falls_out_of_the_window(self):
         self.mutual()
@@ -397,3 +405,192 @@ class SmoothingIsPerDayTests(ConnectionTestCase):
         """A couple with no stored value takes the raw number, elapsed or not."""
         self.mutual()
         self.assertIsNotNone(connection.update(self.relationship))
+
+
+class RuptureAndRepairTests(ConnectionTestCase):
+    """The one component that can fall for a reason other than absence.
+
+    A score that can only rise or hold during deterioration is reassurance
+    rather than a reading. This is the part that lets it say things are going
+    badly — and the part most able to say it wrongly, so the conjunction that
+    guards it is what these tests are really about.
+    """
+
+    def sharp(self, sender, when=None, text="you always do this"):
+        message = CoupleMessage.objects.create(
+            relationship=self.relationship, sender=sender, body=text
+        )
+        if when is not None:
+            CoupleMessage.objects.filter(id=message.id).update(created_at=when)
+            message.refresh_from_db()
+        return message
+
+    def calm(self, sender, when=None, text="what time are you back"):
+        return self.sharp(sender, when, text=text)
+
+    def parts(self):
+        parts, _ = connection._components(
+            self.relationship, timezone.now() - timedelta(days=connection.WINDOW_DAYS)
+        )
+        return parts
+
+    # ── the confidence guard ────────────────────────────────────────────
+
+    def test_one_detected_rupture_does_nothing_at_all(self):
+        """The detector is eight keyword phrases. A single false positive must
+        not be able to move anybody's score."""
+        self.mutual()
+        self.sharp(self.alex)
+        self.assertNotIn("repair", self.parts())
+
+    def test_two_unrepaired_ruptures_do_move_it(self):
+        # No ordinary conversation afterwards on purpose. `mutual()` writes its
+        # messages at "now", which fall inside the last rupture's repair window
+        # and legitimately mend it — the first version of this test was wrong
+        # about its own fixture rather than about the code.
+        now = timezone.now()
+        self.sharp(self.alex, now - timedelta(days=9))
+        self.sharp(self.alex, now - timedelta(days=5))
+        self.assertEqual(self.parts()["repair"], 0.0)
+
+    # ── what counts as mended ───────────────────────────────────────────
+
+    def test_coming_back_and_talking_normally_counts_as_repair(self):
+        """Most couples repair by talking again, not by sending a ceremony."""
+        self.mutual()
+        now = timezone.now()
+        for offset in (6, 2):
+            self.sharp(self.alex, now - timedelta(days=offset))
+            self.calm(self.alex, now - timedelta(days=offset, hours=-2))
+            self.calm(self.sam, now - timedelta(days=offset, hours=-3))
+
+        self.assertEqual(self.parts()["repair"], 1.0)
+
+    def test_a_repair_sticker_counts_even_with_no_conversation_after(self):
+        self.mutual()
+        now = timezone.now()
+        for offset in (6, 2):
+            self.sharp(self.alex, now - timedelta(days=offset))
+            sticker = CoupleMessage.objects.create(
+                relationship=self.relationship,
+                sender=self.alex,
+                kind=CoupleMessage.KIND_STICKER,
+                sticker="repair.sorry",
+            )
+            CoupleMessage.objects.filter(id=sticker.id).update(
+                created_at=now - timedelta(days=offset, hours=-1)
+            )
+
+        self.assertEqual(self.parts()["repair"], 1.0)
+
+    def test_only_one_partner_coming_back_is_not_repair(self):
+        """One person talking into silence is the thing that needed repairing."""
+        now = timezone.now()
+        for offset in (9, 5):
+            self.sharp(self.alex, now - timedelta(days=offset))
+            self.calm(self.alex, now - timedelta(days=offset, hours=-2))
+
+        self.assertEqual(self.parts()["repair"], 0.0)
+
+    def test_a_partly_mended_fortnight_scores_in_between(self):
+        now = timezone.now()
+        self.sharp(self.alex, now - timedelta(days=11))
+        self.calm(self.alex, now - timedelta(days=10))
+        self.calm(self.sam, now - timedelta(days=10, minutes=-30))
+        self.sharp(self.alex, now - timedelta(days=5))
+
+        self.assertEqual(self.parts()["repair"], 0.5)
+
+    def test_a_long_argument_is_one_rupture_not_nine(self):
+        """Otherwise saying 'forget it' twice in an evening reads as two
+        failures rather than one bad night."""
+        self.mutual()
+        now = timezone.now()
+        for minutes in range(0, 50, 10):
+            self.sharp(self.alex, now - timedelta(days=3, minutes=minutes))
+
+        self.assertNotIn("repair", self.parts())
+
+    # ── conflict is not connection ──────────────────────────────────────
+
+    def test_an_argument_does_not_count_toward_reciprocity(self):
+        """A fight is a burst of messages from both partners, which is exactly
+        the shape reciprocity rewards. It used to produce a couple's highest
+        reading of the month during their worst week."""
+        self.mutual()
+        calm_mutuality = self.parts()["mutuality"]
+
+        now = timezone.now()
+        self.sharp(self.alex, now - timedelta(hours=3))
+        for minutes in range(1, 40, 4):
+            self.calm(
+                self.alex if minutes % 8 else self.sam,
+                now - timedelta(hours=3, minutes=-minutes),
+                text="and another thing",
+            )
+
+        self.assertLessEqual(self.parts()["mutuality"], calm_mutuality)
+
+    def test_a_fight_still_counts_as_evidence(self):
+        """Dropping it from `events` too would let a couple who did nothing but
+        argue fall under MIN_EVENTS and be shown nothing — hiding the one
+        reading that mattered."""
+        now = timezone.now()
+        self.sharp(self.alex, now - timedelta(days=6))
+        self.sharp(self.sam, now - timedelta(days=2))
+        for minutes in range(10):
+            self.calm(self.alex, now - timedelta(days=2, minutes=-minutes))
+
+        _, events = connection._components(
+            self.relationship, now - timedelta(days=connection.WINDOW_DAYS)
+        )
+        self.assertGreaterEqual(events, connection.MIN_EVENTS)
+        self.assertIsNotNone(connection.compute(self.relationship))
+
+
+class GoingQuietTests(ConnectionTestCase):
+    """A couple who stop are not a couple who are doing well."""
+
+    def test_the_number_is_withdrawn_rather_than_frozen(self):
+        """It used to return early and leave the stored value alone, so a
+        couple who stopped using the product kept their best reading for ever.
+        Measured before this changed: an active fortnight scored 68, and ten
+        days of total silence still showed 68."""
+        self.mutual()
+        self.assertIsNotNone(connection.update(self.relationship))
+        self.assertIsNotNone(connection.presentation(self.relationship.id)["score"])
+
+        stale = timezone.now() - timedelta(days=connection.WINDOW_DAYS + 5)
+        CoupleMessage.objects.all().update(created_at=stale)
+        GratitudeMoment.objects.all().update(created_at=stale)
+        RelationshipCheckIn.objects.all().update(created_at=stale)
+
+        self.assertIsNone(connection.update(self.relationship))
+        shown = connection.presentation(self.relationship.id)
+        self.assertIsNone(shown["score"])
+        self.assertEqual(shown["emphasis"], "hidden")
+
+    def test_their_history_is_kept_on_the_row(self):
+        """Hiding the number is not forgetting the couple.
+
+        `presentation` still reports an empty series while hidden — showing a
+        trend line under no current number would be a graph of a relationship
+        the product has just said it cannot read. What matters is that the
+        history survives on the row, so it is still there if they come back.
+        """
+        self.mutual()
+        connection.update(self.relationship)
+        CoupleMessage.objects.all().update(
+            created_at=timezone.now() - timedelta(days=connection.WINDOW_DAYS + 5)
+        )
+        RelationshipCheckIn.objects.all().update(
+            created_at=timezone.now() - timedelta(days=connection.WINDOW_DAYS + 5)
+        )
+        GratitudeMoment.objects.all().update(
+            created_at=timezone.now() - timedelta(days=connection.WINDOW_DAYS + 5)
+        )
+        connection.update(self.relationship)
+
+        row = ConnectionScore.objects.get(relationship=self.relationship)
+        self.assertIsNone(row.value)
+        self.assertTrue(row.series)
