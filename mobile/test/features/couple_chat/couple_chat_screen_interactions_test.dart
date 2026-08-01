@@ -554,4 +554,26 @@ void main() {
       expect(find.textContaining('Bliss'), findsNothing);
     });
   });
+
+  group('the caution sheet lays out', () {
+    testWidgets('a long reason does not overflow the row', (tester) async {
+      // Found on a device, not here: the first real caution shown on a
+      // simulator overflowed by 28 pixels and drew hazard stripes across the
+      // sentence explaining why we had interrupted someone. The reason is
+      // model-written and its length is not ours to predict.
+      final (_, api) = await pump(tester, []);
+      api.verdict = const DraftVerdict(
+        caution: true,
+        reason: 'Sweeping accusations can hurt and escalate conflict badly',
+        suggestion: 'It feels like you are not listening right now.',
+      );
+      await tester.enterText(find.byType(TextField), 'you never listen');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('send_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Sweeping accusations'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

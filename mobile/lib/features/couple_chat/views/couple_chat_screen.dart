@@ -381,11 +381,19 @@ class _CoupleChatScreenState extends State<CoupleChatScreen> {
                   color: AppColors.warmCoral,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  verdict.reason.isEmpty
-                      ? 'This might land harder than you mean'
-                      : verdict.reason,
-                  style: Theme.of(context).textTheme.titleSmall,
+                // Expanded, because the reason is model-written and its length
+                // is not ours to predict. Unwrapped it overflowed the row by
+                // 28 pixels on the first real caution shown on a device —
+                // yellow-and-black hazard stripes across the one sentence
+                // explaining why we interrupted someone. The prompt asks for
+                // at most twelve words; seven was enough.
+                Expanded(
+                  child: Text(
+                    verdict.reason.isEmpty
+                        ? 'This might land harder than you mean'
+                        : verdict.reason,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
               ],
             ),
