@@ -1,6 +1,9 @@
 import uuid
+
 from django.db import models
 from django.utils import timezone
+
+from apps.insights.managers import InsightManager
 
 
 class RelationshipInsight(models.Model):
@@ -44,6 +47,11 @@ class RelationshipInsight(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField(null=True, blank=True)
+
+    # The consent-aware manager, which the model was missing — so the filters
+    # in managers.py were written, reviewed and never actually reachable.
+    # `objects.public(user)` is the only read path; there is no unfiltered one.
+    objects = InsightManager()
 
     class Meta:
         db_table = "relationship_insights"
