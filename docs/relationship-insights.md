@@ -131,12 +131,39 @@ an insight is a claim about somebody's relationship:
 - **The rough-patch rule, as with the daily question.** An insight naming a
   recurring conflict theme, delivered the morning after a fight, is a
   prosecution. Hold surfacing while `is_rupture` sees an open rupture.
-- **Abuse signals stop the feature entirely for that couple.** A perception-gap
-  insight in a coercive relationship is a tool for the controlling partner —
-  it tells them what their partner said privately, which is precisely what they
-  are trying to find out. If `_ABUSE_SIGNALS` has ever fired in this thread, no
-  insight is surfaced to anyone, and that decision is not overridable by
-  consent, because consent under coercion is not consent.
+- **Abuse signals stop anything *crossing*, for ninety days, resetting on every
+  new signal.** A perception-gap insight in a coercive relationship is a tool
+  for the controlling partner — it tells them what their partner said
+  privately, which is exactly what they are trying to find out. Consent does
+  not help, because consent under coercion is not consent.
+
+  Three details, each of which was got wrong in an earlier draft:
+
+  **The self-facing half stays on.** The first version disabled the feature
+  entirely, which punishes the person it is trying to protect: "what this means
+  for me", built from my own sessions and shown only to me, reveals nothing to
+  a partner and is arguably worth *more* to somebody in that situation than to
+  anybody else. Only `shape` and `synthesis` are held.
+
+  **Ninety days, not for ever.** Permanence was out of character for a product
+  where behaviour halves every three weeks and policy suppression decays back
+  in about ninety days. It also meant one hit on a keyword list — the same
+  class of detector this codebase has twice found close to inverted —
+  permanently removed a feature with no route back and no explanation.
+
+  **Elapsed time only. Never a behavioural condition.** The obvious refinement
+  is to re-enable on evidence of significant repair, and it is a trap. Repair
+  signals — stickers, gratitude, warm re-engagement — are all things the
+  controlling partner can perform and can pressure the other into performing,
+  so "demonstrate repair to restore access" is a set of instructions for
+  looking repaired, handed to the person we are protecting against. Any gate
+  whose input can be produced under pressure by the party with more power is
+  not a gate. A behavioural condition would also make the safety response
+  legible — a couple could work out that the feature vanished because of
+  something one of them said, and telling an abuser the system noticed is its
+  own harm. Nobody can perform elapsed time. Repair may never shorten the
+  clock; a new signal restarts it, which is what distinguishes one bad night
+  nine months ago from something still happening.
 - **Nothing derived from `behaviour.py`.** Tendencies are the system's opinion,
   not events. They already have a boundary and it is not this one.
 - Moderation on every generated narrative before storage, as with media.
@@ -148,16 +175,24 @@ Not the detectors. In order:
 1. ~~**The safety work now**: delete `tasks.py`, attach the manager, remove
    `for_joint_prompt`, keep the model.~~ **Done.** Seven tests cover the read
    path, where there were none.
-2. **One detector, shape-only** — `recurring_theme` is the safest and the most
-   obviously useful, and it can be built from the couple's *shared thread*
-   rather than from private sessions, which sidesteps the whole consent problem
-   for a first version.
+2. **`perception_gap`, shape-only.** "You two are remembering last weekend
+   differently. Worth comparing notes?" — no content from either side, so it
+   needs no consent flow and discloses nothing.
 3. **The consent flow**, before anything reads private sessions at all.
 4. **The remaining detectors**, one at a time, each with a written argument for
-   why its output can cross.
+   why its output may cross.
 
-`perception_gap` should be built **last**, not first. It is the headline
-feature and the one that cannot exist without reading both private sides.
+An earlier draft put `perception_gap` **last**, on the grounds that it is the
+only one that cannot exist without reading both private sides. That sequenced
+by risk and ignored value: it is also the headline, the reason the feature
+exists, and building it last means possibly spending the whole budget on four
+detectors nobody asked for and never learning whether the core idea works. It
+would also have meant designing the consent flow around the easy cases and then
+discovering it does not fit the one it exists for.
+
+Shape-only resolves it. The headline gets validated first and cheaply, and the
+consent machinery is deferred until there is evidence it is worth building —
+which is the same argument that stopped the daily question being generated.
 
 ## 9. Testing
 
@@ -166,8 +201,10 @@ feature and the one that cannot exist without reading both private sides.
 - Scenario (S21): a couple with insights, and the leak sweep clean on both
   partners' surfaces — the same sweep S17 runs, extended with the insight
   vocabulary.
-- Scenario (S22): a couple with an abuse signal in their history gets no
-  insights surfaced, and consent cannot switch that back on.
+- Scenario (S22): a couple with a recent abuse signal has nothing *crossing* —
+  no shape, no synthesis — while their own self-facing half still works;
+  consent cannot switch the crossing back on; a repair sticker does not
+  shorten the ninety days; and a new signal restarts them.
 - The simulation should report insights alongside tendencies, so what the
   system believes about a couple is readable in one place.
 
