@@ -286,6 +286,82 @@ class SurfacingRulesTests(TestCase):
             )
         self.assertFalse(tasks.may_surface(self.relationship))
 
+    def stored_insight(self):
+        from apps.insights.models import RelationshipInsight
+
+        return RelationshipInsight.objects.create(
+            relationship=self.relationship,
+            type="recurring_theme",
+            theme="how evenings get decided",
+            confidence=0.9,
+            shared_with_a=True,
+            shared_with_b=True,
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+
+    def test_a_signal_retracts_what_was_already_shown(self):
+        """Gating synthesis was not enough, and this is the gap it left.
+
+        ``may_surface`` ran only in the nightly task, so a signal stopped the
+        *next* insight while one written last week went on crossing for the
+        rest of its thirty days. A couple can be shown "here is the pattern in
+        your arguments" for a month after the thing that should have silenced
+        it.
+        """
+        insight = self.stored_insight()
+        self.say("I went through your phone last night", days_ago=2)
+
+        tasks.synthesise_insights()
+
+        insight.refresh_from_db()
+        self.assertFalse(insight.shared_with_a)
+        self.assertFalse(insight.shared_with_b)
+        self.assertFalse(insight.approved_for_joint)
+
+    def test_an_open_argument_does_not_retract_anything(self):
+        """The distinction worth keeping: a signal retracts, a rupture only
+        waits. A theme they were already shown is not made harmful by this
+        week's argument, and yanking it away would be its own message."""
+        insight = self.stored_insight()
+        self.say("what time are you back")
+        self.open_rupture(days_ago=1)
+
+        tasks.synthesise_insights()
+
+        insight.refresh_from_db()
+        self.assertTrue(insight.shared_with_a)
+        self.assertTrue(insight.shared_with_b)
+
+    def test_the_referral_retracts_immediately(self):
+        """A night is a long time to leave it on the screen, so the read-coach
+        referral withdraws too rather than waiting for the sweep."""
+        from apps.chat import assist
+
+        insight = self.stored_insight()
+        result = assist.coach_response(
+            self.relationship, self.sam, "I went through your phone last night"
+        )
+
+        self.assertTrue(result["defer_to_support"])
+        self.assertIsNone(result["guidance"])
+        insight.refresh_from_db()
+        self.assertFalse(insight.shared_with_a)
+        self.assertFalse(insight.shared_with_b)
+
+    def test_a_failed_withdrawal_never_costs_the_referral(self):
+        """The referral is the part that matters. If retraction breaks, the
+        person still gets routed to support."""
+        from apps.chat import assist
+
+        with patch(
+            "apps.insights.tasks.withdraw_insights",
+            side_effect=RuntimeError("boom"),
+        ):
+            result = assist.coach_response(
+                self.relationship, self.sam, "I went through your phone last night"
+            )
+        self.assertTrue(result["defer_to_support"])
+
     def test_a_broken_check_holds_things_back(self):
         """Fails closed, unlike everything else in this codebase — the cost of
         being wrong the other way is handing somebody a tool."""

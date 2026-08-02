@@ -1450,6 +1450,18 @@ def coach_response(relationship, user, incoming: str) -> dict:
         lowered = incoming.lower()
         if any(signal in lowered for signal in _ABUSE_SIGNALS):
             # Not a communication problem. Do not coach accommodation.
+            #
+            # Also retract anything Bliss has already told this couple about
+            # itself. The nightly sweep would do it too, but a night is a long
+            # time to leave "here is the pattern in your arguments" on the
+            # screen of a couple who just tripped this. Best-effort and never
+            # allowed to cost the referral, which is the part that matters.
+            try:
+                from apps.insights.tasks import withdraw_insights
+
+                withdraw_insights(relationship)
+            except Exception:
+                log.warning("insight_withdrawal_failed", exc_info=True)
             return {"guidance": None, "defer_to_support": True}
 
         if not _needs_read_coaching(incoming):

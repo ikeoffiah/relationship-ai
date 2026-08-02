@@ -110,6 +110,28 @@ def may_surface(relationship) -> bool:
     )
 
 
+def withdraw_insights(relationship) -> int:
+    """Stop everything already stored from crossing. Returns how many.
+
+    Gating synthesis was not enough and the gap is worth naming. ``may_surface``
+    ran only in the nightly task, so it stopped *new* insights — an insight
+    written on the Monday stayed readable for its full thirty-day life if a
+    signal arrived on the Tuesday, because the read path has no such check and
+    cannot afford one (it would mean a ninety-day message scan on every home
+    screen load). "Nothing crossing" has to mean the rows already written too.
+
+    Unshares rather than deletes: a shape-only insight holds nothing private,
+    and `public()` is the only accessor, so clearing both flags is enough to
+    stop it crossing while leaving the row as a record. Nothing re-shares it —
+    the nightly task cannot reach the `update_or_create` for ninety days.
+    """
+    from apps.insights.models import RelationshipInsight
+
+    return RelationshipInsight.objects.filter(relationship=relationship).update(
+        shared_with_a=False, shared_with_b=False, approved_for_joint=False
+    )
+
+
 @shared_task(name="insights.synthesise")
 def synthesise_insights() -> int:
     """Find what is worth noticing, for every active couple.
@@ -132,7 +154,22 @@ def synthesise_insights() -> int:
     written = 0
     for relationship in Relationship.objects.filter(status="active").iterator():
         try:
-            if not may_surface(relationship):
+            # Order matters. The abuse check is asked first and on its own,
+            # because a signal must also retract what is already stored —
+            # whereas an open rupture is only a reason to wait, and a theme
+            # they were already shown is not made harmful by this week's
+            # argument.
+            if _abuse_signalled_recently(relationship):
+                withdrawn = withdraw_insights(relationship)
+                if withdrawn:
+                    logger.info(
+                        "insights_withdrawn relationship=%s count=%s",
+                        relationship.id,
+                        withdrawn,
+                    )
+                continue
+
+            if _rupture_is_open(relationship):
                 continue
 
             found = recurring_theme(relationship)

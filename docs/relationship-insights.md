@@ -126,6 +126,22 @@ an insight is a claim about somebody's relationship:
 - Confidence must come from *evidence count and agreement across sessions*, not
   from the model's self-report. A model asked how sure it is will say "0.85".
 
+**Measured, and worse than the spec assumed.** Three genuinely unrelated
+arguments — a back door left unlocked, a brother who was rude at lunch, an
+untaxed car — produced "responsibility for shared tasks" at **0.8**, against
+**0.9** for a real theme. So the self-report does not merely skew high; it
+barely separates a finding from an invention, and no floor placed between 0.8
+and 0.9 would be anything but luck. The prompt already forbade this in as many
+words and the words did not bind.
+
+What works is asking a question whose answer can be checked. The detector must
+name *which* arguments the subject appears in, by number, and fewer than three
+citations is not a theme. On the same noise case the model still proposes the
+same vacuous subject and can only cite two of the three, so it is dropped. This
+is the pattern to reach for whenever a model's own certainty is the only thing
+standing between a couple and a claim about their relationship: replace "how
+sure are you" with "show me what you are looking at".
+
 ## 7. Safety
 
 - **The rough-patch rule, as with the daily question.** An insight naming a
@@ -164,6 +180,23 @@ an insight is a claim about somebody's relationship:
   own harm. Nobody can perform elapsed time. Repair may never shorten the
   clock; a new signal restarts it, which is what distinguishes one bad night
   nine months ago from something still happening.
+
+  **A signal retracts, it does not only block.** Found by writing S22 rather
+  than by thinking about it, which is the argument for writing S22. The gate
+  was implemented in the nightly task alone, so a signal stopped the *next*
+  insight while one written the previous week went on crossing for the rest of
+  its thirty-day life. "Nothing crosses" has to mean the rows already written,
+  so a signal now unshares them — from the sweep, and immediately from the
+  read-coach referral, because a night is a long time to leave "here is the
+  pattern in your arguments" on the screen of a couple who just tripped this.
+  The read path deliberately does *not* check: it would mean a ninety-day
+  message scan on every home screen load, and the retraction already leaves the
+  stored rows in the correct state.
+
+  Note the asymmetry with the rough-patch rule above. An open rupture only
+  *waits* — a theme they were already shown is not made harmful by this week's
+  argument, and pulling it off the screen would itself be a message. A signal
+  retracts. The two rules look alike and are not.
 - **Nothing derived from `behaviour.py`.** Tendencies are the system's opinion,
   not events. They already have a boundary and it is not this one.
 - Moderation on every generated narrative before storage, as with media.
@@ -196,17 +229,26 @@ which is the same argument that stopped the daily question being generated.
 
 ## 9. Testing
 
-- Unit: `public()` returns nothing without consent; withdrawal removes it from
-  joint prompts and deletes the text; below-floor confidence never surfaces.
-- Scenario (S21): a couple with insights, and the leak sweep clean on both
-  partners' surfaces — the same sweep S17 runs, extended with the insight
-  vocabulary.
-- Scenario (S22): a couple with a recent abuse signal has nothing *crossing* —
-  no shape, no synthesis — while their own self-facing half still works;
-  consent cannot switch the crossing back on; a repair sticker does not
-  shorten the ninety days; and a new signal restarts them.
-- The simulation should report insights alongside tendencies, so what the
-  system believes about a couple is readable in one place.
+Built, and all of it passing.
+
+- **Unit** — 31 tests in `apps/insights/tests.py`: `public()` returns nothing
+  without consent; one partner's consent does not reveal it to the other;
+  below-floor confidence never surfaces; a theme the model cannot cite is
+  dropped; a signal retracts what was already stored while an open rupture does
+  not; the abuse check fails *closed*.
+- **Scenario S21** — a real theme, produced from a real thread by a real model
+  call, reaching both partners as the same insight in words that quote neither
+  of them. The leak sweep runs on both sides. Rather than extending the sweep
+  only here, `/api/v1/insights/` was added to `passive_surfaces` in the runner,
+  so **every** scenario now sweeps it — insights are the newest thing that
+  crosses between two people and therefore the likeliest place for a leak.
+- **Scenario S22** — an insight, then an abuse signal, then nothing crossing to
+  either partner; their own thread, behaviour and score still answering 200;
+  five repair stickers not buying it back; and the stored row retracted rather
+  than quietly rewritten.
+
+Still owed: the simulation should report insights alongside tendencies, so what
+the system believes about a couple is readable in one place.
 
 ## 10. What I would not build
 

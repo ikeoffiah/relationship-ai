@@ -225,6 +225,14 @@ class Couple:
             timeout=30,
         ).status_code
 
+    def insights(self, who: str) -> list:
+        """What Bliss has noticed, as ``who`` can read it."""
+        response = requests.get(
+            f"{DJANGO}/api/v1/insights/", headers=self.headers(who), timeout=30
+        )
+        response.raise_for_status()
+        return response.json().get("insights", [])
+
     def connection(self, who: str) -> dict:
         return requests.get(
             f"{DJANGO}/api/v1/personalization/connection",
@@ -315,6 +323,15 @@ class Couple:
                 f"{DJANGO}/api/v1/personalization/behaviour",
                 headers=self.headers(who),
                 timeout=30,
+            ),
+            # In the sweep rather than only in S21. Insights are the newest
+            # thing that crosses between two people, so they are the most
+            # likely place for a leak to appear — and the boundary is worth
+            # asserting on every scenario's surfaces, not just the one written
+            # to look for it. A plain GET with no side effects, so it belongs
+            # in the passive set.
+            "what Bliss has noticed": requests.get(
+                f"{DJANGO}/api/v1/insights/", headers=self.headers(who), timeout=30
             ),
         }
 

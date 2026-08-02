@@ -19,7 +19,15 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from harness import report, results  # noqa: E402
-from scenarios import crosscutting, intervene, loop, quiet, route, score  # noqa: E402
+from scenarios import (  # noqa: E402
+    crosscutting,
+    insights,
+    intervene,
+    loop,
+    quiet,
+    route,
+    score,
+)
 from scenarios.runner import play  # noqa: E402
 
 GROUPS = {
@@ -29,13 +37,14 @@ GROUPS = {
     "loop": loop.SCENARIOS,
     "score": score.SCENARIOS,
     "crosscutting": crosscutting.SCENARIOS,
+    "insights": insights.SCENARIOS,
 }
 
 # The order §4 of the plan asks for: silence first, because if the system
 # comments during ordinary chat then everything else is noise; then the places
 # where a wrong answer does the most harm; then the loop and the score; then
 # the slow accumulation ones last, since they need back-dating and real media.
-ORDER = ["quiet", "route", "intervene", "loop", "score", "crosscutting"]
+ORDER = ["quiet", "route", "intervene", "loop", "score", "crosscutting", "insights"]
 
 
 def selected(argv):
