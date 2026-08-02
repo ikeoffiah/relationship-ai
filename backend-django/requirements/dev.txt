@@ -7,7 +7,7 @@
 # it: five tests passed in CI and errored in the container with "fixture
 # 'mocker' not found", which reads like a flake rather than a missing
 # dependency.
-ruff==0.15.22
+ruff==0.16.1
 mypy
 pytest
 pytest-django
