@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'engagement_api_service.dart';
 import '../relationship/connection_score.dart';
+import '../relationship/relationship_insight.dart';
 import 'engagement_models.dart';
 
 /// Drives the daily-ritual and shared-goals screens. Follows the app's
@@ -33,6 +34,12 @@ class EngagementViewModel extends ChangeNotifier {
   ConnectionScore _connection = ConnectionScore.unknown;
   ConnectionScore get connection => _connection;
 
+  /// What Bliss has noticed. Empty is the ordinary state and the honest one —
+  /// most couples have no recurring theme and no perception gap, and the
+  /// detectors are built to say so rather than to find something.
+  List<RelationshipInsight> _insights = [];
+  List<RelationshipInsight> get insights => List.unmodifiable(_insights);
+
   /// Loads everything the daily-ritual hub needs in one shot.
   Future<void> loadRitual() async {
     _isLoading = true;
@@ -44,11 +51,13 @@ class EngagementViewModel extends ChangeNotifier {
         _api.fetchDailyQuestion(),
         _api.fetchMicroAction(),
         _api.fetchConnectionScore(),
+        _api.fetchInsights(),
       ]);
       _summary = results[0] as EngagementSummary;
       _question = results[1] as DailyQuestionState;
       _microAction = results[2] as MicroActionState;
       _connection = results[3] as ConnectionScore;
+      _insights = results[4] as List<RelationshipInsight>;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
     } finally {

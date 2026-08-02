@@ -12,6 +12,7 @@ import 'package:mobile/shared/widgets/support_action.dart';
 import 'package:mobile/features/engagement/engagement_viewmodel.dart';
 import 'package:mobile/features/home/views/today_hero.dart';
 import 'package:mobile/features/home/views/connection_score_card.dart';
+import 'package:mobile/features/home/views/insights_card.dart';
 import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
 import 'package:mobile/features/couple_chat/views/couple_chat_screen.dart';
 
@@ -157,6 +158,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onOpenChat: () => _openCoupleChat(relVM, authVM),
                         ),
                       ),
+                      // Under the score, above the ritual. Renders nothing at
+                      // all when there is nothing to say, which is most weeks
+                      // for most couples.
+                      if (engagement.insights.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: InsightsCard(insights: engagement.insights),
+                        ),
                       TodayHero(
                         vm: engagement,
                         onElsewhere: () => Navigator.of(

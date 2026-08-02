@@ -1,6 +1,7 @@
 import '../../core/api_services/base_api_service.dart';
 import 'engagement_models.dart';
 import '../relationship/connection_score.dart';
+import '../relationship/relationship_insight.dart';
 
 /// API client for the daily-engagement endpoints (Django host).
 ///
@@ -47,6 +48,34 @@ class EngagementApiService extends BaseApiService {
       return ConnectionScore.fromJson(res.data as Map<String, dynamic>);
     } catch (_) {
       return ConnectionScore.unknown;
+    }
+  }
+
+  // ── What Bliss has noticed ────────────────────────────────────────
+  /// Shape-only insights the server has decided this user may see.
+  ///
+  /// Fails to an empty list for the same reason the score fails to `hidden`:
+  /// a card that cannot load should look like "nothing to say today", which is
+  /// true, rather than take the home screen down with it.
+  ///
+  /// No filtering happens here beyond dropping empty shapes. Consent, expiry,
+  /// the abuse hold and the confidence floor are all decided server-side by
+  /// `RelationshipInsight.objects.public(user)` — re-deciding any of it in the
+  /// client would mean two implementations of a safety rule, and the wrong one
+  /// would be the one on the phone.
+  Future<List<RelationshipInsight>> fetchInsights() async {
+    try {
+      final res = await dio.get('/api/v1/insights/');
+      final rows = (res.data as Map<String, dynamic>)['insights'] as List?;
+      return (rows ?? [])
+          .map(
+            (row) =>
+                RelationshipInsight.fromJson(row as Map<String, dynamic>),
+          )
+          .where((insight) => insight.isPresentable)
+          .toList();
+    } catch (_) {
+      return const [];
     }
   }
 

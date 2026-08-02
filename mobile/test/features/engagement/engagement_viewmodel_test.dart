@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/engagement/engagement_api_service.dart';
 import 'package:mobile/features/relationship/connection_score.dart';
+import 'package:mobile/features/relationship/relationship_insight.dart';
 import 'package:mobile/features/engagement/engagement_models.dart';
 import 'package:mobile/features/engagement/engagement_viewmodel.dart';
 import 'package:mocktail/mocktail.dart';
@@ -29,6 +30,8 @@ void main() {
         .thenAnswer((_) async => action ?? const MicroActionState());
     when(() => api.fetchConnectionScore())
         .thenAnswer((_) async => ConnectionScore.unknown);
+    when(() => api.fetchInsights())
+        .thenAnswer((_) async => const <RelationshipInsight>[]);
   }
 
   test('loadRitual populates question, action and summary', () async {
@@ -54,6 +57,8 @@ void main() {
         .thenAnswer((_) async => const MicroActionState());
     when(() => api.fetchConnectionScore())
         .thenAnswer((_) async => ConnectionScore.unknown);
+    when(() => api.fetchInsights())
+        .thenAnswer((_) async => const <RelationshipInsight>[]);
 
     await vm.loadRitual();
 
@@ -108,5 +113,24 @@ void main() {
     expect(ok, isTrue);
     expect(vm.goals.firstWhere((g) => g.id == 'g1').currentValue, 15);
     expect(vm.goals.firstWhere((g) => g.id == 'g2').currentValue, 0);
+  });
+
+  test('loadRitual carries insights through, and empty is the normal case',
+      () async {
+    stubRitual();
+    await vm.loadRitual();
+    expect(vm.insights, isEmpty);
+
+    when(() => api.fetchInsights()).thenAnswer((_) async => const [
+          RelationshipInsight(
+            id: 'i1',
+            kind: InsightKind.perceptionGap,
+            theme: 'how connected these last few weeks have felt',
+          ),
+        ]);
+    await vm.loadRitual();
+
+    expect(vm.insights, hasLength(1));
+    expect(vm.insights.single.kind, InsightKind.perceptionGap);
   });
 }
