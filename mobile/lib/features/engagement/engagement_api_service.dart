@@ -1,5 +1,6 @@
 import '../../core/api_services/base_api_service.dart';
 import 'engagement_models.dart';
+import '../relationship/connection_score.dart';
 
 /// API client for the daily-engagement endpoints (Django host).
 ///
@@ -30,6 +31,22 @@ class EngagementApiService extends BaseApiService {
       return ActionReward.fromJson(res.data as Map<String, dynamic>);
     } catch (e) {
       throw handleError(e);
+    }
+  }
+
+  // ── The connection score ──────────────────────────────────────────
+  /// How the relationship is going, and how prominently to say it.
+  ///
+  /// Fails to [ConnectionScore.unknown] rather than throwing. A home screen
+  /// that cannot load because one card's request failed is a worse outcome
+  /// than a home screen with one card missing, and `hidden` is a true
+  /// statement when we could not find out.
+  Future<ConnectionScore> fetchConnectionScore() async {
+    try {
+      final res = await dio.get('/api/v1/personalization/connection');
+      return ConnectionScore.fromJson(res.data as Map<String, dynamic>);
+    } catch (_) {
+      return ConnectionScore.unknown;
     }
   }
 

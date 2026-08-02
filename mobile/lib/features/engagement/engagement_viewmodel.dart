@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'engagement_api_service.dart';
+import '../relationship/connection_score.dart';
 import 'engagement_models.dart';
 
 /// Drives the daily-ritual and shared-goals screens. Follows the app's
@@ -26,6 +27,12 @@ class EngagementViewModel extends ChangeNotifier {
   List<SharedGoal> _goals = [];
   List<SharedGoal> get goals => List.unmodifiable(_goals);
 
+  /// How the relationship is going, and how loudly to say it. Starts hidden,
+  /// which is also where it stays if the request fails — see
+  /// `fetchConnectionScore`.
+  ConnectionScore _connection = ConnectionScore.unknown;
+  ConnectionScore get connection => _connection;
+
   /// Loads everything the daily-ritual hub needs in one shot.
   Future<void> loadRitual() async {
     _isLoading = true;
@@ -36,10 +43,12 @@ class EngagementViewModel extends ChangeNotifier {
         _api.fetchSummary(),
         _api.fetchDailyQuestion(),
         _api.fetchMicroAction(),
+        _api.fetchConnectionScore(),
       ]);
       _summary = results[0] as EngagementSummary;
       _question = results[1] as DailyQuestionState;
       _microAction = results[2] as MicroActionState;
+      _connection = results[3] as ConnectionScore;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
     } finally {

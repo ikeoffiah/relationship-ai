@@ -11,6 +11,7 @@ import 'package:mobile/core/services/push_service.dart';
 import 'package:mobile/shared/widgets/support_action.dart';
 import 'package:mobile/features/engagement/engagement_viewmodel.dart';
 import 'package:mobile/features/home/views/today_hero.dart';
+import 'package:mobile/features/home/views/connection_score_card.dart';
 import 'package:mobile/features/couple_chat/couple_chat_viewmodel.dart';
 import 'package:mobile/features/couple_chat/views/couple_chat_screen.dart';
 
@@ -143,6 +144,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
+                      // Above the ritual, below the "together N of 30" line.
+                      // It renders nothing at all when the server says
+                      // `hidden`, which is most of a new couple's first
+                      // fortnight and any couple who has gone quiet.
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: engagement.connection.isVisible ? 12 : 0,
+                        ),
+                        child: ConnectionScoreCard(
+                          score: engagement.connection,
+                          onOpenChat: () => _openCoupleChat(relVM, authVM),
+                        ),
+                      ),
                       TodayHero(
                         vm: engagement,
                         onElsewhere: () => Navigator.of(
@@ -162,6 +176,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Open the couple's thread. Extracted so the score card's quiet state can
+  /// send somebody to the thing that helps rather than only to the number.
+  void _openCoupleChat(RelationshipViewModel relVM, AuthViewModel authVM) {
+    final relationshipId = relVM.currentRelationship?['id'] as String?;
+    final userId = authVM.user?.id;
+    if (relationshipId == null || userId == null) return;
+    final partnerName =
+        relVM.currentRelationship?['partner_name'] as String? ?? 'your partner';
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => provider.ChangeNotifierProvider(
+          create: (_) => CoupleChatViewModel(
+            relationshipId: relationshipId,
+            userId: userId,
+          ),
+          child: CoupleChatScreen(
+            relationshipId: relationshipId,
+            userId: userId,
+            partnerName: partnerName,
           ),
         ),
       ),

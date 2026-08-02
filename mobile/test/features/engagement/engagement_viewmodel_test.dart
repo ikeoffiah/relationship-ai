@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/engagement/engagement_api_service.dart';
+import 'package:mobile/features/relationship/connection_score.dart';
 import 'package:mobile/features/engagement/engagement_models.dart';
 import 'package:mobile/features/engagement/engagement_viewmodel.dart';
 import 'package:mocktail/mocktail.dart';
@@ -26,6 +27,8 @@ void main() {
         .thenAnswer((_) async => question ?? const DailyQuestionState());
     when(() => api.fetchMicroAction())
         .thenAnswer((_) async => action ?? const MicroActionState());
+    when(() => api.fetchConnectionScore())
+        .thenAnswer((_) async => ConnectionScore.unknown);
   }
 
   test('loadRitual populates question, action and summary', () async {
@@ -49,6 +52,8 @@ void main() {
         .thenAnswer((_) async => const DailyQuestionState());
     when(() => api.fetchMicroAction())
         .thenAnswer((_) async => const MicroActionState());
+    when(() => api.fetchConnectionScore())
+        .thenAnswer((_) async => ConnectionScore.unknown);
 
     await vm.loadRitual();
 
