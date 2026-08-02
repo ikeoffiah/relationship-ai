@@ -3,9 +3,29 @@
 <plist version="1.0">
 <dict>
 	<!-- APNs environment for push notifications.
-	     "development" is correct for debug builds on a real device (flutter run).
-	     Switch to "production" (or add a Release-specific entitlements file) for
-	     TestFlight / App Store builds. -->
+
+	     This file is used by the **Release** configuration only. Debug and
+	     Profile both point at RunnerDebug.entitlements, which deliberately has
+	     no aps-environment at all so a free personal team can still sign to a
+	     device. An earlier version of this comment said "development" was
+	     correct for debug builds via flutter run — it is not, because those
+	     builds never read this file.
+
+	     So the value here has to serve two things Flutter gives one config to:
+
+	       flutter run --release on a device   development-signed -> "development"
+	       Archive for TestFlight / App Store  distribution-signed -> "production"
+
+	     It is left at "development" so device testing works, because that is
+	     what happens more often and its failure is loud. The other failure is
+	     silent: an App Store build carrying "development" registers against the
+	     APNs sandbox and production pushes simply never arrive, with nothing in
+	     the app to say why.
+
+	     **Before archiving for TestFlight or the App Store, set this to
+	     "production".** If that proves easy to forget, the durable fix is a
+	     separate RunnerRelease.entitlements wired to the Archive action rather
+	     than a note in a file. -->
 	<key>aps-environment</key>
 	<string>development</string>
 </dict>
