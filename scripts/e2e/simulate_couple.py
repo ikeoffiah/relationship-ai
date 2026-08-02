@@ -378,6 +378,13 @@ def snapshot(couple, label, log, spent):
     weights = couple.policy_weights()
     print(f"    learned: {learned(weights)}   |   {spent} model calls so far")
 
+    # What the system believes about them, in the same place as everything else
+    # it believes. An insight is the only one of these that is *shown* to both
+    # partners, so seeing it beside the tendencies and the score is the point:
+    # this line is where "we told them something about themselves" becomes
+    # visible in a run rather than buried in a table.
+    print(f"    noticed: {noticed(couple)}")
+
     # ── the invariants, at every snapshot rather than once at the end ────
     for who in ("a", "b"):
         offenders = leak_offenders(couple, who, couple.surfaces(who))
@@ -407,6 +414,41 @@ def snapshot(couple, label, log, spent):
         f"{label}: the outcome loop still has no way to become more insistent",
         not raw_readers,
         "; ".join(raw_readers),
+    )
+
+
+def noticed(couple):
+    """Every insight this couple can currently see, as one line.
+
+    Read through the same endpoint the phone uses rather than off the model, so
+    a consent or expiry rule that would hide it from them hides it here too. A
+    simulation that reported what the database holds rather than what the
+    couple would be shown would be reassuring about the wrong thing.
+
+    Expect no ``perception_gap`` from this couple, and do not "fix" that by
+    giving the two of them different check-in scores. They agree, and during
+    the rough patch they stop checking in almost entirely — which is the whole
+    point of the week-three fixture and the reason the score can fall. Six
+    paired days a point and a half apart is not this couple's month. The
+    detector's own firing is proved by S23 and by its unit tests; what this
+    line is for is showing that nothing is being said about a couple where
+    there is nothing to say.
+    """
+    synthesise()
+    rows = couple.insights("a")
+    if not rows:
+        return "nothing"
+    return "   ".join(
+        f"{row['type']}={row['theme']!r} ({row['confidence']:.2f})" for row in rows
+    )
+
+
+def synthesise():
+    """Run the nightly sweep now, so a snapshot reflects this week rather than
+    whatever the last real beat tick left behind."""
+    shell(
+        "from apps.insights.tasks import synthesise_insights;"
+        "print(synthesise_insights())"
     )
 
 
