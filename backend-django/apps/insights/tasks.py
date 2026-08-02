@@ -64,8 +64,12 @@ def _abuse_signalled_recently(relationship) -> bool:
                 deleted_at__isnull=True,
             )
             .select_related("media")
-            .only("body", "kind", "media")
         )
+        # No `.only()`. `body` is a property over an encrypted column, so
+        # deferring it raises KeyError — and because this check fails *closed*,
+        # that one micro-optimisation silently disabled insights for every
+        # couple on the platform. Failing closed is right here; it also means a
+        # bug in this function is invisible rather than loud.
         for row in rows.iterator():
             lowered = message_text(row).lower()
             if any(signal in lowered for signal in _ABUSE_SIGNALS):

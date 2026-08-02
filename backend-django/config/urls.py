@@ -30,6 +30,7 @@ urlpatterns = [
     path("api/counseling/", include("apps.counseling.urls")),
     path("api/v1/therapist/", include("apps.therapist.urls")),
     path("api/v1/personalization/", include("apps.personalization.urls")),
+    path("api/v1/insights/", include("apps.insights.urls")),
     path("api/v1/engagement/", include("apps.engagement.urls")),
     path("api/v1/chat/", include("apps.chat.urls")),
     # notification_urls declares absolute paths (api/v1/users/... and

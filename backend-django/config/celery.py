@@ -33,6 +33,13 @@ app.conf.beat_schedule = {
         "task": "personalization.refresh_connection_scores",
         "schedule": crontab(hour=4, minute=0),  # nightly, after the sweep
     },
+    "synthesise-insights": {
+        "task": "insights.synthesise",
+        # After the scores, which is after the rupture assessments those run —
+        # the theme detector reads assessed ruptures, so running it earlier
+        # would look for a pattern in arguments nobody had judged yet.
+        "schedule": crontab(hour=5, minute=0),
+    },
     "sweep-orphan-chat-media": {
         "task": "chat.sweep_orphan_media",
         "schedule": crontab(hour=3, minute=30),  # nightly, off-peak
