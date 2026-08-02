@@ -232,7 +232,10 @@ Four things the plan did not anticipate:
 - **Celery could not boot**, so every background task in the product silently
   did nothing. Fixed to the extent that is honest.
 - **`/assist/nudge` costs a model call on every fetch**, because a declined
-  opportunity probe writes no row and so never starts the cooldown. Open.
+  opportunity probe writes no row and so never starts the cooldown. Fixed —
+  the refusal is now cached too (`OPPORTUNITY_PROBE_SECONDS`, six hours, keyed
+  on the conversation with a TTL so a stale entry cannot silence the probe for
+  ever). The four-week simulation went from 46 model calls to 13.
 
 And one about the suite rather than the product: S16 passed on first run with
 an assertion that was reading nothing, because `direction` is weekly and every
