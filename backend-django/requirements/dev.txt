@@ -1,5 +1,15 @@
 -r base.txt
+
+# Tooling. These lived in base.txt, which meant every production image
+# carried a test runner and a linter, and — because dev.txt is what CI
+# installs while the Docker image installs base.txt — the two environments
+# disagreed about which fixtures existed. pytest-mock was the one that showed
+# it: five tests passed in CI and errored in the container with "fixture
+# 'mocker' not found", which reads like a flake rather than a missing
+# dependency.
+ruff==0.15.22
+mypy
+pytest
 pytest-django
 pytest-cov
 pytest-mock
-ruff==0.15.22

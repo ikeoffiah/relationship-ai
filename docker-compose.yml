@@ -1,3 +1,13 @@
+# All three Django services share one image, so they share one build. This is
+# the local stack and therefore also where the test suite runs, which is why it
+# asks for dev.txt — the Dockerfile defaults to base.txt so a production build
+# stays lean. Keeping the args identical across the three matters: differing
+# build args would mean three separate images of the same source.
+x-django-build: &django-build
+  context: ./backend-django
+  args:
+    REQUIREMENTS: dev.txt
+
 services:
   postgres:
     image: pgvector/pgvector:pg14 # Postgres 14 + pgvector (Supabase prod also has pgvector)
@@ -15,7 +25,7 @@ services:
     ports: ["6379:6379"]
 
   django:
-    build: ./backend-django
+    build: *django-build
     env_file: ./backend-django/.env.local
     depends_on:
       postgres:
@@ -39,7 +49,7 @@ services:
     volumes: ["./backend-fastapi:/app"]
 
   celery:
-    build: ./backend-django
+    build: *django-build
     command: celery -A config worker -l info -Q celery,memory_updates,insight_synthesis,notifications,exports
     env_file: ./backend-django/.env.local
     depends_on:
@@ -49,7 +59,7 @@ services:
         condition: service_started
 
   celery-beat:
-    build: ./backend-django
+    build: *django-build
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file: ./backend-django/.env.local
     depends_on:

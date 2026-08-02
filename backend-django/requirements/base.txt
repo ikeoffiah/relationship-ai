@@ -6,10 +6,6 @@ celery
 django-celery-beat
 psycopg2-binary
 redis
-ruff==0.15.22
-mypy
-pytest
-pytest-django
 cryptography
 pgvector
 django-redis>=7.0.0

@@ -10,8 +10,15 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements/base.txt .
-RUN pip install --no-cache-dir -r base.txt
+# Which manifest to install. Defaults to the runtime one, so a plain
+# `docker build` still produces a lean image; docker-compose passes `dev.txt`,
+# because the local stack is also where the test suite runs.
+#
+# The whole directory is copied rather than the one file, because dev.txt opens
+# with `-r base.txt` and pip resolves that relative to the file it is reading.
+ARG REQUIREMENTS=base.txt
+COPY requirements/ requirements/
+RUN pip install --no-cache-dir -r requirements/${REQUIREMENTS}
 
 COPY . .
 
