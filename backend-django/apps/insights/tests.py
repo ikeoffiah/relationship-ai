@@ -1,10 +1,13 @@
 """What may be read out of an insight, and by whom.
 
-The feature is unbuilt — see ``docs/relationship-insights.md`` — and these
-tests exist ahead of it because the model is migrated and reachable now. An
-insight is derived from what each partner said to Bliss alone, so the read path
-is the whole safety story, and it was previously enforced by nothing at all:
-the consent queryset was written and never attached to the model.
+The read path is the whole safety story — an insight is the one place where
+something derived from what a partner said privately could reach the other —
+and it was once enforced by nothing at all: the consent queryset was written
+and never attached to the model.
+
+Two detectors now. ``recurring_theme`` asks a model and so is tested against a
+patched ``_complete``; ``perception_gap`` is arithmetic over two columns and so
+is tested against exact numbers. See ``docs/relationship-insights.md``.
 """
 
 from datetime import timedelta
@@ -435,3 +438,151 @@ class InsightEndpointTests(TestCase):
         stranger = User.objects.create_user(email="e-x@t.local", password="pw12345!")
         self.client.force_authenticate(user=stranger)
         self.assertEqual(self.get().json()["insights"], [])
+
+
+class PerceptionGapTests(TestCase):
+    """The detector that reads both private sides.
+
+    Deterministic, so unlike ``recurring_theme`` these tests assert exact
+    numbers rather than mocking a model.
+    """
+
+    def setUp(self):
+        self.alex = User.objects.create_user(email="g-a@t.local", password="pw12345!")
+        self.sam = User.objects.create_user(email="g-b@t.local", password="pw12345!")
+        self.relationship = Relationship.objects.create(
+            partner_a=self.alex, partner_b=self.sam, status="active"
+        )
+
+    def check_ins(self, a_scores, b_scores, start_days_ago=20):
+        """One day per score. ``None`` means that partner did not check in."""
+        from apps.engagement.models import RelationshipCheckIn
+
+        for offset, (a, b) in enumerate(zip(a_scores, b_scores)):
+            when = timezone.now() - timedelta(days=start_days_ago - offset)
+            day = when.strftime("%Y-%m-%d")
+            for user, score in ((self.alex, a), (self.sam, b)):
+                if score is None:
+                    continue
+                row = RelationshipCheckIn.objects.create(
+                    relationship=self.relationship,
+                    user=user,
+                    connection_score=score,
+                    date_key=day,
+                )
+                # created_at is auto_now_add, so the window filter has to be
+                # satisfied through the queryset.
+                RelationshipCheckIn.objects.filter(id=row.id).update(created_at=when)
+
+    def test_a_couple_who_agree_have_no_gap(self):
+        self.check_ins([4, 4, 5, 4, 4, 5, 4, 4], [4, 5, 4, 4, 5, 4, 4, 4])
+        self.assertIsNone(detectors.perception_gap(self.relationship))
+
+    def test_a_sustained_divergence_is_a_gap(self):
+        self.check_ins([5, 5, 4, 5, 5, 4, 5, 5], [2, 3, 2, 2, 3, 2, 3, 2])
+        found = detectors.perception_gap(self.relationship)
+
+        self.assertIsNotNone(found)
+        self.assertGreaterEqual(found["confidence"], detectors.MIN_CONFIDENCE)
+        self.assertLessEqual(found["confidence"], 0.95)
+
+    def test_the_shape_never_says_who_rated_higher(self):
+        """The property the whole detector is built around.
+
+        Direction is the one thing that cannot cross. Each partner already
+        knows their own number, so naming whose was higher would hand them the
+        other's private self-report by subtraction. The same phrase has to come
+        back whichever way the gap runs.
+        """
+        self.check_ins([5, 5, 4, 5, 5, 4, 5, 5], [2, 3, 2, 2, 3, 2, 3, 2])
+        a_high = detectors.perception_gap(self.relationship)
+
+        from apps.engagement.models import RelationshipCheckIn
+
+        RelationshipCheckIn.objects.all().delete()
+        self.check_ins([2, 3, 2, 2, 3, 2, 3, 2], [5, 5, 4, 5, 5, 4, 5, 5])
+        b_high = detectors.perception_gap(self.relationship)
+
+        self.assertEqual(a_high, b_high)
+        for forbidden in ("you", "your partner", "higher", "lower", "more", "less"):
+            self.assertNotIn(forbidden, a_high["theme"].lower().split())
+
+    def test_scores_that_cross_back_and_forth_are_noise(self):
+        """Two partners having different Tuesdays is not a perception gap. The
+        gap has to hold its direction to mean anything."""
+        self.check_ins([5, 1, 5, 1, 5, 1, 5, 1], [1, 5, 1, 5, 1, 5, 1, 5])
+        self.assertIsNone(detectors.perception_gap(self.relationship))
+
+    def test_one_partner_checking_in_alone_proves_nothing(self):
+        self.check_ins([5, 5, 5, 5, 5, 5, 5, 5], [None] * 8)
+        self.assertIsNone(detectors.perception_gap(self.relationship))
+
+    def test_too_few_paired_days(self):
+        self.check_ins([5, 5, 5], [2, 2, 2])
+        self.assertIsNone(detectors.perception_gap(self.relationship))
+
+    def test_confidence_rises_with_evidence(self):
+        """What §6 asked for and no model could give."""
+        self.check_ins([5] * 6, [2] * 6)
+        thin = detectors.perception_gap(self.relationship)
+
+        from apps.engagement.models import RelationshipCheckIn
+
+        RelationshipCheckIn.objects.all().delete()
+        self.check_ins([5] * 14, [2] * 14, start_days_ago=20)
+        thick = detectors.perception_gap(self.relationship)
+
+        self.assertGreater(thick["confidence"], thin["confidence"])
+
+    def test_the_private_note_is_never_read(self):
+        """A check-in note is free text somebody wrote for themselves. Nothing
+        in a shape-only insight could justify decrypting it."""
+        from apps.engagement.models import RelationshipCheckIn
+
+        self.check_ins([5] * 8, [2] * 8)
+        RelationshipCheckIn.objects.filter(user=self.alex).update(note="ENC:whatever")
+
+        with patch(
+            "apps.engagement.models.decrypt_field_value",
+            side_effect=AssertionError("the note was read"),
+        ):
+            self.assertIsNotNone(detectors.perception_gap(self.relationship))
+
+    def test_stale_check_ins_fall_out_of_the_window(self):
+        self.check_ins([5] * 8, [2] * 8, start_days_ago=90)
+        self.assertIsNone(detectors.perception_gap(self.relationship))
+
+    def test_a_closed_gap_stops_being_shown(self):
+        """Thirty days is far too long to keep reporting a gap a couple has
+        already closed, so a detector returning None retires its own row."""
+        self.check_ins([5] * 8, [2] * 8)
+        tasks.synthesise_insights()
+        self.assertTrue(
+            RelationshipInsight.objects.filter(
+                relationship=self.relationship, type="perception_gap", shared_with_a=True
+            ).exists()
+        )
+
+        from apps.engagement.models import RelationshipCheckIn
+
+        RelationshipCheckIn.objects.all().delete()
+        self.check_ins([4] * 8, [4] * 8)
+        tasks.synthesise_insights()
+
+        row = RelationshipInsight.objects.get(
+            relationship=self.relationship, type="perception_gap"
+        )
+        self.assertFalse(row.shared_with_a)
+        self.assertFalse(row.shared_with_b)
+
+    def test_one_point_apart_is_rounding_not_a_gap(self):
+        """Five points is a coarse scale. A couple steadily on 5 and 4 are
+        agreeing and rounding differently, and saying otherwise would invent a
+        problem out of the granularity of the widget."""
+        self.check_ins([5] * 8, [4] * 8)
+        self.assertIsNone(detectors.perception_gap(self.relationship))
+
+    def test_genuinely_different_places_is_a_gap(self):
+        """One of them is having a good fortnight and the other is not."""
+        self.check_ins([5, 4, 5, 5, 4, 5, 4, 5], [3, 2, 3, 3, 2, 3, 3, 2])
+        self.assertIsNotNone(detectors.perception_gap(self.relationship))

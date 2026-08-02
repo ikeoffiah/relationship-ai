@@ -140,16 +140,25 @@ def synthesise_insights() -> int:
     one call, so this is roughly one call per couple per night, and none of it
     is anywhere near a request somebody is waiting on.
 
-    Only shape-only insights are produced so far, built from the shared thread.
-    Both `shared_with_*` flags are set on those, and that is not a consent
-    waiver: a shape says only that a pattern exists, in words true of both
-    partners, about a thread they both watched. There is nothing in it to
-    consent to. The moment a detector reads a private session that stops being
-    true and §5 of the spec applies.
+    Everything produced here is shape-only, and both `shared_with_*` flags are
+    set on all of it. That is not a consent waiver. `recurring_theme` reads a
+    thread both partners watched, so there is nothing in its output to consent
+    to. `perception_gap` does read both private sides — but returns only the
+    fact that a difference exists, never its direction, which is what §5 of the
+    spec permits to cross without consent. The moment a detector returns
+    anything either partner did not already know about themselves, that stops
+    being true and the consent flow in §5 has to exist first.
     """
-    from apps.insights.detectors import recurring_theme
+    from apps.insights.detectors import perception_gap, recurring_theme
     from apps.insights.models import RelationshipInsight
     from apps.relationships.models import Relationship
+
+    # (type, detector). Each is written under its own row, so a couple can hold
+    # a theme and a gap at once and one detector failing costs only itself.
+    DETECTORS = (
+        ("recurring_theme", recurring_theme),
+        ("perception_gap", perception_gap),
+    )
 
     written = 0
     for relationship in Relationship.objects.filter(status="active").iterator():
@@ -172,29 +181,38 @@ def synthesise_insights() -> int:
             if _rupture_is_open(relationship):
                 continue
 
-            found = recurring_theme(relationship)
-            if found is None:
-                continue
+            for insight_type, detect in DETECTORS:
+                found = detect(relationship)
+                if found is None:
+                    # Nothing found now retires what was found before. An
+                    # insight that stopped being true has to stop being shown,
+                    # and its thirty-day expiry is far too long to wait when a
+                    # couple has closed the gap the detector was reporting.
+                    RelationshipInsight.objects.filter(
+                        relationship=relationship, type=insight_type
+                    ).update(shared_with_a=False, shared_with_b=False)
+                    continue
 
-            RelationshipInsight.objects.update_or_create(
-                relationship=relationship,
-                type="recurring_theme",
-                defaults={
-                    "theme": found["theme"],
-                    "confidence": found["confidence"],
-                    # Shape only. The narrative halves stay empty until there
-                    # is a consent flow to gate them with.
-                    "a_narrative_summary": "",
-                    "b_narrative_summary": "",
-                    "synthesis": "",
-                    "suggested_intervention": "",
-                    "shared_with_a": True,
-                    "shared_with_b": True,
-                    "approved_for_joint": False,
-                    "expires_at": timezone.now() + timedelta(days=INSIGHT_TTL_DAYS),
-                },
-            )
-            written += 1
+                RelationshipInsight.objects.update_or_create(
+                    relationship=relationship,
+                    type=insight_type,
+                    defaults={
+                        "theme": found["theme"],
+                        "confidence": found["confidence"],
+                        # Shape only. The narrative halves stay empty until
+                        # there is a consent flow to gate them with.
+                        "a_narrative_summary": "",
+                        "b_narrative_summary": "",
+                        "synthesis": "",
+                        "suggested_intervention": "",
+                        "shared_with_a": True,
+                        "shared_with_b": True,
+                        "approved_for_joint": False,
+                        "expires_at": timezone.now()
+                        + timedelta(days=INSIGHT_TTL_DAYS),
+                    },
+                )
+                written += 1
         except Exception:
             logger.warning(
                 "insight_synthesis_failed relationship=%s",

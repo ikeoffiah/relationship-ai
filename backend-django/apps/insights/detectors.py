@@ -4,14 +4,22 @@ One detector so far, and it is deliberately the one that needs no consent flow:
 ``recurring_theme`` reads the couple's **shared thread**, which both partners
 watched happen, and says only the *shape* of what it found.
 
-``perception_gap`` is the headline and is not here, for a reason worth writing
-down rather than discovering later: it compares two partners' private accounts
-of the same event, and there are currently **no sessions in the database at
-all**. Writing it would mean writing a detector against an empty table with no
-way to know whether it works — and it is the one detector that cannot exist
-without reading both private sides, so it is also the one that most needs to be
-right. It waits for data and for the consent flow in
-``docs/relationship-insights.md`` §5.
+``perception_gap`` is the headline, and it was deferred once on a reason that
+turned out to be wrong: that it compares two partners' private accounts of the
+same event and there are **no counselling sessions in the database at all**.
+The first half is true and the table is still empty. The second half was a
+claim about one table mistaken for a claim about the feature. Two partners
+already give private accounts of the same period every day, in
+``RelationshipCheckIn`` — one row each, one score each, keyed to the same day —
+and that model's own docstring says so: *"The per-partner score series is the
+raw material for the perception-gap insight."*
+
+So this reads check-ins rather than transcripts, which makes it **deterministic**
+— no model call, therefore no invention risk of the kind that made
+``recurring_theme`` produce a theme for three unrelated arguments, and
+confidence that can finally be derived from evidence count and agreement the
+way ``docs/relationship-insights.md`` §6 asks for instead of being a model's
+self-report.
 
 **Shape, not content.** Everything here produces a sentence that is true of both
 partners and discloses nothing either of them did not already see:
@@ -196,3 +204,120 @@ def recurring_theme(relationship) -> dict | None:
         )
         return None
     return {"theme": theme, "confidence": confidence}
+
+
+# ── perception gap ──────────────────────────────────────────────────────────
+
+#: How far back the two series are compared. Long enough that one bad week
+#: cannot carry it, short enough to still be about now.
+GAP_WINDOW_DAYS = 28
+
+#: Days on which *both* partners checked in. The unit of evidence here is the
+#: pair, not the row — a fortnight of one partner checking in alone says
+#: nothing about how differently the two of them are seeing things.
+MIN_PAIRED_DAYS = 6
+
+#: How far apart, on average, on a five-point scale.
+#:
+#: A full point was the first choice and it is too low. Five points is a coarse
+#: scale, so a couple sitting steadily on 5 and 4 are not seeing the fortnight
+#: differently — they are agreeing and rounding differently, and telling them
+#: otherwise would manufacture a problem out of the granularity of the widget.
+#: At 1.5 the two of them are genuinely in different places: one is having a
+#: good fortnight and the other is not.
+MIN_MEAN_GAP = 1.5
+
+#: How often the gap has to point the same way. This is the difference between
+#: a perception gap and ordinary noise: two partners whose scores cross back
+#: and forth are not seeing the weeks differently, they are having different
+#: Tuesdays. Only a gap that holds its direction is a finding.
+MIN_AGREEMENT = 0.7
+
+
+def _paired_scores(relationship) -> list[tuple[int, int]]:
+    """``(a_score, b_score)`` for every day both partners checked in.
+
+    Only the numbers. The private ``note`` on a check-in is never read here and
+    must not be — it is free text somebody wrote for themselves, and nothing in
+    a shape-only insight could justify decrypting it.
+    """
+    from apps.engagement.models import RelationshipCheckIn
+
+    since = timezone.now() - timedelta(days=GAP_WINDOW_DAYS)
+    rows = RelationshipCheckIn.objects.filter(
+        relationship=relationship, created_at__gte=since
+    ).values("user_id", "date_key", "connection_score")
+
+    a_id = relationship.partner_a_id
+    b_id = relationship.partner_b_id
+    by_day: dict[str, dict[str, int]] = {}
+    for row in rows:
+        side = "a" if row["user_id"] == a_id else "b" if row["user_id"] == b_id else None
+        if side is None:
+            continue
+        by_day.setdefault(row["date_key"], {})[side] = row["connection_score"]
+
+    return [
+        (day["a"], day["b"])
+        for _, day in sorted(by_day.items())
+        if "a" in day and "b" in day
+    ]
+
+
+def perception_gap(relationship) -> dict | None:
+    """Are the two of them experiencing the same weeks differently?
+
+    Deterministic on purpose. Every other detector here asks a model a question
+    and has to defend itself against a helpful answer; this one is arithmetic
+    over two columns, so there is no prompt to bind, nothing to invent, and the
+    confidence means something.
+
+    Returns ``{"theme": str, "confidence": float}`` or None. None is the
+    ordinary answer.
+
+    **Direction is never returned, and that is load-bearing.** The output says
+    a difference exists; it never says whose number was higher. Saying so would
+    hand each partner the other's private self-report, which is the single
+    thing this feature must not do.
+    """
+    pairs = _paired_scores(relationship)
+    if len(pairs) < MIN_PAIRED_DAYS:
+        return None
+
+    diffs = [a - b for a, b in pairs]
+    mean_gap = sum(abs(d) for d in diffs) / len(diffs)
+    if mean_gap < MIN_MEAN_GAP:
+        return None
+
+    # Agreement is measured over the days they actually differed. Days they
+    # matched are not evidence *against* a direction, they are simply days with
+    # no direction to point, and counting them as dissent would make a couple
+    # who agree most of the time and diverge hard the rest look like noise.
+    leaning = [d for d in diffs if d != 0]
+    if not leaning:
+        return None
+    higher = sum(1 for d in leaning if d > 0)
+    agreement = max(higher, len(leaning) - higher) / len(leaning)
+    if agreement < MIN_AGREEMENT:
+        log.info(
+            "insight_gap_is_noise relationship=%s agreement=%.2f",
+            relationship.id,
+            agreement,
+        )
+        return None
+
+    # What §6 asked for and no model could give: confidence built from how much
+    # evidence there is and how well it agrees, rather than from asking
+    # something how sure it feels.
+    coverage = min(1.0, (len(pairs) - MIN_PAIRED_DAYS) / MIN_PAIRED_DAYS)
+    consistency = (agreement - MIN_AGREEMENT) / (1.0 - MIN_AGREEMENT)
+    confidence = round(MIN_CONFIDENCE + 0.20 * coverage + 0.15 * consistency, 2)
+
+    return {
+        # Fixed wording, not generated. There is nothing here a sentence could
+        # add that would not also risk encoding the direction — "you have been
+        # more hopeful than each other" is not a thing that can be said without
+        # saying who.
+        "theme": "how connected these last few weeks have felt",
+        "confidence": confidence,
+    }

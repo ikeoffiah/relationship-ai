@@ -264,3 +264,125 @@ S22.body = _s22
 
 
 SCENARIOS = [S21, S22]
+
+
+# ── S23 — A gap in how the same weeks felt ──────────────────────────────────
+
+S23 = Scenario(
+    "S23",
+    "A gap in how the same weeks felt",
+    note="two check-in series a point apart, and neither partner's numbers cross",
+)
+
+# Eight paired days, consistently apart. Seeded rather than posted: the check-in
+# endpoint allows one per user per day by design, so a fortnight of them cannot
+# be driven through the API inside a scenario.
+A_SERIES = [5, 5, 4, 5, 5, 4, 5, 5]
+B_SERIES = [2, 3, 2, 2, 3, 2, 3, 2]
+
+# Direction is the one thing that must not cross. Each partner already knows
+# their own number, so any of these words would hand them the other's private
+# answer by subtraction.
+DIRECTION_WORDS = (
+    "higher",
+    "lower",
+    "better",
+    "worse",
+    "more than",
+    "less than",
+    "than you",
+    "than your partner",
+)
+
+
+def _seed_check_ins(couple) -> None:
+    """Two check-in series, one point apart, over eight paired days.
+
+    Seeded rather than posted. The endpoint allows one check-in per user per
+    day by design, so a fortnight of them cannot be driven through the API
+    inside a scenario, and ``created_at`` is ``auto_now_add`` so the window
+    filter has to be satisfied through the queryset.
+    """
+    shell(
+        "from datetime import timedelta\n"
+        "from django.utils import timezone\n"
+        "from apps.engagement.models import RelationshipCheckIn\n"
+        "from apps.relationships.models import Relationship\n"
+        f"rel = Relationship.objects.get(id='{couple.rel}')\n"
+        f"a_scores = {list(A_SERIES)}\n"
+        f"b_scores = {list(B_SERIES)}\n"
+        "for index, (a, b) in enumerate(zip(a_scores, b_scores)):\n"
+        "    when = timezone.now() - timedelta(days=20 - index)\n"
+        "    for user, score in ((rel.partner_a, a), (rel.partner_b, b)):\n"
+        "        row = RelationshipCheckIn.objects.create(\n"
+        "            relationship=rel, user=user, connection_score=score,\n"
+        "            date_key=when.strftime('%Y-%m-%d'),\n"
+        "        )\n"
+        "        RelationshipCheckIn.objects.filter(id=row.id).update(created_at=when)\n"
+        "print('ok')\n"
+    )
+
+
+def _s23(couple):
+    _seed_check_ins(couple)
+    _synthesise()
+
+    seen = {who: couple.insights(who) for who in ("a", "b")}
+    gaps = {
+        who: [i for i in rows if i["type"] == "perception_gap"]
+        for who, rows in seen.items()
+    }
+
+    check(
+        "S23: a sustained divergence is noticed",
+        len(gaps["a"]) == 1 and len(gaps["b"]) == 1,
+        f"a={len(gaps['a'])} b={len(gaps['b'])}",
+    )
+    if not (gaps["a"] and gaps["b"]):
+        return
+
+    a_side, b_side = gaps["a"][0], gaps["b"][0]
+
+    check(
+        "S23: both partners see the same one, not a version each",
+        a_side["id"] == b_side["id"] and a_side["theme"] == b_side["theme"],
+        f"{a_side['theme']!r} vs {b_side['theme']!r}",
+    )
+
+    # The property the detector exists to protect. Neither the direction nor
+    # either series may be readable from what crossed.
+    theme = a_side["theme"].lower()
+    leaked = [word for word in DIRECTION_WORDS if word in theme]
+    check(
+        "S23: the shape never says whose week was harder",
+        not leaked,
+        f"leaked {leaked} in {a_side['theme']!r}",
+    )
+
+    check(
+        "S23: no score appears in what crossed",
+        not any(character.isdigit() for character in theme),
+        f"a digit survived into {a_side['theme']!r}",
+    )
+
+    # Confidence is derived from evidence here rather than self-reported, so it
+    # is worth pinning that it lands in the band the arithmetic allows.
+    check(
+        "S23: confidence is derived from the evidence, not asserted",
+        0.6 <= a_side["confidence"] <= 0.95,
+        f"confidence={a_side['confidence']}",
+    )
+
+    for who in ("a", "b"):
+        offenders = leak_offenders(couple, who)
+        check(
+            f"S23: {who}'s surfaces still say nothing about their partner",
+            not offenders,
+            json.dumps(offenders) if offenders else "",
+        )
+
+
+S23.body = _s23
+
+
+SCENARIOS = [S21, S22, S23]

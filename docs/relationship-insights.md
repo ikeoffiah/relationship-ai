@@ -97,6 +97,32 @@ synthesis    the therapist's version, naming both sides. Requires *both*
 "an admin flipped this" and start meaning "this partner consented to their own
 side being named".
 
+### The residual inference, stated rather than left implicit
+
+"Symmetric and reveals nothing" is very slightly too strong for
+`perception_gap`, and it is better to write this down than to discover it in a
+complaint. A partner who rated the fortnight a 5 every day, and is then told
+the two of them have been seeing it differently, can conclude their partner
+rated it lower. The shape does not say so; arithmetic does.
+
+Three reasons this is accepted rather than designed away:
+
+1. It is inherent to the concept. Any true statement that a gap exists is
+   subtractable by someone who knows their own half. The only way to remove the
+   inference entirely is not to have the feature.
+2. What leaks is one bit — *lower* — not a number, not a note, not a day. The
+   thing that would actually hurt, and that the detector refuses to emit, is
+   the direction stated **as a finding** and the magnitude attached to it.
+   "Your partner has been finding this much harder than you" is a different
+   object from a couple working out that they disagree.
+3. It only fires on a sustained, consistent gap — six-plus paired days, a full
+   point apart, holding its direction. That is a fact about the relationship
+   the couple would benefit from discussing, not a stray bad Tuesday.
+
+What follows from accepting it: the wording must never *confirm* the inference.
+That is why the phrase is fixed rather than generated, and why S23 asserts no
+direction word and no digit survives into what crossed.
+
 ## 5. Consent, concretely
 
 - Insights are computed **unshared**. Default is nothing crosses.
@@ -208,12 +234,58 @@ Not the detectors. In order:
 1. ~~**The safety work now**: delete `tasks.py`, attach the manager, remove
    `for_joint_prompt`, keep the model.~~ **Done.** Seven tests cover the read
    path, where there were none.
-2. **`perception_gap`, shape-only.** "You two are remembering last weekend
-   differently. Worth comparing notes?" — no content from either side, so it
-   needs no consent flow and discloses nothing.
-3. **The consent flow**, before anything reads private sessions at all.
+2. ~~**`perception_gap`, shape-only.**~~ **Done**, and not from the source this
+   document assumed. See below.
+3. **The consent flow**, before anything reads private *session text* at all.
+   Still owed, and still the gate on `synthesis` and the narrative halves.
 4. **The remaining detectors**, one at a time, each with a written argument for
    why its output may cross.
+
+### Where `perception_gap` reads from, and the mistake that delayed it
+
+It was deferred twice on the same reasoning: it needs both partners' private
+accounts of the same event, and `counselor_sessions` **has never held a row**.
+The table is still empty. The reasoning was wrong anyway, because it was a
+claim about one table dressed up as a claim about the feature.
+
+Two partners already give private accounts of the same period every day, in
+`RelationshipCheckIn` — one row each, one 1–5 score each, keyed to the same day
+by a unique constraint, so A and B align with no join ambiguity. That model's
+own docstring had said so the whole time: *"The per-partner score series is the
+raw material for the perception-gap insight."*
+
+Reading check-ins instead of transcripts changes the detector's character
+entirely, and for the better:
+
+- **It is deterministic.** No model call, so there is no prompt to bind and
+  nothing to invent — which matters given that the other detector had to be
+  rebuilt around citations after it produced a confident theme for three
+  unrelated arguments.
+- **Confidence finally means what §6 asked for.** It is computed from paired-day
+  count and how consistently the gap holds its direction, not from asking
+  something how sure it feels.
+- **It never decrypts anything.** The private `note` on a check-in is free text
+  somebody wrote for themselves; only the integer column is read, and a test
+  fails if `decrypt_field_value` is so much as called.
+
+It fires on six or more paired days inside four weeks, an average of **1.5**
+points apart, with the gap holding its direction at least 70% of the days they
+differed. Two of those bars are worth the ink:
+
+- **1.5, not 1.0.** A full point was the first choice and it is too low. Five
+  points is a coarse scale, so a couple sitting steadily on 5 and 4 are not
+  seeing the fortnight differently — they are agreeing and rounding
+  differently, and saying otherwise manufactures a problem out of the
+  granularity of the widget.
+- **Direction has to hold.** Two partners whose scores cross back and forth are
+  not experiencing the weeks differently, they are having different Tuesdays.
+  Agreement is measured only over days they actually differed: days they
+  matched are not evidence *against* a direction, and counting them as dissent
+  would make a couple who agree most of the time and diverge hard look like
+  noise.
+
+The counselling-transcript form of this detector is still the richer one and
+still waits — for data, and for the consent flow at step 3.
 
 An earlier draft put `perception_gap` **last**, on the grounds that it is the
 only one that cannot exist without reading both private sides. That sequenced
@@ -246,9 +318,49 @@ Built, and all of it passing.
   either partner; their own thread, behaviour and score still answering 200;
   five repair stickers not buying it back; and the stored row retracted rather
   than quietly rewritten.
+- **Scenario S23** — two check-in series a point apart over eight paired days,
+  reaching both partners as the same shape, with no direction word and no digit
+  surviving into what crossed, and confidence inside the band the arithmetic
+  allows.
+
+The direction-free property is asserted three times over, deliberately, because
+it is the one thing that cannot be allowed to regress: as a symmetry test in the
+detector's unit tests (flip the two series, get an identical result), as a
+vocabulary check in the live scenario, and again in the Flutter widget test that
+renders the card — the surface is perfectly capable of reintroducing a direction
+the server carefully withheld.
 
 Still owed: the simulation should report insights alongside tendencies, so what
 the system believes about a couple is readable in one place.
+
+## 9a. On the phone
+
+The backend was live, scheduled and tested for a while with **no client at
+all** — worth recording, because a feature that exists only in the database is
+indistinguishable from one that was never built, and the test suite is happy
+either way.
+
+`GET /api/v1/insights/` is fetched alongside the connection score in
+`EngagementViewModel.loadRitual`, and rendered by `InsightsCard` under the
+score on the home screen. Three decisions worth keeping:
+
+- **Empty renders nothing.** No "no insights yet", no empty state, no
+  placeholder. Empty is the ordinary answer and the detectors are built to give
+  it; a weekly card announcing that we looked and found nothing would turn an
+  honest silence into a standing reminder of being assessed. Same reasoning as
+  `hidden` on the score card.
+- **The client re-decides nothing.** Consent, expiry, the abuse hold and the
+  confidence floor are all settled by `objects.public(user)`. Re-checking any
+  of it on the phone would mean two implementations of one safety rule, and the
+  stale one would be the one already installed on somebody's handset.
+- **The card is capped at two.** There are only two detectors today. A home
+  screen that can grow an unbounded list of things we have noticed about you is
+  a different and worse product.
+
+The framing sentence around each shape lives in the widget, not the server,
+because it is presentation — but it is deliberately flat, carries no severity,
+no count and no suggested action. Naming what to do about it is a therapist's
+job and this is not one.
 
 ## 10. What I would not build
 
