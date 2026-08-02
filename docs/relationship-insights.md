@@ -145,9 +145,9 @@ an insight is a claim about somebody's relationship:
 
 Not the detectors. In order:
 
-1. **The safety work now** (an afternoon): delete `tasks.py`, attach the
-   manager, remove `for_joint_prompt`, keep the model. This leaves the
-   codebase honest.
+1. ~~**The safety work now**: delete `tasks.py`, attach the manager, remove
+   `for_joint_prompt`, keep the model.~~ **Done.** Seven tests cover the read
+   path, where there were none.
 2. **One detector, shape-only** — `recurring_theme` is the safest and the most
    obviously useful, and it can be built from the couple's *shared thread*
    rather than from private sessions, which sidesteps the whole consent problem
