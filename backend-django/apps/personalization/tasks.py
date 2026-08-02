@@ -127,6 +127,82 @@ def compute_prompt_modifiers(user_profile_id):
         logger.error(f"UserProfile {user_profile_id} not found")
 
 
+@shared_task(name="personalization.assess_ruptures")
+def assess_ruptures(window_days: int | None = None) -> int:
+    """Judge every unassessed exchange that might have been an argument.
+
+    The lexicon finds candidates; something that can read the conversation
+    decides. Runs here rather than anywhere near a send because the question is
+    retrospective — Tuesday's argument is the same argument for ever — so each
+    exchange is judged once, stored, and never reconsidered. That is what makes
+    a model call affordable for something the connection score depends on, and
+    what keeps the score deterministic when it is read.
+
+    Both answers are stored. Recording "this was not a fight" is what stops the
+    same benign exchange being re-judged every night for a fortnight.
+
+    A failed call stores nothing, so the exchange is a candidate again tomorrow
+    rather than being recorded as benign because the provider was down.
+    """
+    from datetime import timedelta
+
+    from apps.chat.assist import assess_rupture
+    from apps.chat.models import CoupleMessage
+    from apps.personalization import connection
+    from apps.personalization.models import RuptureAssessment
+    from apps.relationships.models import Relationship
+
+    since = timezone.now() - timedelta(days=window_days or connection.WINDOW_DAYS)
+    assessed = 0
+
+    for relationship in Relationship.objects.filter(status="active").iterator():
+        try:
+            rows = list(
+                CoupleMessage.objects.filter(
+                    relationship=relationship,
+                    created_at__gte=since,
+                    deleted_at__isnull=True,
+                )
+                .select_related("media")
+                .order_by("created_at")
+            )
+            if not rows:
+                continue
+
+            already = set(
+                RuptureAssessment.objects.filter(
+                    relationship=relationship, started_at__gte=since
+                ).values_list("started_at", flat=True)
+            )
+
+            for start, end, lines in connection.conversation_windows(relationship, rows):
+                if start in already:
+                    continue
+                answer = assess_rupture(lines)
+                if answer is None:
+                    continue
+                is_rupture, confidence = answer
+                RuptureAssessment.objects.update_or_create(
+                    relationship=relationship,
+                    started_at=start,
+                    defaults={
+                        "ended_at": end,
+                        "is_rupture": is_rupture,
+                        "confidence": confidence,
+                    },
+                )
+                assessed += 1
+        except Exception:
+            logger.warning(
+                "rupture_assessment_failed relationship=%s",
+                relationship.id,
+                exc_info=True,
+            )
+
+    logger.info("ruptures_assessed count=%s", assessed)
+    return assessed
+
+
 @shared_task(name="personalization.refresh_connection_scores")
 def refresh_connection_scores() -> int:
     """Recompute every active couple's connection score.
@@ -138,6 +214,15 @@ def refresh_connection_scores() -> int:
     """
     from apps.personalization import connection
     from apps.relationships.models import Relationship
+
+    # Judge first, then score. The score reads stored assessments and calls
+    # nothing itself, so an exchange nobody has assessed simply is not a
+    # rupture — which is the safe direction, but also means the order here
+    # matters: scoring before assessing would leave every couple a day behind.
+    try:
+        assess_ruptures()
+    except Exception:
+        logger.warning("rupture_assessment_sweep_failed", exc_info=True)
 
     updated = 0
     for relationship in Relationship.objects.filter(status="active").iterator():

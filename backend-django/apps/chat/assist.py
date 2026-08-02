@@ -957,6 +957,92 @@ def is_rupture(texts) -> bool:
     return False
 
 
+# ── Tier 1: ask something that can read the conversation ────────────────────
+#
+# Everything above is a lexicon, and a lexicon cannot answer this question. The
+# two failure modes are the two that matter, and both are context problems:
+#
+#   "you're the worst 😂"   affection, reads as contempt
+#   "that's fine."          a rupture after an hour of tension, and nothing at
+#                           all when the question was where to eat
+#
+# The same three words, opposite meanings, no vocabulary can separate them. So
+# candidates come from the lexicon — cheap, generous, no call — and the verdict
+# comes from something that has read the exchange.
+#
+# Retrospective, which is what makes it affordable: Tuesday's argument is the
+# same argument for ever, so it is judged once and stored. See
+# `personalization.models.RuptureAssessment`.
+
+_RUPTURE_SYSTEM = (
+    "You are reading a stretch of conversation between two partners and "
+    "deciding one thing: was this a rupture — a real fight or a real "
+    "withdrawal — or was it not?\n"
+    "\n"
+    "It IS a rupture when:\n"
+    "- one of them is contemptuous, dismissive or cruel, or\n"
+    "- the warmth goes out of it and stays out: short flat replies, someone "
+    "shutting down, someone leaving the conversation unfinished. This counts "
+    "even when nothing sharp is said. A cold 'fine.' after tension is a "
+    "rupture; the words are not where it lives.\n"
+    "\n"
+    "It is NOT a rupture when:\n"
+    "- they are joking. Teasing, exaggeration and fond insults are how many "
+    "couples talk, and 'you're the worst' between two people laughing is "
+    "affection. Emoji, laughter and a running joke above are the sign.\n"
+    "- they simply disagree, or one of them is upset, blunt or sad. People are "
+    "allowed to be unhappy with each other without it being a rupture.\n"
+    "- it is ordinary logistics with a short reply in it. Brevity is not "
+    "coldness; most messages are short because most messages are dull.\n"
+    "\n"
+    "Judge the exchange as a whole, not the sharpest line in it. Your answer "
+    "will count toward whether this couple's relationship is described as "
+    "going badly, so answer no unless you are actually persuaded.\n"
+    "\n"
+    "Reply in exactly this format and nothing else:\n"
+    "RUPTURE: yes\n"
+    "or\n"
+    "RUPTURE: no\n"
+    "CONFIDENCE: <0.0 to 1.0>"
+)
+
+#: Rupture assessment is not on anybody's send path — it runs in the nightly
+#: job, on conversations that already happened, and nobody is waiting.
+RUPTURE_TIMEOUT_SECONDS = 8.0
+
+
+def assess_rupture(lines) -> tuple[bool, float] | None:
+    """Was this exchange a fight? ``(is_rupture, confidence)``, or None.
+
+    None means the question could not be answered — no key, a timeout, a reply
+    in the wrong shape. The caller stores nothing in that case, so the exchange
+    is a candidate again tomorrow rather than being recorded as benign on the
+    strength of a failed call.
+    """
+    text = "\n".join(line for line in lines if line)
+    if not text.strip():
+        return None
+
+    raw = _complete(_RUPTURE_SYSTEM, text, RUPTURE_TIMEOUT_SECONDS, max_tokens=40)
+    if not raw:
+        return None
+
+    verdict, confidence = None, 0.0
+    for line in raw.splitlines():
+        lowered = line.strip().lower()
+        if lowered.startswith("rupture:"):
+            verdict = "yes" in lowered
+        elif lowered.startswith("confidence:"):
+            try:
+                confidence = max(0.0, min(1.0, float(lowered.split(":", 1)[1].strip())))
+            except (TypeError, ValueError):
+                confidence = 0.0
+
+    if verdict is None:
+        return None
+    return verdict, confidence
+
+
 def is_sharp(text: str) -> bool:
     """Whether one message carries any sharpness at all.
 

@@ -34,11 +34,18 @@ reciprocity rewards, so this used to produce a couple's *highest* reading during
 their worst week — a number saying the opposite of the truth, which is worse
 than one saying nothing. Now a fight simply does not count as connection: it
 neither raises the score nor lowers it, and what is left is what the fortnight
-looked like apart from the fight. Rupture detection is a graded lexicon with a
-corroboration rule (``assist.is_rupture``), measured against a labelled set —
-but it is still a lexicon, and a penalty built on one would be telling couples
-their relationship got worse on the strength of a string match. Failing to
-notice a fight costs nothing; inventing one is not recoverable.
+looked like apart from the fight.
+
+Whether an exchange *was* a fight is decided by something that can read it, not
+by a keyword list — the two ways a lexicon fails are the two that matter, and
+both are context rather than vocabulary. "You're the worst 😂" is affection and
+reads as contempt; "that's fine." after an hour of tension is a rupture and
+reads as agreement, being the same three words that mean nothing when the
+question was where to eat. The lexicon still picks *candidates*, cheaply; a
+model judges them; the verdict is stored, because Tuesday's argument is the
+same argument for ever. So this module reads a stored fact and calls nothing.
+Even then a fight is only ever subtracted, never charged: failing to notice one
+costs nothing, inventing one is not recoverable.
 
 **Slow.** A behaviour-derived score has maybe eight genuinely distinguishable
 states; rendering that as /100 invites people to read a three-point wobble as a
@@ -126,9 +133,14 @@ RUPTURE_PAD = timedelta(hours=1)
 
 #: Below this many ruptures in a fortnight, the repair balance stays at 1.0.
 #:
-#: The second half of the confidence story, and structural rather than a knob.
-#: The first half is `assist.is_rupture`, which already needs one hostile
-#: message or two dismissive ones before it calls an exchange a fight. This
+#: How sure a stored assessment must be before it counts. A hedged verdict
+#: about somebody's relationship should not move their number; below this the
+#: row is kept as evidence and ignored.
+RUPTURE_CONFIDENCE = 0.6
+
+#: The last of three thresholds, and structural rather than a knob. First the
+#: lexicon must think an exchange worth reading; then a model must call it a
+#: fight above `RUPTURE_CONFIDENCE`; and only then does this
 #: then needs *two such exchanges* and an absence of any repair before the
 #: component falls at all. Failing to notice a fight costs nothing; inventing
 #: one and telling a couple their relationship got worse is not recoverable.
@@ -139,30 +151,104 @@ def _ratio(part: float, whole: float) -> float:
     return 0.0 if whole <= 0 else max(0.0, min(1.0, part / whole))
 
 
-def _ruptures(messages) -> list[tuple]:
-    """The arguments in this window, as (start, end) spans.
+#: A day with fewer messages than this is not an exchange to judge. One "night
+#: x" is not a conversation, and asking about it is the cost with none of the
+#: value.
+MIN_MESSAGES_TO_JUDGE = 3
 
-    Sharp messages are clustered rather than counted: a row is one rupture
-    however many times somebody said "forget it" during it, and counting each
-    utterance would make a long argument look like a failing fortnight.
+
+def conversation_windows(relationship, messages) -> list[tuple]:
+    """One window per day of conversation, as (start, end, lines).
+
+    **Not** the lexicon's candidates, and that was the first design. Selecting
+    what to judge with a keyword list defeats the point of judging it at all:
+    the exchange this exists to catch —
+
+        "are you even listening to me" / "yes" / "it does not feel like it" /
+        "fine." / "are you upset" / "no"
+
+    — grades as `None` on every single message, so it never became a candidate
+    and the model was never asked. Comprehension behind a lexical gate is still
+    a lexicon. Measured: the model calls that one a rupture at 0.9, and the
+    lexicon does not see it at all.
+
+    So every day with a real conversation in it gets read. That is roughly one
+    call per active couple per day, batched overnight, on a small model with a
+    short input — and it is the difference between the feature working and not.
+
+    A day rather than the six-hour cluster the old spans used, because a day is
+    the unit a rupture actually has: an argument at nine and a silence at
+    eleven are one bad evening.
     """
-    from apps.chat.assist import is_rupture, message_text, sharpness
+    from apps.chat.assist import message_text
 
-    spans: list[list] = []
+    by_day: dict = {}
     for message in messages:
         text = message_text(message)
-        if sharpness(text) is None:
+        if not text:
             continue
-        if spans and message.created_at - spans[-1][1] <= RUPTURE_GAP:
-            spans[-1][1] = message.created_at
-            spans[-1][2].append(text)
-        else:
-            spans.append([message.created_at, message.created_at, [text]])
+        day = timezone.localtime(message.created_at).date()
+        by_day.setdefault(day, []).append(message)
 
-    # A cluster only becomes a rupture if what was said in it clears the
-    # corroboration rule — one hostile message, or two dismissive ones. A
-    # single "whatever." is somebody being short, not a fight.
-    return [(start, end) for start, end, texts in spans if is_rupture(texts)]
+    from apps.chat.assist import sharpness
+
+    first_sender = messages[0].sender_id if messages else None
+    windows = []
+    for day in sorted(by_day):
+        rows = by_day[day]
+        if len(rows) < MIN_MESSAGES_TO_JUDGE:
+            continue
+
+        # Judged on the whole day, but the rupture *spans* only the sharp part
+        # of it where there is one. The two are different questions, and running
+        # them together broke same-day repair: a row at nine and a making-up at
+        # eleven are one day, so a window ending at eleven leaves nothing
+        # "after" for `_was_repaired` to find, and a couple who mended it the
+        # same evening scored as though they never had.
+        #
+        # The lexicon is allowed to locate the boundary because it is no longer
+        # deciding anything — the verdict is already in. Where it finds nothing,
+        # which is the plain-tone case, the rupture is the whole day, and that
+        # is right: there is no marker inside it to repair from.
+        sharp = [m for m in rows if sharpness(message_text(m)) is not None]
+        span = sharp or rows
+
+        lines = [
+            f"{'A' if m.sender_id == first_sender else 'B'}: {message_text(m)}"
+            for m in rows
+        ]
+        windows.append((span[0].created_at, span[-1].created_at, lines))
+    return windows
+
+
+def _ruptures(relationship, messages) -> list[tuple]:
+    """The arguments in this window, as (start, end) spans.
+
+    Reads *stored* assessments rather than judging anything here. A rupture
+    assessment is retrospective — Tuesday's argument is the same argument for
+    ever — so it is judged once by `tasks.assess_ruptures` and read back
+    deterministically, which keeps the score reproducible and keeps every model
+    call out of the path that computes it.
+
+    An exchange nobody has assessed yet is not a rupture. That is the fail-safe
+    direction: a couple whose assessment job has not run does not get marked
+    down for arguments nobody has confirmed they had.
+    """
+    from .models import RuptureAssessment
+
+    if not messages:
+        return []
+
+    return [
+        (row.started_at, row.ended_at)
+        for row in RuptureAssessment.objects.filter(
+            relationship=relationship,
+            started_at__gte=messages[0].created_at,
+            started_at__lte=messages[-1].created_at,
+            is_rupture=True,
+            confidence__gte=RUPTURE_CONFIDENCE,
+        )
+    ]
 
 
 def _was_repaired(rupture, next_rupture, messages, gestures) -> bool:
@@ -240,7 +326,7 @@ def _components(relationship, since) -> tuple[dict[str, float], int]:
         .select_related("media")
         .order_by("created_at")
     )
-    ruptures = _ruptures(rows)
+    ruptures = _ruptures(relationship, rows)
 
     def in_conflict(message):
         return any(

@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.conf import settings
 
@@ -133,3 +135,71 @@ class ConnectionScore(models.Model):
 
     def __str__(self):
         return f"Connection score for relationship {self.relationship_id}"
+
+
+class RuptureAssessment(models.Model):
+    """Whether one exchange between two partners was actually a fight.
+
+    A keyword list cannot answer this, and the two ways it fails are the two
+    that matter. "You're the worst 😂" is affection and reads as contempt.
+    "That's fine." after an hour of tension is a rupture and reads as
+    agreement — the same three words that mean nothing at all when the question
+    was where to eat. Neither is a vocabulary problem; both are context
+    problems, so both need something that can read the conversation.
+
+    So a model judges it, and the judgement is *stored*, which is what makes
+    that affordable. A rupture assessment is retrospective: the exchange on
+    Tuesday is the same exchange for ever, so it is classified once and never
+    reconsidered. The nightly score then reads a stored fact rather than
+    calling anything, which keeps the number deterministic at read time and
+    keeps every model call off the send path.
+
+    **What is deliberately not stored: what was said.** The row records that a
+    window of time was or was not a fight, and how sure. Not the messages, not
+    a summary, not the model's reasoning. `outcomes.py` makes the same choice
+    for the same reason — a per-message record of two people's conversation is
+    a much larger promise than this feature is worth, and it would then exist,
+    and be subpoenable.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    relationship = models.ForeignKey(
+        "relationships.Relationship",
+        on_delete=models.CASCADE,
+        related_name="rupture_assessments",
+    )
+
+    #: The window judged. Both ends come from real message timestamps.
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField()
+
+    #: The answer. False is a real answer and worth storing — it is what stops
+    #: the same benign exchange being re-judged every night.
+    is_rupture = models.BooleanField()
+
+    #: 0..1. Below `connection.RUPTURE_CONFIDENCE` an assessment is kept as
+    #: evidence but never counted, because a hedged verdict about somebody's
+    #: relationship should not move their score.
+    confidence = models.FloatField(default=0.0)
+
+    assessed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "rupture_assessments"
+        ordering = ["started_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["relationship", "started_at"],
+                name="uniq_rupture_assessment_per_window",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["relationship", "started_at"],
+                name="idx_rupture_rel_start",
+            )
+        ]
+
+    def __str__(self):
+        verdict = "rupture" if self.is_rupture else "not a rupture"
+        return f"{verdict} ({self.confidence:.2f}) for {self.relationship_id}"

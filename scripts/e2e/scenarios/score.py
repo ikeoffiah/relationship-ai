@@ -356,12 +356,45 @@ S20 = Scenario(
 )
 
 
-# Hostile rather than dismissive, so one message is one rupture. The
-# corroboration rule itself is covered in the assist's unit tests.
 def _sharp(couple, who, days_ago, text="you're pathetic and I don't know why I bother"):
-    message = couple.send(who, text)
-    backdate_messages(couple, [message["id"]], days_ago * 24 * 3600)
-    return message
+    """An argument, and enough of one for the product to look at it.
+
+    A whole day of conversation is what gets judged now, and a day is only
+    worth judging if there was a conversation in it — so a single line
+    back-dated to Tuesday is not a fight the system will ever see.
+    """
+    last = None
+    for offset, body in enumerate((text, "forget it", "this is typical you")):
+        last = couple.send(who if offset % 2 == 0 else couple.other(who), body)
+        backdate_messages(couple, [last["id"]], days_ago * 24 * 3600 - offset * 60)
+    return last
+
+
+def _assess(couple, is_rupture=True, confidence=0.9):
+    """Record verdicts the way the nightly job would, without the model call.
+
+    The score reads stored assessments, so a scenario that only writes messages
+    is describing arguments nobody has judged — which correctly score as no
+    arguments at all. What the classifier decides has its own tests; this is
+    about what the balance does with a decision once it exists.
+    """
+    shell(
+        "from apps.chat.assist import is_rupture as lexicon_says;"
+        "from apps.chat.models import CoupleMessage;"
+        "from apps.personalization import connection;"
+        "from apps.personalization.models import RuptureAssessment;"
+        "from apps.relationships.models import Relationship;"
+        f"r=Relationship.objects.get(id='{couple.rel}');"
+        "rows=list(CoupleMessage.objects.filter(relationship=r, deleted_at__isnull=True)"
+        ".select_related('media').order_by('created_at'));"
+        "[RuptureAssessment.objects.update_or_create(relationship=r, started_at=s,"
+        " defaults=dict(ended_at=e,"
+        f" is_rupture=bool({is_rupture} and lexicon_says("
+        "[ln.split(': ',1)[-1] for ln in lines])),"
+        f" confidence={confidence}))"
+        " for s, e, lines in connection.conversation_windows(r, rows)];"
+        "print('ok')"
+    )
 
 
 def _calm(couple, who, days_ago, hours=0, text="what time are you back"):
@@ -392,6 +425,7 @@ def _s20(couple):
     _sharp(couple, "a", days_ago=6)
     _sharp(couple, "b", days_ago=6, text="shut up")
 
+    _assess(couple)
     parts = couple.score_components()
     check(
         "S20: an unmended fortnight scores zero on repair",
@@ -409,6 +443,7 @@ def _s20(couple):
     for index, text in enumerate(_LINES[:12]):
         lonely.send("a" if index % 2 == 0 else "b", text)
     _sharp(lonely, "a", days_ago=5)
+    _assess(lonely)
     check(
         "S20: a single detected rupture cannot move anybody's score",
         "repair" not in lonely.score_components(),
@@ -423,6 +458,7 @@ def _s20(couple):
         _sharp(mended, "a", days_ago=days_ago)
         _calm(mended, "a", days_ago=days_ago, hours=2)
         _calm(mended, "b", days_ago=days_ago, hours=3)
+    _assess(mended)
     check(
         "S20: the same two fights, talked through, score full marks",
         mended.score_components().get("repair") == 1.0,

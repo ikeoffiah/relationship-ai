@@ -21,7 +21,8 @@ from apps.engagement.models import (
     RelationshipCheckIn,
 )
 from apps.personalization import behaviour, connection
-from apps.personalization.models import ConnectionScore
+from apps.chat import assist
+from apps.personalization.models import ConnectionScore, RuptureAssessment
 from apps.relationships.models import Relationship
 
 User = get_user_model()
@@ -416,10 +417,37 @@ class RuptureAndRepairTests(ConnectionTestCase):
     guards it is what these tests are really about.
     """
 
-    # Hostile rather than dismissive, so one message is one rupture. Two
-    # dismissive lines would do as well; see the assist's own tests for the
-    # corroboration rule itself.
     def sharp(self, sender, when=None, text="you're pathetic and I don't know why I bother"):
+        """An argument, not a line.
+
+        A whole day is the unit judged now, and a day is only worth judging if
+        there was a conversation in it — so a fixture that writes one message
+        and calls it a fight was describing something the product would not
+        look at. Three lines is the floor, and it is also what an argument
+        actually looks like.
+        """
+        last = None
+        for offset, body in enumerate((text, "forget it", "this is typical you")):
+            last = CoupleMessage.objects.create(
+                relationship=self.relationship,
+                sender=sender if offset % 2 == 0 else self.other_partner(sender),
+                body=body,
+            )
+            if when is not None:
+                CoupleMessage.objects.filter(id=last.id).update(
+                    created_at=when + timedelta(minutes=offset)
+                )
+        if when is not None:
+            last.refresh_from_db()
+        return last
+
+    def other_partner(self, sender):
+        return self.sam if sender == self.alex else self.alex
+
+    def calm(self, sender, when=None, text="what time are you back"):
+        """One ordinary message. Emphatically not `sharp()` with nicer words —
+        that helper writes a three-line argument whatever text it is given, so
+        delegating to it made every "calm" message part of a fight."""
         message = CoupleMessage.objects.create(
             relationship=self.relationship, sender=sender, body=text
         )
@@ -428,10 +456,45 @@ class RuptureAndRepairTests(ConnectionTestCase):
             message.refresh_from_db()
         return message
 
-    def calm(self, sender, when=None, text="what time are you back"):
-        return self.sharp(sender, when, text=text)
+    def assess(self, is_rupture=True, confidence=0.9):
+        """Record a verdict for every candidate exchange, without a model call.
+
+        The score reads *stored* assessments now — an exchange nobody has
+        judged is not a rupture, which is the fail-safe direction. These tests
+        are about the repair balance rather than about the classifier, so they
+        supply the verdict directly; `assess_rupture` has its own tests.
+        """
+        from apps.chat.models import CoupleMessage
+        from apps.personalization.models import RuptureAssessment
+
+        rows = list(
+            CoupleMessage.objects.filter(
+                relationship=self.relationship, deleted_at__isnull=True
+            )
+            .select_related("media")
+            .order_by("created_at")
+        )
+        # Stands in for the classifier, agreeing with the lexicon. Marking
+        # *every* window a rupture would make the calm days ruptures too, which
+        # is neither what the model would say nor what these tests are about.
+        from apps.chat.assist import is_rupture as lexicon_says
+
+        for start, end, lines in connection.conversation_windows(self.relationship, rows):
+            verdict = is_rupture and lexicon_says(
+                [line.split(": ", 1)[-1] for line in lines]
+            )
+            RuptureAssessment.objects.update_or_create(
+                relationship=self.relationship,
+                started_at=start,
+                defaults={
+                    "ended_at": end,
+                    "is_rupture": bool(verdict),
+                    "confidence": confidence,
+                },
+            )
 
     def parts(self):
+        self.assess()
         parts, _ = connection._components(
             self.relationship, timezone.now() - timedelta(days=connection.WINDOW_DAYS)
         )
@@ -597,3 +660,155 @@ class GoingQuietTests(ConnectionTestCase):
         row = ConnectionScore.objects.get(relationship=self.relationship)
         self.assertIsNone(row.value)
         self.assertTrue(row.series)
+
+
+class StoredAssessmentTests(ConnectionTestCase):
+    """The score reads verdicts; it does not form them.
+
+    Rupture assessment is retrospective, so it happens once in the nightly job
+    and is read back here. That keeps the number deterministic when it is read
+    and keeps every model call out of the path that computes it.
+    """
+
+    def sharp(self, sender, when=None):
+        message = CoupleMessage.objects.create(
+            relationship=self.relationship, sender=sender, body="you're pathetic"
+        )
+        if when is not None:
+            CoupleMessage.objects.filter(id=message.id).update(created_at=when)
+            message.refresh_from_db()
+        return message
+
+    def rows(self):
+        return list(
+            CoupleMessage.objects.filter(relationship=self.relationship)
+            .select_related("media")
+            .order_by("created_at")
+        )
+
+    def record(self, start, end, is_rupture, confidence=0.9):
+        RuptureAssessment.objects.create(
+            relationship=self.relationship,
+            started_at=start,
+            ended_at=end,
+            is_rupture=is_rupture,
+            confidence=confidence,
+        )
+
+    def a_days_conversation(self, when):
+        """Enough messages that the day is worth judging at all."""
+        for sender, body in (
+            (self.sam, "are you even listening to me"),
+            (self.alex, "yes"),
+            (self.sam, "it does not feel like it"),
+        ):
+            message = CoupleMessage.objects.create(
+                relationship=self.relationship, sender=sender, body=body
+            )
+            CoupleMessage.objects.filter(id=message.id).update(created_at=when)
+
+    def test_an_unassessed_exchange_is_not_a_rupture(self):
+        """The fail-safe direction: a couple whose assessment job has not run
+        is not marked down for arguments nobody has confirmed they had."""
+        self.a_days_conversation(timezone.now() - timedelta(days=5))
+        self.assertEqual(connection._ruptures(self.relationship, self.rows()), [])
+
+    def test_a_day_of_plain_tone_withdrawal_is_still_judged(self):
+        """The reason the lexicon cannot be the gate. Not one of these messages
+        grades as sharp, and this is the exchange the feature exists for."""
+        self.a_days_conversation(timezone.now() - timedelta(days=5))
+        windows = connection.conversation_windows(self.relationship, self.rows())
+
+        self.assertEqual(len(windows), 1)
+        from apps.chat.assist import is_rupture
+
+        self.assertFalse(is_rupture([m.body for m in self.rows()]))
+
+    def test_a_quiet_day_is_not_worth_asking_about(self):
+        message = CoupleMessage.objects.create(
+            relationship=self.relationship, sender=self.alex, body="night x"
+        )
+        CoupleMessage.objects.filter(id=message.id).update(
+            created_at=timezone.now() - timedelta(days=5)
+        )
+        self.assertEqual(
+            connection.conversation_windows(self.relationship, self.rows()), []
+        )
+
+    def test_an_assessed_one_is(self):
+        now = timezone.now()
+        self.a_days_conversation(now - timedelta(days=5))
+        start, end, _ = connection.conversation_windows(self.relationship, self.rows())[0]
+        self.record(start, end, is_rupture=True)
+
+        self.assertEqual(len(connection._ruptures(self.relationship, self.rows())), 1)
+
+    def test_a_verdict_of_no_is_respected(self):
+        """The whole point of comprehension: something that read the exchange
+        said it was not a fight, and that wins over any keyword in it."""
+        now = timezone.now()
+        self.a_days_conversation(now - timedelta(days=5))
+        self.sharp(self.alex, now - timedelta(days=5))
+        start, end, _ = connection.conversation_windows(self.relationship, self.rows())[0]
+        self.record(start, end, is_rupture=False)
+
+        self.assertEqual(connection._ruptures(self.relationship, self.rows()), [])
+
+    def test_a_hedged_verdict_does_not_count(self):
+        now = timezone.now()
+        self.a_days_conversation(now - timedelta(days=5))
+        start, end, _ = connection.conversation_windows(self.relationship, self.rows())[0]
+        self.record(start, end, is_rupture=True, confidence=0.2)
+
+        self.assertEqual(connection._ruptures(self.relationship, self.rows()), [])
+
+    def test_candidates_carry_the_surrounding_exchange(self):
+        """Judging "that's fine." without the hour before it is judging the
+        wrong thing."""
+        now = timezone.now()
+        CoupleMessage.objects.create(
+            relationship=self.relationship, sender=self.sam, body="are you even listening"
+        ).id
+        self.sharp(self.alex)
+        CoupleMessage.objects.create(
+            relationship=self.relationship, sender=self.sam, body="that's fine."
+        )
+        _, _, lines = connection.conversation_windows(self.relationship, self.rows())[0]
+
+        self.assertGreater(len(lines), 1)
+        self.assertTrue(any("that's fine" in line for line in lines))
+        self.assertTrue(all(line.startswith(("A:", "B:")) for line in lines))
+        _ = now
+
+
+class RuptureClassifierTests(TestCase):
+    """Parsing the verdict. What it decides is the model's business; that the
+    answer survives the trip is ours."""
+
+    def test_a_clear_yes(self):
+        with patch("apps.chat.assist._complete", return_value="RUPTURE: yes\nCONFIDENCE: 0.9"):
+            self.assertEqual(assist.assess_rupture(["A: you're pathetic"]), (True, 0.9))
+
+    def test_a_clear_no(self):
+        with patch("apps.chat.assist._complete", return_value="RUPTURE: no\nCONFIDENCE: 0.8"):
+            self.assertEqual(assist.assess_rupture(["A: you're the worst 😂"]), (False, 0.8))
+
+    def test_a_missing_confidence_is_zero_not_certain(self):
+        with patch("apps.chat.assist._complete", return_value="RUPTURE: yes"):
+            self.assertEqual(assist.assess_rupture(["A: hey"]), (True, 0.0))
+
+    def test_an_unparseable_reply_is_no_answer_at_all(self):
+        """None means "ask again tomorrow", not "this was benign". A failed
+        call must not be recorded as a verdict."""
+        for raw in ("who can say, really", "", None):
+            with patch("apps.chat.assist._complete", return_value=raw):
+                self.assertIsNone(assist.assess_rupture(["A: hey"]), raw)
+
+    def test_confidence_is_clamped(self):
+        with patch("apps.chat.assist._complete", return_value="RUPTURE: yes\nCONFIDENCE: 7"):
+            self.assertEqual(assist.assess_rupture(["A: hey"])[1], 1.0)
+
+    def test_an_empty_exchange_is_never_asked_about(self):
+        with patch("apps.chat.assist._complete") as complete:
+            self.assertIsNone(assist.assess_rupture(["", None]))
+        complete.assert_not_called()
