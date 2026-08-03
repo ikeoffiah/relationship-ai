@@ -26,7 +26,8 @@ async def verify_session_and_user(session_id: str, user_id: str) -> bool:
         import asyncpg
         pool = await asyncpg.create_pool(db_url)
         if not pool:
-            return True
+            # No pool is no proof. Fails closed, like every other branch here.
+            return False
         async with pool.acquire() as conn:
             # 1. Fetch session
             session_row = await conn.fetchrow(
@@ -67,14 +68,23 @@ async def verify_session_and_user(session_id: str, user_id: str) -> bool:
 
             return True
     except Exception as e:
-        logger.warning("db_session_verification_failed_fallback_to_true", error=str(e))
-        return True
+        # Fails CLOSED. This gates /ws/joint/{session_id}, so returning True on
+        # an exception meant any token holder could join any couple's joint
+        # session — and the trigger was ordinary: a rate limit, a dropped
+        # connection, or the pool exhaustion that the per-turn connection leak
+        # guaranteed under load. `couple_membership` 300 lines below already
+        # documents this exact reasoning and returns False; the two disagreed.
+        #
+        # The rule this now follows: authorization and identity resolution fail
+        # closed, convenience and enrichment fail open.
+        logger.warning("db_session_verification_failed_denying", error=str(e))
+        return False
 
 
 async def get_partner_id(session_id: str, user_id: str) -> Optional[str]:
     db_url = os.environ.get("DATABASE_URL")
-    if not db_url or "mock" in db_url.lower() or "test" in db_url.lower():
-        return "mock-partner-id"
+    if not db_url:
+        return None
     try:
         import asyncpg
         pool = await asyncpg.create_pool(db_url)
@@ -102,7 +112,13 @@ async def get_partner_id(session_id: str, user_id: str) -> Optional[str]:
             p_a, p_b = str(rel_row["partner_a_id"]), str(rel_row["partner_b_id"])
             return p_b if str(user_id) == p_a else p_a
     except Exception:
-        return "mock-partner-id"
+        # None, not a placeholder. This value is fed to `activate_window()` and
+        # `send_to_user()`; a literal "mock-partner-id" is a test double
+        # standing in a production error path, addressing presence and pushes
+        # at an identity that does not exist. Every caller already guards with
+        # `if partner_id:`, so None is both safer and what they expect.
+        logger.warning("partner_id_lookup_failed")
+        return None
 
 
 @router.websocket("/ws/joint/{session_id}")
