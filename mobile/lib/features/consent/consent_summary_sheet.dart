@@ -19,7 +19,11 @@ class ConsentSummarySheet extends StatefulWidget {
 
   /// Displays the consent summary sheet as a modal bottom sheet.
   /// Returns true if the user tapped "Start session".
-  static Future<bool> show(BuildContext context, String userId, {bool isFirstSession = false}) async {
+  static Future<bool> show(
+    BuildContext context,
+    String userId, {
+    bool isFirstSession = false,
+  }) async {
     bool started = false;
     await showModalBottomSheet<void>(
       context: context,
@@ -113,10 +117,12 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (viewModel.isLoading)
-                      const Center(child: Padding(
-                        padding: EdgeInsets.all(40.0),
-                        child: CircularProgressIndicator(),
-                      ))
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
                     else if (viewModel.errorMessage != null)
                       _buildErrorState(viewModel)
                     else if (consent != null)
@@ -127,24 +133,33 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
                 ),
               ),
             ),
-            
+
             const Divider(height: 48),
-            
+
             TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/consent')
-                  .then((_) {
-                    if (context.mounted) context.read<ConsentViewModel>().fetchConsent();
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/consent').then((_) {
+                    if (context.mounted) {
+                      context.read<ConsentViewModel>().fetchConsent();
+                    }
                   }),
-              child: const Text('View full privacy settings', 
-                style: TextStyle(color: AppColors.warmCoral, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'View full privacy settings',
+                style: TextStyle(
+                  color: AppColors.warmCoral,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             AnimatedButton(
               key: const Key('start_session_button'),
               label: 'Start session',
-              onTap: viewModel.consent == null ? null : () {
-                if (mounted) widget.onStartSession();
-              },
+              onTap: viewModel.consent == null
+                  ? null
+                  : () {
+                      if (mounted) widget.onStartSession();
+                    },
               useGoldGradient: true,
             ),
             SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
@@ -157,7 +172,11 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
   Widget _buildErrorState(ConsentViewModel viewModel) {
     return Column(
       children: [
-        Text(viewModel.errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+        Text(
+          viewModel.errorMessage!,
+          style: const TextStyle(color: Colors.red),
+          textAlign: TextAlign.center,
+        ),
         const SizedBox(height: 16),
         TextButton(
           onPressed: () => viewModel.fetchConsent(),
@@ -189,12 +208,18 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
           description: summary['joint_session_participation'] ?? 'Loading...',
           onEdit: () => _openDashboard(context),
         ),
-        _buildConsentItem(
-          icon: Icons.local_hospital_outlined,
-          title: 'Therapist access',
-          description: summary['therapist_summary_access'] ?? 'Loading...',
-          onEdit: () => _openDashboard(context),
-        ),
+        // Hidden unless the user actually has a therapist connection — same
+        // reasoning as the dashboard row this mirrors. A control implies a
+        // capability, and v1 has no therapist portal, so showing it here
+        // advertised a clinician network we do not have on the sheet that
+        // blocks every single session. Backend untouched.
+        if (consent.therapistSummaryAccess)
+          _buildConsentItem(
+            icon: Icons.local_hospital_outlined,
+            title: 'Therapist access',
+            description: summary['therapist_summary_access'] ?? 'Loading...',
+            onEdit: () => _openDashboard(context),
+          ),
       ],
     );
   }
@@ -216,8 +241,14 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(description, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  description,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -231,9 +262,8 @@ class _ConsentSummarySheetState extends State<ConsentSummarySheet> {
   }
 
   void _openDashboard(BuildContext context) {
-    Navigator.pushNamed(context, '/consent')
-        .then((_) {
-          if (context.mounted) context.read<ConsentViewModel>().fetchConsent();
-        });
+    Navigator.pushNamed(context, '/consent').then((_) {
+      if (context.mounted) context.read<ConsentViewModel>().fetchConsent();
+    });
   }
 }

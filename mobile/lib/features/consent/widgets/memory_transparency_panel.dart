@@ -40,7 +40,8 @@ class MemoryTransparencyPanel extends StatefulWidget {
   });
 
   @override
-  State<MemoryTransparencyPanel> createState() => _MemoryTransparencyPanelState();
+  State<MemoryTransparencyPanel> createState() =>
+      _MemoryTransparencyPanelState();
 }
 
 class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
@@ -67,7 +68,8 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
         builder: (context, vm, child) {
           final filteredMemories = vm.memories.where((m) {
             final matchesZone = m.zone == _selectedZone;
-            final matchesSearch = _searchQuery.isEmpty ||
+            final matchesSearch =
+                _searchQuery.isEmpty ||
                 m.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                 m.whyStored.toLowerCase().contains(_searchQuery.toLowerCase());
             final matchesType =
@@ -110,7 +112,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
                         itemCount: filteredMemories.length,
                         itemBuilder: (context, index) {
                           return _buildMemoryItem(
-                              context, vm, filteredMemories[index]);
+                            context,
+                            vm,
+                            filteredMemories[index],
+                          );
                         },
                       ),
               ),
@@ -168,7 +173,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
   // -------------------------------------------------------------------------
 
   Widget _buildTypeFilter() {
-    final types = [null, ...MemoryType.values.where((t) => t != MemoryType.unknown)];
+    final types = [
+      null,
+      ...MemoryType.values.where((t) => t != MemoryType.unknown),
+    ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: SizedBox(
@@ -187,7 +195,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
               onTap: () => setState(() => _selectedType = type),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? color : color.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
@@ -216,7 +227,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
   // -------------------------------------------------------------------------
 
   Widget _buildMemoryItem(
-      BuildContext context, ConsentViewModel vm, MemoryModel memory) {
+    BuildContext context,
+    ConsentViewModel vm,
+    MemoryModel memory,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -253,9 +267,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
             Text(
               'Why stored: ${memory.whyStored}',
               style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic),
+                fontSize: 13,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -268,12 +283,16 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
                 ),
                 const SizedBox(width: 8),
                 TextButton.icon(
-                  onPressed: () =>
-                      _showDeleteConfirmation(context, vm, memory),
-                  icon: const Icon(Icons.delete_outline,
-                      size: 16, color: Colors.red),
-                  label: const Text('Delete',
-                      style: TextStyle(color: Colors.red)),
+                  onPressed: () => _showDeleteConfirmation(context, vm, memory),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 16,
+                    color: Colors.red,
+                  ),
+                  label: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ),
               ],
             ),
@@ -317,8 +336,11 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
       ),
       child: Text(
         label.toUpperCase(),
-        style:
-            TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -337,9 +359,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
           Text(
             'No memories found',
             style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 16,
-                fontWeight: FontWeight.w600),
+              color: Colors.grey[500],
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -358,7 +381,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
   // -------------------------------------------------------------------------
 
   void _showEditDialog(
-      BuildContext context, ConsentViewModel vm, MemoryModel memory) {
+    BuildContext context,
+    ConsentViewModel vm,
+    MemoryModel memory,
+  ) {
     final controller = TextEditingController(text: memory.title);
     showDialog(
       context: context,
@@ -374,8 +400,9 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () {
               vm.updateMemory(memory.id, controller.text);
@@ -389,7 +416,10 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
   }
 
   void _showDeleteConfirmation(
-      BuildContext context, ConsentViewModel vm, MemoryModel memory) {
+    BuildContext context,
+    ConsentViewModel vm,
+    MemoryModel memory,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -399,8 +429,9 @@ class _MemoryTransparencyPanelState extends State<MemoryTransparencyPanel> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Keep it')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep it'),
+          ),
           TextButton(
             onPressed: () {
               vm.deleteMemory(memory.id);

@@ -28,7 +28,7 @@ class ConsentModel {
 
   factory ConsentModel.fromJson(Map<String, dynamic> json) {
     final data = json.containsKey('data') ? json['data'] : json;
-    
+
     return ConsentModel(
       id: data['id'] as String? ?? '',
       userId: data['user_id'] as String,
@@ -45,23 +45,25 @@ class ConsentModel {
           data['therapist_summary_access'] as bool? ?? false,
       modelImprovementData: data['model_improvement_data'] as bool? ?? false,
       updatedAt: data['updated_at'] as String?,
-      plainLanguageSummary: Map<String, String>.from(data['plain_language_summary'] ?? {}),
+      plainLanguageSummary: Map<String, String>.from(
+        data['plain_language_summary'] ?? {},
+      ),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'relationship_id': relationshipId,
-        'session_transcript_retention': sessionTranscriptRetention,
-        'cross_partner_insight_sharing': crossPartnerInsightSharing,
-        'joint_session_participation': jointSessionParticipation,
-        'shared_relationship_context': sharedRelationshipContext,
-        'therapist_summary_access': therapistSummaryAccess,
-        'model_improvement_data': modelImprovementData,
-        'updated_at': updatedAt,
-        'plain_language_summary': plainLanguageSummary,
-      };
+    'id': id,
+    'user_id': userId,
+    'relationship_id': relationshipId,
+    'session_transcript_retention': sessionTranscriptRetention,
+    'cross_partner_insight_sharing': crossPartnerInsightSharing,
+    'joint_session_participation': jointSessionParticipation,
+    'shared_relationship_context': sharedRelationshipContext,
+    'therapist_summary_access': therapistSummaryAccess,
+    'model_improvement_data': modelImprovementData,
+    'updated_at': updatedAt,
+    'plain_language_summary': plainLanguageSummary,
+  };
 
   ConsentModel copyWith({
     String? sessionTranscriptRetention,
@@ -116,16 +118,20 @@ class ConsentModel {
 
   /// Fallback model — most restrictive defaults used on API failure.
   static ConsentModel defaultRestrictive(String userId) => ConsentModel(
-        id: '',
-        userId: userId,
-        updatedAt: null,
-        plainLanguageSummary: {
-          'session_transcript_retention': 'Your session conversations are deleted when the session ends.',
-          'cross_partner_insight_sharing': 'Nothing from your sessions is shared with your partner.',
-          'joint_session_participation': 'You are not enrolled in joint sessions with your partner.',
-          'shared_relationship_context': 'You are not participating in shared context.',
-          'therapist_summary_access': 'Your therapist cannot see summaries.',
-          'model_improvement_data': 'Your data is not used for improvement.',
-        }
-      );
+    id: '',
+    userId: userId,
+    updatedAt: null,
+    plainLanguageSummary: {
+      'session_transcript_retention':
+          'Your session conversations are deleted when the session ends.',
+      'cross_partner_insight_sharing':
+          'Nothing from your sessions is shared with your partner.',
+      'joint_session_participation':
+          'You are not enrolled in joint sessions with your partner.',
+      'shared_relationship_context':
+          'You are not participating in shared context.',
+      'therapist_summary_access': 'Your therapist cannot see summaries.',
+      'model_improvement_data': 'Your data is not used for improvement.',
+    },
+  );
 }

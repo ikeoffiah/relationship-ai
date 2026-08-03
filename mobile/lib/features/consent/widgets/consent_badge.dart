@@ -23,18 +23,12 @@ class ConsentBadge extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.calmTeal.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppColors.calmTeal.withValues(alpha: 0.4),
-          ),
+          border: Border.all(color: AppColors.calmTeal.withValues(alpha: 0.4)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.lock_outline,
-              color: AppColors.calmTeal,
-              size: 16,
-            ),
+            const Icon(Icons.lock_outline, color: AppColors.calmTeal, size: 16),
             const SizedBox(width: 5),
             const Text(
               'Consent',
@@ -115,8 +109,8 @@ class _ConsentInlinePanel extends StatelessWidget {
                   Text(
                     'Privacy settings',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -146,12 +140,12 @@ class _ConsentInlinePanel extends StatelessWidget {
                       value: ConsentModel.labelFor(
                         consent.sessionTranscriptRetention,
                       ),
-                        onRevoke: () => vm.updateField(
-                          'session_transcript_retention',
-                          'per_session',
-                        ),
-                      isRevocable: consent.sessionTranscriptRetention !=
-                          'per_session',
+                      onRevoke: () => vm.updateField(
+                        'session_transcript_retention',
+                        'per_session',
+                      ),
+                      isRevocable:
+                          consent.sessionTranscriptRetention != 'per_session',
                     ),
                     _InlinePanelRow(
                       icon: '🔗',
@@ -159,10 +153,10 @@ class _ConsentInlinePanel extends StatelessWidget {
                       value: ConsentModel.labelFor(
                         consent.crossPartnerInsightSharing,
                       ),
-                        onRevoke: () => vm.updateField(
-                          'cross_partner_insight_sharing',
-                          'never',
-                        ),
+                      onRevoke: () => vm.updateField(
+                        'cross_partner_insight_sharing',
+                        'never',
+                      ),
                       isRevocable:
                           consent.crossPartnerInsightSharing != 'never',
                     ),
@@ -172,10 +166,10 @@ class _ConsentInlinePanel extends StatelessWidget {
                       value: ConsentModel.labelFor(
                         consent.jointSessionParticipation,
                       ),
-                        onRevoke: () => vm.updateField(
-                          'joint_session_participation',
-                          'not_enrolled',
-                        ),
+                      onRevoke: () => vm.updateField(
+                        'joint_session_participation',
+                        'not_enrolled',
+                      ),
                       isRevocable:
                           consent.jointSessionParticipation != 'not_enrolled',
                     ),
@@ -183,10 +177,8 @@ class _ConsentInlinePanel extends StatelessWidget {
                       icon: '📋',
                       label: 'Therapist access',
                       value: consent.therapistSummaryAccess ? 'On' : 'Off',
-                        onRevoke: () => vm.updateField(
-                          'therapist_summary_access',
-                          false,
-                        ),
+                      onRevoke: () =>
+                          vm.updateField('therapist_summary_access', false),
                       isRevocable: consent.therapistSummaryAccess,
                     ),
                     if (vm.errorMessage != null)
@@ -209,8 +201,9 @@ class _ConsentInlinePanel extends StatelessWidget {
                           Navigator.pushNamed(context, '/consent');
                         },
                         style: TextButton.styleFrom(
-                          backgroundColor:
-                              AppColors.warmCoral.withValues(alpha: 0.1),
+                          backgroundColor: AppColors.warmCoral.withValues(
+                            alpha: 0.1,
+                          ),
                           foregroundColor: AppColors.warmCoral,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -270,17 +263,17 @@ class _InlinePanelRow extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.softCharcoal.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w500,
-                      ),
+                    color: AppColors.softCharcoal.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.softCharcoal,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.softCharcoal,
+                  ),
                 ),
               ],
             ),

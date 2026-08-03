@@ -91,19 +91,34 @@ void main() {
     expect(find.text('Session transcript retention'), findsOneWidget);
     expect(find.text('Partner insight sharing'), findsOneWidget);
     expect(find.text('Shared context access'), findsOneWidget);
-    expect(find.text('Therapist access'), findsOneWidget);
+    // Hidden for a user with no therapist connection — a control implies a
+    // capability, and v1 has no therapist portal.
+    expect(find.text('Therapist access'), findsNothing);
     expect(find.text('Model improvement data'), findsOneWidget);
 
     // Support must remain reachable from the privacy dashboard.
     expect(find.byType(SupportAction), findsOneWidget);
   });
 
-  testWidgets('Toggle Therapist Access calls API with correct parameters', (WidgetTester tester) async {
+  testWidgets('Therapist access is shown, and toggleable, once connected', (WidgetTester tester) async {
     // The therapist switch renders below the default 800x600 test surface.
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
     addTearDown(() => tester.view.resetDevicePixelRatio());
+
+    // This user HAS a therapist, which is what makes the row render at all.
+    when(() => mockApiService.fetchConsent(userId)).thenAnswer(
+      (_) async => const ConsentModel(
+        id: '1',
+        userId: userId,
+        sessionTranscriptRetention: '30_days',
+        crossPartnerInsightSharing: 'anonymized',
+        jointSessionParticipation: 'not_enrolled',
+        sharedRelationshipContext: 'not_participating',
+        therapistSummaryAccess: true,
+      ),
+    );
 
     await tester.pumpWidget(createWidgetUnderTest());
     await tester.pumpAndSettle();
@@ -119,7 +134,8 @@ void main() {
     await tester.pump();
 
     // Verify API called
-    verify(() => mockApiService.updateConsent(userId, {'therapist_summary_access': true})).called(1);
+    // Starts connected, so toggling turns it off.
+    verify(() => mockApiService.updateConsent(userId, {'therapist_summary_access': false})).called(1);
   });
 
   testWidgets('Memory panel allows deletion of individual memories', (WidgetTester tester) async {

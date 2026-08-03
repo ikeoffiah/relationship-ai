@@ -1,8 +1,19 @@
-# Bliss — distribution strategy to the first 1,000 customers, and pricing
+# Bliss — distribution and pricing strategy
 
-Written 2026-08-03. Companion to `docs/product-assessment.md`, which covers the
-product itself. This document covers the two things that assessment identified
-as unstarted: **who finds this product, and what they pay for it.**
+Written 2026-08-03, and **revised twice the same day** as founder decisions
+landed (`docs/execution-plan.md`):
+
+- **D2 — one SKU at $39.** §5 rewritten; §6.0 and §8 re-targeted around
+  facilitators rather than couples.
+- **D3.0 — global SaaS, not a regional or diaspora product.** §7 rewritten
+  global-first; §6.3(a) re-pointed at Catholic marriage-preparation offices; the
+  withdrawn regional research retained in **Appendix A**.
+
+Sections 1–4 and 9 are unchanged and still hold.
+
+Companion to `docs/product-assessment.md`, which covers the product itself. This
+document covers the two things that assessment identified as unstarted: **who
+finds this product, and what they pay for it.**
 
 Based on a full pass over the codebase (Flutter mobile, Django + FastAPI
 backends, 285 commits since April 2026), the existing product assessment, and
@@ -30,10 +41,11 @@ Stated up front so the reasoning is auditable.
    funnel arithmetic per channel, then size the pricing to the funnel rather
    than to a comparison table.
 
-One open question the founder did not answer: **which market is first.** So §5
-prices all three candidate markets and §7 makes a recommendation with reasoning.
-The distribution plan in §6 is written for a bootstrapped-to-modest budget; §6.7
-says what changes with real money.
+**Since answered by the founder:** the market question is settled — Bliss is a
+global SaaS product (D3.0), so §7 is now a channel strategy rather than a
+market-selection argument, and §5 carries one global price rather than three
+regional ones. The distribution plan in §6 is written for a solo founder with
+~$50; §6.7 says what changes with real money.
 
 ---
 
@@ -50,13 +62,19 @@ Stripped of the roadmap, Bliss is three products sharing one app:
 Two things in that table matter more for go-to-market than anything else:
 
 **The RSQ + portrait is an assessment product hiding inside an app.** Thirty
-validated attachment items, a communication-style quiz, cultural and faith
+attachment items adapted from the Relationship Scales Questionnaire (**not** a
+validated scorer — the subscales are ad-hoc, there is no norming sample and no
+reliability figures, so **"validated" must never appear in copy aimed at
+clinicians**), a
+communication-style quiz, cultural and faith
 context, producing a per-partner portrait. Product-wise this is currently a
 liability — 40 taps before any value (§2.2 of the assessment). Commercially it
 is the single most sellable artefact in the codebase, because assessments are
 what institutions buy. Prepare/Enrich sells essentially this — an assessment
 plus a workbook plus a facilitator report — for **$35–$65 per couple**, and it
-is the most widely used premarital instrument in the world.
+describes itself as the most widely used premarital assessment programme. That
+is their own marketing claim, not an independently verified one — it is fine as
+background, and should not be repeated as fact in anything we publish.
 
 **The therapist portal is a distribution channel that was mistaken for a
 feature.** `TherapistConnection.is_active` requires both `consent_therapist` and
@@ -143,7 +161,9 @@ Bliss has three things the category leaders do not:
   switches between "family and community wellbeing" and "individual wellbeing".
   Every Western competitor assumes the latter. This is a real differentiator for
   African, South Asian, Middle Eastern and Latin markets and their diasporas.
-- **A therapist portal with a consent gate**, i.e. a B2B2C surface.
+- **A therapist portal with a consent gate.** *Frozen for v1 (D3.35) — the code
+  exists but it is not part of what we ship or claim. Retained here because it
+  is a real asset when there is capacity to use it.*
 
 ---
 
@@ -244,160 +264,263 @@ individually-acquired ones.
 
 ---
 
-## 5. Pricing strategy
+## 5. Pricing
 
-### 5.1 The structure
+**One SKU. One price. Everywhere.**
 
-**One subscription per couple. Both partners covered. Always.**
-Non-negotiable — it is the category norm, and per-person pricing would tax the
-pairing loop that the whole product depends on.
+```
+Bliss — $39, one payment, per couple.
+Yours to keep:  assessment · portraits · report · certificate · the daily loop
+For 12 months:  the AI counsellor
+```
 
-**Three tiers, plus two institutional SKUs.**
+The 12-month bound on the counsellor is **D3.11a**, and it supersedes the
+perpetual-access recommendation in §5.2 below — unlimited permanent counselling
+against a one-off price is unbounded cost, which §5.2 had identified and left
+open. It is disclosed at the point of sale, in the same breath as the price and
+alongside four things that *are* permanent. A time bound discovered in month 13
+is the same category of error as a curriculum that does not exist.
 
-#### Free — "the loop"
-Daily question and the two-sided reveal. Daily check-in. Connection score.
-Commitments. Safety resources. Basic games.
+Founder decision, 2026-08-03; rationale in `docs/execution-plan.md` D2.
 
-This tier is not charity; **it is the acquisition engine.** The reveal only
-works if both partners are in, and you cannot ask someone to pay before their
-partner has arrived. Never paywall anything that partner B needs in order to
-join, and never paywall the safety surfaces.
+**Dead as of that decision:** Premium at $14.99/$89.99, Bliss Together at $49,
+the $9.99 therapist rate, the tiered Cohort License, the separate ₦ price list,
+and the 30-day trial. This section previously ran to six sub-sections and a
+five-row ladder. It is now four words, which is the point.
 
-#### Bliss Premium — the couple subscription
-**$14.99/month or $89.99/year** (~$7.50/mo, 50% saving).
+### 5.0 What $39 does **not** include — read before any facilitator call
 
-Unlimited AI sessions (private and joint), tone coach and "say it better",
-weekly insights, the full games and question library, faith tab, Focus mode,
-history, and full personalisation.
+An earlier version of this section sold the pack as including *"an 8-session
+guided curriculum"* and *"a completion certificate."* **Neither exists.** Zero
+hits across the repository for curriculum, 8-session or premarital; no
+`Curriculum`, `Programme` or `SessionPlan` model. What exists is 121 daily
+questions, 9 game packs, 9 micro-action templates, 8 daily readings and
+conversation decks — good content, with no eight-session structure over it.
 
-Why these numbers: $14.99/mo sits exactly at Paired's price, which is the
-anchor buyers already have. $89.99/yr sits *above* Paired's $69.99–83.99 —
-justified, because Paired has no AI counsellor — while staying under the $99.99
-that Relish charges for six months. Annual should carry ~70% of revenue: Health
-& Fitness, the closest analogue, takes 60.6% of revenue from annual plans and
-has the category's best revenue-per-download.
+Both claims are struck from every asset. The certificate is scheduled
+(execution-plan P0.11, ships with the report); the curriculum is P1 and
+deliberately unshaped, pending §6.3(a)'s discovery question.
 
-#### Bliss Together — the guided tier *(build only after Premium works)*
-**$49/month.** Premium plus a connected human — a monthly 30-minute session with
-a coach or therapist through the existing therapist portal, plus their notes and
-their view of the couple's progress.
+**Why this is worse than an ordinary copy error.** In this channel the
+facilitator's own reputation is the collateral — they recommended us to their
+class. "The curriculum you told us about isn't in here" does not merely lose
+cohort two; it gets repeated to every facilitator they know, and §6.0 says the
+entire model rests on facilitators who stay and repeat. Sell the assessment,
+the portraits, the report and the daily practice. All four exist.
 
-This is the $15-to-$436 gap. OurRitual charges $52–65/*week* for a
-similar hybrid; Talkspace $436/month. $49/month with one short session is
-defensible, differentiated, and it turns the therapist portal from dead code
-into a revenue line. Do not build this until Premium has 300+ paying couples;
-it introduces supply-side operations and clinical liability.
+### 5.1 Why $39 is the right survivor
 
-#### Institutional SKU 1 — Premarital Pack
-**$39 one-off per couple** (US/UK) — assessment, portrait, an 8-session guided
-curriculum, a facilitator report, and a completion certificate. Sold to and
-through churches, premarital programmes and marriage registries; includes 6
-months of Premium.
+- **It is the only price in the old §5 argued from something other than
+  competitor comparison.** It sits inside Prepare/Enrich's $35–65 band — the
+  purchase shape this buyer already makes, already budgets for, and already
+  knows how to approve.
+- **A one-off has no churn**, no cancellation flow, no dunning, no failed-card
+  recovery, and no "what happens when the course ends" conversation with a
+  facilitator's couples.
+- **It is sayable.** A solo founder on a call says "thirty-nine dollars, once,
+  covers both of you" and the pricing conversation is over. The tier table it
+  replaced took a paragraph and invited negotiation.
+- **It removes the App Store from the critical path entirely**, which is what
+  makes execution-plan D1 (web-first billing) coherent.
 
-This is priced deliberately inside Prepare/Enrich's $35–65 band, against which
-it has a real advantage: theirs is a PDF and a workbook, yours is an app the
-couple keeps using afterwards. **The one-off has no churn problem and comes with
-a distributor who assembles the couples for you.** Facilitator seat: free, or
-$99/year for cohort management.
+### 5.2 What the decision costs, stated once
 
-#### Institutional SKU 2 — Therapist seats
-**Free for the therapist, always.** Client couples get Premium at $9.99/month
-(a third off) while connected. Optionally $29/therapist/month later for
-caseload tooling.
+Two consequences follow mechanically. Neither is an argument to reverse it —
+they are things to plan around.
 
-Never charge the referrer. A therapist recommending a between-session tool is
-doing you a $0-CAC favour worth 15–30 couples; a $29 invoice converts that
-favour into a purchasing decision and kills it.
+**Revenue stops compounding.** Every dollar is sold once. Last month's couples
+do not pay this month, so growth has to come entirely from new couples. That
+makes the institutional channel not merely the best option but the *only* one:
+2,564 couples is not a number one person recruits individually. See §6.0.
 
-### 5.2 The paywall mechanic — a specific recommendation
+**COGS is now unbounded against fixed revenue.** This is the one genuinely new
+risk and it did not exist under a subscription. From §3.1, a couple costs
+~$0.60–1.20/month to serve, and heavy users ~$3. Against $39 collected once:
 
-The benchmark data says hard paywalls beat freemium 5:1. The product says a
-two-sided app must be free until both partners are in. Resolve it by **moving
-the paywall from install-time to moment-of-need**:
+| Usage | Cost/month | Months until the couple costs more than it paid |
+|---|---|---|
+| Light | $0.60 | ~65 (5.4 years) — fine |
+| Typical | $1.20 | ~32 (2.7 years) — acceptable |
+| **Heavy** (~100 counselling turns/mo) | **~$3.00** | **~13 — loses money inside year two** |
 
-- No paywall at install, none during onboarding, none before pairing.
-- The AI counsellor is gated behind a **30-day trial that the user starts by
-  opening a session** — not at signup. Trials of 17–32 days convert at a median
-  **42.5%**, far above short trials, and a couple who opens a counselling
-  session after a fight is the highest-intent user this product will ever have.
-- The trial is per couple, and either partner can start it.
-- Ask for the card up front (opt-out trial), with the standard reminder before
-  charge.
+Most couples will not be heavy, and ordinary attrition works in your favour
+financially here. But "full app access" sold as a perpetual right against a
+per-message model cost is an open-ended liability, and at 2,500 couples the tail
+is real money.
 
-This gets the hard-paywall conversion profile on the monetising surface while
-keeping the viral surface free.
+**Do not fix this by metering the counsellor** — §5.4 explains why. Options, in
+order of preference: (a) ship it as written, instrument cost-per-couple in the
+analytics already built, and revisit with data; (b) define "full app access" as
+24 months at the point of sale, which is longer than a premarital cohort needs
+and still honest; (c) a fair-use ceiling on counselling turns, which is the
+worst option because it rations the thing people need most.
 
-**One product constraint that overrides revenue:** never paywall or trial-gate
-the safety path, the crisis resources, or anything reached from the support
-icon. A product that gates help behind a card at the moment someone needs it is
-a scandal waiting to happen, and it would contradict the one thing that makes
-this product distinctive.
+**RESOLVED — superseded by D3.11a.** Option (b) was taken, and taken now rather
+than later: the counsellor is bounded to 12 months at the point of sale, while
+the assessment, portraits, report, certificate and daily loop stay permanent.
+Product's reasoning was that the tail is not merely large but *unbounded*, and
+that a bound disclosed at purchase costs far less than one introduced in month
+13 to couples who were told "one payment, no subscription."
 
-### 5.3 Market-specific pricing
+I had recommended (a) — ship perpetual, measure, revisit at 500. The case
+against my version: it optimises for conversion today by deferring a disclosure
+we would almost certainly have to make later, to the same people, having already
+taken their money. That is the shape of the errors this document has been
+correcting all week. The cost-per-couple instrumentation still ships, because
+the 12-month bound needs validating too.
 
-| Market | Monthly | Annual | Premarital Pack | Rails |
-|---|---|---|---|---|
-| US / UK / CA / AU | $14.99 | $89.99 | $39 | App Store / Play IAP |
-| Nigeria & Africa | **₦3,900** | **₦24,000** | **₦12,000** | Paystack / Flutterwave, web checkout |
-| Diaspora (US/UK) | Same as US/UK | Same | Same | IAP |
+### 5.3 How it is sold to a cohort
 
-The Nigerian number is anchored against what Nigerians already pay monthly:
-Showmax ₦4,500, Netflix ₦2,500–8,500, Spotify ₦1,600. ₦3,900 for a couple —
-under ₦2,000 per person — is a defensible position between Spotify and Showmax.
+The SKU sheet got simpler; the channel did not change.
 
-But be clear-eyed: Nigerian ARPU is structurally low and naira devaluation means
-subscription revenue growth chronically lags subscriber growth across the
-region. **In Nigeria the one-off Premarital Pack will outsell the subscription,
-probably by a lot**, and the gifting SKU below matters more than it does in the
-West.
+- **One transaction, thirty codes.** 30 couples × $39 = **$1,170**, sold to the
+  facilitator as a single purchase and delivered as redemption codes they hand
+  out. This is the shape that makes a cohort one conversation instead of thirty.
+- **Or the couples pay individually** at the same $39, which closes faster
+  because it needs no budget approval, but leaks 20–40% redemption.
 
-**Take App Store IAP seriously as a cost.** 30% (15% under the Small Business
-Program, which you qualify for) comes off every $14.99. Push annual, and for the
-institutional SKUs sell on the web where Apple's cut does not apply.
+**Offer both on call one** (execution-plan D3.8): invoice where their budget
+allows, the couples-pay link where it doesn't. My earlier "never quote a licence
+on call one" rule still holds — that was about the *ladder*, and the ladder is
+still not published. What changed is that facilitator-pays-by-invoice belongs on
+the table from the start wherever the money exists, because of the leak below.
 
-### 5.4 Two mechanics worth building
+**The redemption leak is not forgetfulness — it is a rational free ride.**
+Nothing stops a cohort couple installing the app, using the free daily-question
+loop, and simply not paying $39 unless they want the report. That is the real
+mechanism behind the 20–40% estimate, and it is worth being precise about,
+because it means the leak *cannot be closed by reminder emails.* Facilitator-pays
+does not have the problem at all: the couples never face the decision.
 
-**Gifting.** "Give Bliss" as a wedding or anniversary gift — a purchasable code
-for 12 months. Couples products are among the most giftable software there is,
-the buyer is not the user (so price sensitivity drops), and in Nigerian wedding
-culture especially, a gift SKU sold alongside a premarital pack is a natural
-fit.
+**The unresolved question underneath it — for the engineer's entitlement work
+(P0.2): what does an unpaid install actually get?** My recommendation, and the
+reasoning:
 
-**The couple code.** Every paying couple gets a code for 30 days free for
-another couple. Loop 2, made concrete.
+- **The daily-question loop stays free.** It is Loop 1 (§4), the only free
+  acquisition the product has, and partner B must be able to enter without a
+  paywall. Walling it kills the growth engine to protect a $39 sale.
+- **$39 buys the assessment, both portraits, the facilitator report, and the
+  counsellor.** These are the things a cohort is actually buying and the things
+  a free rider cannot get by waiting.
+- **Nothing downstream of the support icon is ever gated** (D7), for paid,
+  unpaid and refunded couples alike.
 
-### 5.5 What not to do
+That split makes the free ride rational-and-fine for a consumer — they get the
+loop, we get a future buyer — and a genuine leak only in cohorts, which is
+precisely the case facilitator-pays solves. It is a reason to prefer invoicing,
+not a reason to wall the product.
+- **The facilitator seat stays free, always.** Never invoice the person doing
+  your distribution.
+- **Take invoices and bank transfers, not just card.** Churches and NGOs
+  frequently cannot pay by card. A Stripe-link-only checkout will lose sales
+  that had already said yes. This is a requirement on the checkout build, not a
+  preference.
+- **Pilot the first cohort.** At zero downloads, sell nothing on call one. Let
+  them run a cohort where the couples pay $39 each, then sell the block at
+  cohort two when they have watched it work.
 
-- **No streaks-for-discounts, no engagement-linked pricing.** The team correctly
-  deleted the streak. Reintroducing it through billing would be worse.
-- **No per-message or per-session credits on the counsellor.** Metering therapy
-  by the message makes people ration the thing they need. Margin is 90%+; there
-  is no cost argument for it.
-- **No "unlock your partner's profile" tier, ever.** `boundary.py` exists
-  precisely to prevent this and the reasoning in `docs/outcome-loop.md` is
-  right: an inferred model of one partner shown to the other is a manipulation
-  manual. It would also be the single most tempting upsell in the product.
-  Write the prohibition down before someone proposes it in a growth meeting.
+**On price flexibility:** $39 is global and single-currency (D3.0). That is a
+deliberate trade — one price is the SKU, and geo-pricing would reintroduce the
+tier table the founder collapsed. The consequence is that low-ARPU markets are
+reachable through *institutions* with fee-paying clienteles rather than through
+consumers. See the appendix for the regional-entry work that assumed otherwise.
+
+### 5.4 What not to do
+
+- **Never meter the counsellor** — no per-message credits, no session caps sold
+  as a tier. Rationing therapy by the message makes people ration the thing they
+  need. If §5.2's cost tail has to be addressed, address it with a term limit at
+  the point of sale, not with a meter at the point of need.
+- **Never gate the safety path.** No paywall, no entitlement check, no
+  redemption-code wall on the support icon, the crisis resources, or anything
+  downstream of them — for paid, unpaid, and expired couples alike. This is
+  execution-plan D7 and QA owns the test.
+- **Never build an "unlock your partner's profile" upsell.** `boundary.py`
+  exists to prevent it, and `docs/outcome-loop.md` is right that an inferred
+  model of one partner shown to the other is a manipulation manual. It would be
+  the single most tempting upsell in the product. The prohibition is written
+  here so that it is refused by reference rather than re-argued.
+- **Never discount below $39 to individuals.** One price means one price; the
+  moment it is negotiable it is a tier table again.
+
+### 5.5 Gifting — now stronger, not weaker
+
+A one-off is the natural gift SKU. "$39, once, for a couple you love" needs no
+explanation, has no recurring charge to inherit, and nothing to cancel. Parents
+and friends buying for engaged couples were always the best fit here, and in
+many wedding cultures a purchasable gift code sold alongside a
+premarital cohort is a natural attachment.
+
+Same price, same product, different buyer. Build it as a code, not a new SKU.
 
 ---
 
-## 6. Distribution: the road to 1,000 paying couples
+## 6. Distribution: the road to $100k at $39 a couple
 
-### 6.0 Definition and honest timeline
+### 6.0 The arithmetic — two channels, and they do different jobs
 
-**Target: 1,000 paying couples** ≈ 2,000 users ≈ **$90k–150k ARR** at the
-pricing above, depending on annual/monthly mix and market.
+**Revised for D3.39: couples therapists are the primary channel, premarital
+programmes are secondary.** Both stay. They are not alternatives, and the
+reason is arithmetic.
 
-Realistic timeline on a bootstrapped budget, assuming the Phase 0 fixes land:
+At $39 one-off, $100,000 is **2,564 couples**. Where those couples come from
+differs by an order of magnitude per relationship:
 
-- **Month 3:** 100 paired couples, 0 paying (no paywall yet)
-- **Month 6:** 500 paired couples, ~120 paying
-- **Month 9:** 1,400 paired couples, ~420 paying
-- **Month 12:** 3,000 paired couples, **~1,000 paying**
+| Relationship | Couples/yr | Revenue/yr | Notes |
+|---|---|---|---|
+| **One facilitator** running 4 cohorts of 30 | ~120 | **~$4,680** | Bulk, scheduled, repeating |
+| **One therapist** referring couple-by-couple | 10–20 | **~$390–780** | Trickle, continuous |
 
-Twelve months, not six. Anyone promising 1,000 paying couples in a quarter on
-this budget is promising paid installs you cannot afford. The Phase-0 activation
-fixes are what make the twelve-month number achievable rather than optimistic.
+**A therapist relationship is worth roughly 6–12× less than a facilitator
+relationship.** That is not a reason against the channel — it is the reason the
+plan needs both, and it decides which does which job.
+
+**Therapists cannot reach $100k alone.** At ~$585/yr each it would take ~171
+active therapists, which at a 10–15% cold-outreach conversion means contacting
+1,100–1,700 of them. At the four-contacts-a-week rate one founder can sustain
+(§15.7), that is five to eight years. The channel is not the scale engine and
+should never be planned as one.
+
+**What therapists are is the fastest route to first revenue, real usage, and
+genuine global reach.** One person decides, on the call. No committee, no term
+calendar, no doctrinal review, and directories exist in every English-speaking
+market rather than only the US (§15.2).
+
+#### The honest ramp, both channels
+
+Therapists from month 1; programmes introduced around month 6, once there is
+usage and a reference to point at.
+
+| Quarter | Active therapists | Active facilitators | Couples | Revenue |
+|---|---|---|---|---|
+| Q1 | 3 | 0 | ~8 | ~$300 |
+| Q2 | 10 | 0 | ~30 | ~$1,200 |
+| Q3 | 20 | 2 | ~125 | ~$4,900 |
+| Q4 | 30 | 5 | ~250 | ~$9,750 |
+| **Year 1** | **30** | **5** | **~410** | **~$16,000** |
+
+Exiting month 12 at roughly a **$41k/yr run rate** — about $17k of it from
+therapists and $23k from five facilitators, which is the ratio table above doing
+its work. **$100k still requires the cohort channel at scale (~21 facilitators),
+and now arrives around month 24–30** rather than month 15–18.
+
+#### State the cost of the reversal plainly
+
+**This plan banks less in year one than the facilitator-first version did
+(~$16k against ~$54k) and pushes $100k out by roughly six to twelve months.**
+
+That is the real trade and it should not be smoothed over. The counter-argument
+is that the $54k was never as solid as it looked: it required conservative
+institutions to say yes to an unproven product with no users, no outcomes, no
+references — and, on due diligence, a `spicy` game category (§9). **A lower
+number with a higher probability is worth more than a higher number that
+depended on the hardest possible first customer.**
+
+The sequencing error being corrected is mine: I had us approaching the buyer
+with the **highest evaluation bar** at the moment our evidence was **weakest**.
+Therapists are a lower bar, reachable globally, and they generate exactly the
+evidence — usage, outcomes, a named professional willing to be referenced —
+that makes the institutional conversation winnable later.
 
 ### 6.1 Phase 0 — weeks 0–6: earn the right to distribute
 
@@ -411,9 +534,10 @@ No acquisition spend. No launch. Five things, in this order:
 2. **Cut onboarding to 8–10 items, label the Likert anchors, make the rest
    progressive, drop the hard gate.** This is the 4.4× multiplier from §3.3.
 3. **Ship the share-sheet invite** with a link as the primary action (WhatsApp
-   first — decisive in Nigeria and among diaspora, and the deep link already
+   first — the highest-reach messaging app in most markets, and the deep link already
    works). Let partner B see the blurred question before onboarding.
-4. **Ship billing** — RevenueCat for IAP, Paystack for the African web SKUs.
+4. **Ship billing** — Stripe Checkout on the web (D1). Paystack is cut from P0
+   (D3.0); IAP comes later, with the app-store listing.
 5. **Fix the top visual defects** — the Dynamic Island clipping on all four
    tabs, the strategy chip, the joint-session title, the storage/history
    contradiction. You are about to invite strangers in.
@@ -430,8 +554,8 @@ assessment says is entirely absent (§2.14).
 
 Where the 50 come from:
 - Personal and second-degree network. Ask directly, one couple at a time.
-- Three couples-therapists, recruited by cold outreach, each bringing 3–5
-  clients onto the therapist portal.
+- Two additional premarital programmes, per §6.3(a). *(Was three couples-
+  therapists; cut under D3.35.)*
 - One premarital cohort (see §6.3).
 
 What you get: the activation numbers in §3.3 replaced with real ones, the first
@@ -442,33 +566,95 @@ answer to which of the twenty-one feature areas anyone touches.
 **Gate to Phase 2:** ≥60% of installs pair, ≥40% of paired couples still active
 in week 4, and at least 15 couples who say they would pay.
 
-### 6.3 Phase 2 — weeks 8–24: institutions, ~350 couples
+### 6.3 Phase 2 — the two institutional channels, in order
 
-The highest-yield, lowest-cost channel available, and the one Bliss is uniquely
-built for. Three sub-channels.
+#### (a) Couples therapists — PRIMARY (D3.39)
 
-**(a) Premarital programmes and churches — target 200 couples**
+**Reversed from a previous cut. This is now the first channel worked.**
 
-Every engaged couple in a church programme is a couple that has already agreed
-to do relationship work on a schedule, assembled into cohorts of 10–60, with a
-facilitator who is looking for better materials. This is the single best-matched
-audience for the assessment + portrait + curriculum that Bliss already has.
+Why it goes first, in order of weight:
 
-- **Nigeria is unusually favourable.** Lagos State introduced compulsory
-  pre-marital preparatory counselling for intending couples, delivered by
-  marriage officials across all twenty LGAs and LCDAs on an eight-week
-  curriculum, and in 2026 launched a digital pre-marital certification programme
-  training pastors, imams and marriage counsellors. That is a state-mandated,
-  digitally-minded, eight-week funnel of couples with a counsellor attached —
-  and Bliss is an eight-week, faith-aware, assessment-led curriculum in an app.
-  Approach the certified-counsellor cohort, not the state, first.
-- **Diaspora churches** (RCCG, Winners, Catholic parishes, Anglican) in London,
-  Houston, Dallas, Maryland, Atlanta run premarital classes constantly and serve
-  a population with Western wallets and the cultural framing Bliss already
-  models. There are ~294k Nigerian-born residents in the UK and ~476k in the US
-  (~760k by ancestry).
-- **US Catholic parishes** already buy Prepare/Enrich at $35–65 a couple, so the
-  budget line exists and the price is established.
+1. **Lowest evaluation bar at the moment our evidence is weakest.** No users, no
+   outcomes, no references. A secular clinician evaluating a between-session
+   tool for their own practice is a far easier first customer than an
+   institution running a doctrinal and reputational check.
+2. **Genuinely global.** Therapist directories exist in every English-speaking
+   market — Psychology Today, Counselling Directory (UK), and national
+   association registers across CA/AU/IE. The programme list was US-first only
+   because the USCCB happens to publish a directory. This channel is
+   contactable remotely from anywhere, which is what "global with no budget"
+   actually requires.
+3. **One person decides, on the call.** No committee, no term calendar, no
+   approved-instrument list. A therapist can say yes and refer a couple that week.
+4. **They are the audience for the actual differentiator.** Clinicians care about
+   the partner boundary more than any feature in the product.
+
+**The pitch — the boundary leads, and it is the whole opening:**
+
+> The model never shows one partner an inference about the other. Not as a
+> setting — as a single enforced function, with a test suite that tries to break
+> it and fails. Here is the file.
+
+Then: free for the therapist, always. Their couples pay $39, get the assessment
+and portraits, and **the therapist gets the same report** — recast for this
+channel as *"a report you and your couple can work from"* rather than a
+facilitator's teaching document. Same artefact, same eight pages.
+
+> ⚠️ **What we must NOT promise: a therapist portal, dashboard or login.**
+> `apps/therapist/` is a REST API — a login view and viewsets for connections
+> and strategy notes — with **no client of any kind.** No mobile feature, no web
+> app, nothing to log into. Verified 2026-08-03. The offer is *referral plus a
+> report delivered to them*, not an account they use. An earlier draft of this
+> section promised "a free therapist account" and "their couples' shared
+> progress"; both were written before anyone checked whether a client existed.
+
+Expect ~10–15% of cold outreach to try it, and each active therapist to refer
+10–20 couples a year (§6.0). Target ~30 active by month 12.
+
+#### (b) Premarital programmes — SECONDARY, and unchanged
+
+**Kept intact, deliberately.** Everything in §15 (sourcing), `marketing-copy.md`
+§14 (the delivery kit) and the call script applies unchanged when this channel
+opens. It is not wasted work and it should not be deleted — it is the **scale
+engine**, and per §6.0 it is the only path to $100k.
+
+**What changed is when, not whether: introduce it around month 6**, once there
+is usage, an outcome, and a named professional willing to be a reference.
+Approaching a conservative institution with none of those was the sequencing
+error §6.0 describes.
+
+**Why this channel works anywhere, which is the point (D3.0).** The mechanism is
+not cultural, it is structural: a premarital programme assembles couples into
+cohorts on a schedule, with a facilitator who is looking for better materials
+than a photocopied workbook. That is true in Sydney, Dublin, Toronto and Ohio.
+
+The strongest version of it is a **mandatory** programme, because a mandate is a
+self-enforcing funnel — nobody has to be persuaded to attend. Two properties
+make a mandate real, and both are worth checking on any target:
+
+1. **Somebody refuses to proceed without it.** A government can announce a
+   requirement and never police it; a church that declines to conduct the
+   wedding has enforced it completely.
+2. **It follows the couple**, rather than applying only at one location.
+
+- **US and international Catholic marriage-preparation offices — start here.**
+  Pre-Cana is a diocesan requirement, it runs worldwide, the coordinator role is
+  formal and publicly listed, and **these offices already pay $35–65 a couple for
+  Prepare/Enrich.** Budget line established, price established, mandate
+  self-enforcing. This is the centre of the strategy, not a side bet.
+- **Evangelical and non-denominational premarital programmes** in the US, UK,
+  Canada and Australia. Many require counselling before the church will conduct
+  a wedding — the same self-enforcing property, under their own programme names.
+  Named public programme pages make them easy to personalise to.
+- ~~Couples therapists~~ — deprioritised for v1 (D3.35). Free distribution, but
+  a trickle against a cohort. Accept inbound; do not source.
+
+*Evidence note: the mandate property was established while researching a
+regional entry that is no longer the plan — the RCCG, a denomination that
+requires premarital counselling and declines to officiate without it,
+regardless of where the wedding takes place. That research is retained in the
+appendix. What transfers is the property, not the targeting: Catholic Pre-Cana
+has the same structure and a far larger, more global footprint.*
 
 Pitch to the facilitator, never to the couple: *"Your couples get the assessment
 and a report you can teach from, and they keep the app after the wedding."*
@@ -476,12 +662,20 @@ Free facilitator seat, cohort dashboard, $39/couple.
 
 Target: 5–8 cohorts, 25–40 couples each, ~60% activation = ~200 couples.
 
-**(b) Couples therapists — target 100 couples**
+**(b) Couples therapists — deprioritised for v1 (D3.35)**
+
+**Do not source therapists.** Not because the channel is bad — it costs nothing
+and a clinician's referral is high-intent — but because it delivers couples one
+at a time against a cohort channel delivering 25, and one founder working two
+channels badly loses to one channel worked well. If a therapist approaches
+unprompted, take it. The case below is retained for when there is capacity.
+
 
 The therapist portal already has the bilateral consent gate that makes this
 safe. Therapists recommend between-session tools routinely; the Gottman Referral
-Network alone lists thousands of trained couples clinicians, publicly and free
-to search.
+Network is a public, free-to-search directory of Gottman-trained clinicians.
+(An earlier draft said it lists "thousands." I have not counted it — do not use
+a number in a deck without pulling one from the directory first.)
 
 Cold-outreach 100 therapists with a specific, honest offer: free therapist
 account, their couples get Premium at $9.99, they get the couple's shared
@@ -495,8 +689,7 @@ and materially better retention than self-serve.
 **(c) Wedding-adjacent — target 50 couples**
 
 Wedding planners, registries, bridal fairs and wedding-content creators, with
-the gifting SKU. High in Nigeria and diaspora where wedding spend is
-concentrated and communal.
+the gifting SKU. Strongest wherever wedding spend is concentrated and communal.
 
 ### 6.4 Phase 3 — weeks 16–48: content and creators, ~600 couples
 
@@ -518,8 +711,8 @@ card; the assessment is the top of the funnel and the share card is its
 distribution.
 
 **(c) Communities, not campaigns.** r/Marriage, r/relationship_advice,
-r/CouplesTherapy, Nairaland's family section, and — decisively for Nigeria and
-diaspora — WhatsApp and Facebook groups. Organic Reddit rewards genuine
+r/CouplesTherapy, and — in most markets outside the US — WhatsApp and Facebook
+groups. Organic Reddit rewards genuine
 contribution over promotion and takes 30–60 days to show signal; budget the
 time. Answer questions as a founder who built a thing, not as a brand.
 
@@ -536,8 +729,8 @@ problem is the product, not the marketing.
 | Channel | Couples | Cost/couple | Time to signal | Confidence |
 |---|---|---|---|---|
 | Partner invite loop (Loop 1) | structural | $0 | immediate | **High** — already built |
-| Premarital cohorts | 200 | ~$0 + time | 4–8 weeks | **High** — budget and behaviour exist |
-| Therapist referrals | 100 | ~$0 + time | 6–12 weeks | Medium-high |
+| Premarital cohorts — SECONDARY, from ~month 6 | 150 in yr 1, then the scale engine | ~$0 + time | 4–8 weeks | **High on yield, high on bar** — needs evidence first |
+| **Couples therapists — PRIMARY** | ~410 in yr 1 | ~$0 + time | 2–6 weeks | **High** — one decider, global directories, lowest bar |
 | Hand recruitment | 50 | $0 | immediate | High, does not scale |
 | Therapist creators | 250 | $0–$50 | 8–16 weeks | Medium |
 | Couple-code referrals (Loop 2) | 150 | ~$8 (comped month) | 12+ weeks | Medium |
@@ -568,46 +761,102 @@ markets, and only once you have measured paying-couple LTV.
 
 ---
 
-## 7. Which market first — the recommendation
+## 7. Market strategy — global, and honest about what that costs
 
-**Diaspora-first, US/UK, with the premarital pack as the wedge.**
+**Revised 2026-08-03 for D3.0.** An earlier version of this section recommended a
+diaspora-first beachhead. The founder's direction is that Bliss is a global SaaS
+product, not a product for a particular population, so that recommendation is
+withdrawn. The channel argument survives it — see below — and the withdrawn
+research is retained in the appendix rather than deleted.
 
-The reasoning:
+### 7.1 The honest difficulty, stated first
 
-- **Western pricing, community distribution.** You get $14.99/month and $39
-  packs, but you reach them through church and community networks rather than
-  through $5.84 CPIs. That is the only combination that closes the CAC gap in
-  §3.3 on a bootstrapped budget.
-- **The differentiators fire natively.** Faith tab, cultural framing, communal
-  family orientation, dense premarital-class culture. Against Paired and Relish
-  in the general US market you are a worse-funded me-too with an AI feature.
-  Against them in Nigerian and African diaspora churches in Houston, London and
-  Atlanta, you are the only product that was built for those couples.
-- **It is a beachhead, not a ceiling.** Winning a defined community first is
-  how you earn the general market later, and the same product ships to both.
-- **Nigeria is the second market, not the first, and it is mostly a one-off-
-  purchase market.** Lagos's compulsory premarital counselling and the 2026
-  digital certification programme make it strategically valuable — but naira
-  ARPU and devaluation mean the subscription will underperform, and you should
-  enter it with the ₦12,000 Premarital Pack through certified counsellors, not
-  with a ₦3,900/month subscription through the App Store.
-- **The pure US/UK general market is the most expensive path** and the one where
-  your unique assets count for least. Enter it in year two, via the therapist
-  channel and creator content, once the loops are proven.
+**A global product with no marketing budget has no distribution.** "Global" names
+an addressable market; it does not name a way of reaching anyone. Nothing in §3.2
+changes: iOS CPI is ~$5.84, the install→paying-couple funnel makes paid
+acquisition unaffordable, and there is $50 in the budget.
+
+So going global makes the institutional channel **more** important, not less. It
+is the only mechanism in this document that reaches couples in bulk, at
+approximately zero marginal cost, without a brand anyone has heard of. The
+cohort channel is the answer to the global ambition, not a retreat from it.
+
+The thing a beachhead was buying — a defined population you can saturate and be
+known within — has to be bought some other way. The replacement is **channel
+concentration rather than demographic concentration**: be the tool that
+premarital programmes use, everywhere, rather than the tool one community uses.
+That is a narrower wedge than it sounds, because premarital programmes talk to
+each other within denominations and dioceses, which is where word of mouth
+substitutes for a brand.
+
+### 7.2 Where to start, in order
+
+1. **Couples therapists, globally (D3.39).** The first channel worked, from
+   month 1. Lowest evaluation bar, one decider, directories in every
+   English-speaking market. See §6.3(a) — and note what cannot be promised: there
+   is no therapist portal, only referral plus a report.
+2. **Catholic marriage-preparation offices**, from around month 6. Pre-Cana is a
+   diocesan requirement; the coordinator role is publicly listed; **the office
+   already pays $35–65 a couple for Prepare/Enrich.** Mandate, budget line and
+   price all established. This is the **scale** engine and the only path to
+   $100k — approached once there is evidence to show it.
+3. **Evangelical and non-denominational premarital programmes**, alongside (2).
+   Many decline to conduct a wedding without counselling — the same
+   self-enforcing property under their own programme names.
+4. **Everything in §6.4** — the invite loop, creators, communities, ASO — behind
+   those, and unchanged.
+
+### 7.3 What "global" does not mean
+
+- **It does not mean localisation.** English-speaking markets first, one
+  currency, one price. Localisation is a cost with no evidence behind it yet.
+- **It does not mean every market at once.** One person can work about two
+  channels. Global is the *ambition*; the first ten calls are still ten calls.
+- **It does not mean low-ARPU markets are addressable at $39.** They are
+  reachable through institutions with fee-paying clienteles, not through
+  consumers. That is a real consequence of the single global price (§5.3).
+
+### 7.4 What carried over from the withdrawn recommendation
+
+Kept deliberately, because the reasoning is what mattered:
+
+- **The institutional motion.** A premarital programme assembles couples into
+  cohorts on a schedule with a facilitator looking for better materials. That is
+  structural, not cultural, and it is true everywhere.
+- **The mandate property.** The strongest programmes are ones somebody refuses
+  to proceed without. It was discovered in a denomination that is no longer the
+  target; Catholic Pre-Cana has the same property at far greater scale.
+- **The whole delivery kit** (`marketing-copy.md` §14), including pair-in-the-room.
+- **The prediction on the curriculum question** (§7.5 below), which if anything
+  is stronger now.
+
+### 7.5 The curriculum prediction survives and strengthens
+
+Facilitators inside a denomination with a **mandated** programme are unlikely to
+want a competing eight-week curriculum and likely to want materials that slot
+into the one they must use. That was argued from one denomination's manual. It
+applies at least as strongly to Catholic Pre-Cana, which is more prescribed, not
+less. Expect *"materials, not a programme"* — and ask anyway.
 
 ---
 
 ## 8. The numbers to watch
 
-Five, and only five, until 1,000:
+Six, re-targeted for the single price. The top two are new and now outrank
+everything else, because §6.0 makes facilitators the unit of growth:
 
 | Metric | Target | Why |
 |---|---|---|
-| **Install → paired couple** | >20% | The single multiplier on every channel |
-| **Invite send rate** | >60% of activated | Loop 1's health |
-| **Invite accept rate** | >60% | Loop 1's health |
+| **Active facilitators** | 21 by month 12 | The actual growth unit. Each is ~$4,680/yr |
+| **Cohorts per facilitator per year** | ≥3 | Where compounding lives under a one-off SKU. A facilitator who runs one cohort and stops is a failed sale that looked like a win |
+| **Redemption rate within a cohort** | >80% | Codes bought but never used are the silent leak in block sales |
+| **Install → paired couple** | >20% | Still the multiplier on every channel |
+| **Invite send / accept rate** | >60% each | Loop 1's health |
 | **Week-4 couple retention** | >40% | Whether the loop holds without a streak |
-| **Trial → paid** | >35% | Whether the AI counsellor is worth $14.99 |
+
+**Retired:** trial→paid — there is no trial. Note that `install → paired couple`
+now measures product health rather than revenue, since a cohort couple arrives
+already paid for.
 
 Add one qualitative gate: **two couple interviews per week, every week, written
 down.** The assessment is right that reasoning quality has carried this product
@@ -617,16 +866,68 @@ a long way without feedback, and right that it does not scale.
 
 ## 9. Risks
 
-**App Store review and clinical claims.** Apple scrutinises mental-health apps.
-Never say "therapy" or "counselling" in metadata where it implies licensed care;
-the in-app disclosure already exists and is correct. The safety classifier and
-`VALIDATION.md` are assets in a review conversation — have them ready.
+**App Store review and clinical claims — improved by D3.35.** Apple scrutinises
+mental-health apps. Never say "therapy" or "counselling" in metadata where it
+implies licensed care. **Shipping with no humans in the loop makes this
+materially easier:** the "not a licensed therapist" disclosure is now
+unambiguously true rather than a carefully-worded hedge, and there is no
+clinician relationship a reviewer could read as licensed care being brokered.
+That is a better position to argue from. The safety classifier and
+`VALIDATION.md` remain assets in that conversation — have them ready.
 
-**Safety liability at scale.** The three-layer classifier is gated at ≥90%
-clear-crisis recall with zero tolerated false positives on safe messages. At
-1,000 couples you will see cases the eval set does not contain. Budget for
-human review of every escalation and keep the paraphrase-recall gap in
-`VALIDATION.md` visible.
+**Safety liability at scale — and the one operational cost D3.35 does *not*
+remove.** The three-layer classifier is gated at ≥90% clear-crisis recall with
+zero tolerated false positives on safe messages. At 1,000 couples you will see
+cases the eval set does not contain. This document previously said "budget for
+human review of every escalation."
+
+**With no clinicians, that reviewer is the founder, personally, at whatever hour
+it happens.** D3.35 removes clinician recruitment, scheduling, payment, training
+and liability — real savings — but it does not remove the reviewing. Stated
+plainly so it is visible now rather than discovered at the first escalation:
+
+- Escalations do not respect a working day, and a founder who is also the
+  engineering and product team has no rota to fall back on.
+- It scales with couples, so it gets worse exactly as the plan succeeds. At the
+  §14.7 capacity ceiling — two or three concurrent cohorts, ~75 couples — this
+  compounds with founder-as-support-line.
+- The cost is not the volume, it is the **unpredictability**: one escalation a
+  month is nothing to schedule around and impossible to be unavailable for.
+
+There is no clean answer at this size, and inventing one would be worse than
+naming it. The honest mitigations are: keep the false-positive gate at zero so
+escalations stay rare and real; make sure the escalation path tells the founder
+what happened without requiring them to read a conversation to find out; and
+treat this as a reason the capacity ceiling in §14.7 arrives sooner than the
+support-line arithmetic alone suggests.
+
+**The `spicy` game category needs a written position before any institutional
+conversation.** Flagged, not resolved — this is a product and founder call, not
+a marketing one.
+
+What is actually there, verified 2026-08-03: `GamePack` has a `spicy` category
+alongside relationship, spiritual and financial; `is_restricted()` returns true
+for it; and the docstring states it requires age verification plus a per-couple
+opt-in, enforced in the API. **The gating is correct and defensible.** The
+problem is not the implementation, it is that a diocesan Family Life director
+doing due diligence will find it, and *"we'll explain if it comes up"* is not a
+plan.
+
+Three things about it:
+
+- **It does not block the therapist channel.** Secular clinicians working with
+  adult couples will not blink, and several will consider it a feature.
+- **It is survivable with a prepared answer and fatal without one** — and the
+  worst possible moment to improvise is in front of your first institutional
+  customer, which is precisely where the old plan put it.
+- The honest answer is probably the true one: it is off by default, invisible
+  unless both partners are age-verified *and* both opt in, and one partner can
+  end it unilaterally. Whether that is enough for a given diocese is *their*
+  call to make with full information, not ours to make by omission.
+
+Deciding this is cheap now and expensive later. Options range from a written
+position, through a facilitator-facing note, to a cohort-level disable — but
+somebody should choose before the first programme call, not during it.
 
 **The two-sided cold start is the whole risk.** Everything in this document is
 downstream of the pairing rate. If §6.1's fixes do not move install→paired above
@@ -649,12 +950,88 @@ features. Ship analytics first.
 1. Ship the event schema.
 2. Cut onboarding to 10 items and label the Likert anchors.
 3. Ship the share-sheet invite with WhatsApp first.
-4. Wire RevenueCat and Paystack; no paywall live yet.
+4. Wire Stripe Checkout on the web; no paywall live yet (Paystack cut, D3.0).
 5. Write the positioning page — the boundary, the score that can fall, the
    absent streak, the discarded call audio — in plain language, publicly, for
    the first time.
-6. Book calls with five premarital facilitators and ten couples therapists.
+6. Book calls with ten premarital facilitators, starting from the USCCB
+   directory (`marketing-copy.md` §15.2).
 7. Recruit the first fifty couples by hand and interview two a week.
+
+---
+
+## 11. Claim audit — what is verified, what is not
+
+Added 2026-08-03 at the PM's request, after the Gottman six-year figure turned
+out to be debunked. **Nothing marked ⚠️ or ❌ goes into a deck, a landing page,
+or a facilitator conversation without being checked first.** Every number in a
+strategy doc eventually gets repeated by a founder on a call, which is exactly
+how a bad statistic ends up in front of the one person qualified to catch it.
+
+| Claim | Where | Confidence | Note |
+|---|---|---|---|
+| Couples wait 6 years before therapy | **REMOVED** | ❌ **Debunked** | Gottman & Silver 1999; 2021 *JMFT* replication found ~2.68 years. Never use. |
+| The assessment is "**validated**" | **REMOVED** from all copy | ❌ **False** | Ad-hoc subscales, no norming sample, no reliability figures. To a clinician "validated" is a term of art and they will ask for figures there are none of. Copy says "structured, adapted from the Relationship Scales Questionnaire". |
+| "14 of 30 items are never read" | **REMOVED** | ❌ **Also false — and it was our own argument** | Withdrawn (D3.37): the scorer reads 17 of 30, and the unread items are unused *by design* — embedded Collins & Read AAS material for subscales this product doesn't compute. Unused ≠ discarded in error. **The "validated" verdict above is unaffected; it never rested on the item count.** Noted here because it is the only error in this document that ran in the direction of *understating* our own product — which is safer, and no more true. |
+| Lagos premarital counselling is "compulsory" | **Appendix A** | ⚠️ **Unverified enforcement** | Primary source is the 2022 Lagos MOJ announcement. Policy-on-paper ≠ funnel. Withdrawn from the plan (D3.0); caveat retained in case it is ever revived. |
+| Gottman Referral Network lists "thousands" | §6.3(b) | ⚠️ **Corrected** | Directory is public and free; the count was mine and unchecked. Pull a real number before quoting. |
+| Prepare/Enrich is "most widely used" | §1 | ⚠️ **Their own claim** | Vendor marketing, not independent. Fine as background, not as fact. |
+| Paired: ~8M downloads, ~$200k/mo revenue, 100k daily couples | §2.1 | ⚠️ **Third-party estimates** | From app-intelligence sites (SensorTower/AppstoreSpy-class), not disclosed by the company. Revenue estimates in particular are rough. Directional only. |
+| Couples-app market $5.77B by 2033 | §2.1 | ⚠️ **Weak source** | Traced to a competitor's marketing blog citing an unnamed report. Already hedged in text; **do not put this in a deck** — category forecasts persuade nobody who matters and this one won't survive a question. |
+| Competitor prices (Paired $14.99, Relish $99.99/6mo, Flamme $4–13) | §2.2 | ⚠️ **Affiliate/review sites** | Not read off the storefronts. Cheap to verify directly and worth doing before any comparison slide. |
+| iOS CPI $5.84 / Android $1.92, Q1 2026 | §3.2 | ⚠️ **Single source** | One benchmark report. The conclusion (paid installs unaffordable) is robust to being wrong by 2×, so the decision stands regardless. |
+| 17–32 day trials convert at 42.5% | §3.2 | ⚠️ **Single source** | Now moot — there is no trial under the single price. |
+| Hard paywall 10.7% vs freemium 2.1%; H&F revenue/download $35.64; H&F trial→paid 35% | §3.2 | ✅ **Solid** | RevenueCat / Adapty industry reports; large samples, primary publishers. |
+| Talkspace $436/mo; OurRitual $52–65/wk; couples therapy $100–250/session | §2.2 | ✅ **Solid** | Vendor pricing pages plus independent review corroboration. |
+| Prepare/Enrich $35–65 per couple | §1, §5 | ✅ **Solid** | Multiple independent facilitator and parish sources. **The load-bearing comparison for $39 — and it holds.** |
+| Nigerian diaspora ~294k UK-born, ~476k US-born | **Appendix A** | ✅ **Solid** | Census-level data. No longer used for targeting (D3.0). |
+| Hallow 20M+ downloads, ~$400M valuation, lower parish churn | §2.3 | ✅ **Reasonable** | Contrary Research; secondary but well-sourced. Used as an analogy, not a projection. |
+| **Funnel rates in §3.3 (35%/40%/45% → 65%/60%/60%)** | §3.3 | ⚠️ **My estimates** | Not measured — assumptions built from category benchmarks. Explicitly labelled as such. **These are what P0.4's analytics replace, and the whole activation case rests on them.** |
+| **COGS $0.60–1.20/couple/month** | §3.1, §5.2 | ⚠️ **My estimates** | Token counts per turn (3k in / 400 out) are assumed, not measured, and one source put gpt-4.1-nano at half the price I used. **Actionable: the engineer can measure real token usage per session and settle this** — it now matters more than it did, because §5.2's cost tail depends on it. |
+
+**Two asks that follow from this table:**
+
+1. **Engineer:** measure real tokens-per-counselling-turn and per-couple monthly
+   cost. It converts the largest ⚠️ in the economics into a fact, and §5.2's
+   perpetual-access decision depends on it.
+2. **Whoever takes the first Nigerian calls:** ask a Lagos marriage official
+   whether the premarital requirement is enforced in practice. One question,
+   and it either confirms or removes a whole channel.
+
+---
+
+## Appendix A — withdrawn: the regional-entry research
+
+**Status: prepared work for a regional entry nobody has chosen. Not the plan
+(D3.0). Retained because it may be right later, and because two findings in it
+are load-bearing elsewhere.**
+
+**What still counts as evidence, referenced from §6.3(a) and §7.4:** the RCCG —
+a large denomination with parishes across the UK and US — requires intending
+couples to complete counselling before the wedding and declines to participate
+in the wedding of any couple who has not, *regardless of where the wedding takes
+place*, with a published standard manual. That established the **self-enforcing
+mandate** property that the global channel case now rests on. Source caveat
+unchanged: denominational policy as published by church-affiliated sources, not
+audited practice.
+
+**What is withdrawn as targeting:**
+
+- Twelve RCCG diaspora parishes and eight other African-founded churches as the
+  first twenty targets.
+- Diaspora population sizing (~294k Nigerian-born in the UK, ~476k in the US,
+  ~760k by ancestry) as a market-sizing argument.
+- Nigeria as a second market, and with it the ₦ price anchors (₦3,900/mo,
+  ₦24,000/yr, ₦12,000 pack) — all superseded by the single global $39.
+- **Paystack**, cut from P0 (D3.0); Stripe alone covers what is being sold.
+- The Lagos State compulsory pre-marital counselling policy and the 2026 digital
+  certification programme. **Note the standing caveat if this is ever revived:
+  enforcement four years on was never verified, and a policy on paper is not a
+  funnel.**
+
+**If a regional entry is ever chosen**, the two things to re-check first are that
+enforcement caveat, and whether $39 clears a real institutional budget line in
+that market — the consumer certainly cannot reach it.
 
 ---
 

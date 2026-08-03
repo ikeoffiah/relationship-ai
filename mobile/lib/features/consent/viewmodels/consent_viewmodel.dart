@@ -8,7 +8,7 @@ class ConsentViewModel extends ChangeNotifier {
   final ConsentApiService _apiService;
 
   ConsentViewModel({ConsentApiService? apiService})
-      : _apiService = apiService ?? ConsentApiService();
+    : _apiService = apiService ?? ConsentApiService();
 
   ConsentModel? _consent;
   List<MemoryModel> _memories = [];
@@ -20,9 +20,12 @@ class ConsentViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  int get privateMemoryCount => _memories.where((m) => m.zone == MemoryZone.private).length;
-  int get sharedMemoryCount => _memories.where((m) => m.zone == MemoryZone.shared).length;
-  int get therapistMemoryCount => _memories.where((m) => m.zone == MemoryZone.therapist).length;
+  int get privateMemoryCount =>
+      _memories.where((m) => m.zone == MemoryZone.private).length;
+  int get sharedMemoryCount =>
+      _memories.where((m) => m.zone == MemoryZone.shared).length;
+  int get therapistMemoryCount =>
+      _memories.where((m) => m.zone == MemoryZone.therapist).length;
 
   void _setLoading(bool value) {
     _isLoading = value;
@@ -44,7 +47,9 @@ class ConsentViewModel extends ChangeNotifier {
       _consent = await _apiService.fetchConsent(userId);
     } catch (e) {
       debugPrint('ConsentViewModel.fetchConsent error: $e');
-      _setError('We couldn\'t load your privacy settings. Check your connection.');
+      _setError(
+        'We couldn\'t load your privacy settings. Check your connection.',
+      );
       _consent ??= ConsentModel.defaultRestrictive(userId);
     } finally {
       _setLoading(false);
@@ -76,7 +81,9 @@ class ConsentViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('ConsentViewModel.updateField error: $e');
       _consent = previous;
-      _setError('Failed to update consent: ${e.toString().replaceAll('Exception: ', '')}');
+      _setError(
+        'Failed to update consent: ${e.toString().replaceAll('Exception: ', '')}',
+      );
     }
   }
 
@@ -116,10 +123,7 @@ class ConsentViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> updateMemory(
-    String memoryId,
-    String title,
-  ) async {
+  Future<void> updateMemory(String memoryId, String title) async {
     final userId = await StorageService.getUserId();
     if (userId == null) return;
 

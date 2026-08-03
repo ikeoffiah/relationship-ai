@@ -140,14 +140,14 @@ class MemoryModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'why_stored': whyStored,
-        'created_at': createdAt.toIso8601String(),
-        'zone': zone.name,
-        'memory_type': memoryType.toJson(),
-        'content_preview': contentPreview,
-      };
+    'id': id,
+    'title': title,
+    'why_stored': whyStored,
+    'created_at': createdAt.toIso8601String(),
+    'zone': zone.name,
+    'memory_type': memoryType.toJson(),
+    'content_preview': contentPreview,
+  };
 
   String get formattedDate => DateFormat('MMM d, y').format(createdAt);
 

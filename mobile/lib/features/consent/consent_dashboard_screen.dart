@@ -26,10 +26,7 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
 
   Future<void> _refreshData() async {
     final consentVM = context.read<ConsentViewModel>();
-    await Future.wait([
-      consentVM.fetchConsent(),
-      consentVM.fetchMemories(),
-    ]);
+    await Future.wait([consentVM.fetchConsent(), consentVM.fetchMemories()]);
   }
 
   @override
@@ -61,14 +58,23 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
               children: [
                 if (context.read<AuthViewModel>().isMinor)
                   _buildMinorSafetyBanner(),
-                _buildSectionHeader('What\'s stored about you', 'Your memory zones and item counts'),
+                _buildSectionHeader(
+                  'What\'s stored about you',
+                  'Your memory zones and item counts',
+                ),
                 _buildMemoryZones(vm),
                 const SizedBox(height: 32),
-                _buildSectionHeader('What\'s shared with your partner', 'Permissions and visibility controls'),
+                _buildSectionHeader(
+                  'What\'s shared with your partner',
+                  'Permissions and visibility controls',
+                ),
                 _buildConsentPermissions(vm),
                 const SizedBox(height: 32),
                 if (vm.consent!.therapistSummaryAccess) ...[
-                  _buildSectionHeader('What your therapist can see', 'Summary of therapist-visible data'),
+                  _buildSectionHeader(
+                    'What your therapist can see',
+                    'Summary of therapist-visible data',
+                  ),
                   _buildTherapistVisibilityCard(vm),
                   const SizedBox(height: 32),
                 ],
@@ -87,12 +93,19 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.softCharcoal),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.softCharcoal,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: TextStyle(fontSize: 14, color: AppColors.softCharcoal.withValues(alpha: 0.6)),
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.softCharcoal.withValues(alpha: 0.6),
+          ),
         ),
         const SizedBox(height: 16),
       ],
@@ -153,7 +166,11 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
             const SizedBox(height: 12),
             Text(
               '$count items',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -174,41 +191,64 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
       children: [
         _buildPermissionCard(
           title: 'Session transcript retention',
-          description: summary['session_transcript_retention'] ??
+          description:
+              summary['session_transcript_retention'] ??
               ConsentModel.labelFor(consent.sessionTranscriptRetention),
           icon: Icons.history,
           onEdit: () => _showRetentionPicker(vm),
         ),
         _buildPermissionCard(
           title: 'Partner insight sharing',
-          description: summary['cross_partner_insight_sharing'] ??
+          description:
+              summary['cross_partner_insight_sharing'] ??
               ConsentModel.labelFor(consent.crossPartnerInsightSharing),
           icon: Icons.share_outlined,
           onEdit: () => _showInsightPicker(vm),
         ),
         _buildPermissionCard(
           title: 'Shared context access',
-          description: summary['shared_relationship_context'] ??
+          description:
+              summary['shared_relationship_context'] ??
               ConsentModel.labelFor(consent.sharedRelationshipContext),
           icon: Icons.connect_without_contact_outlined,
           onEdit: () => _showContextPicker(vm),
         ),
-        _buildPermissionCard(
-          title: 'Therapist access',
-          description: summary['therapist_summary_access'] ??
-              (consent.therapistSummaryAccess
-                  ? 'Your therapist can see session summaries'
-                  : 'Your therapist cannot see your sessions'),
-          icon: Icons.medical_services_outlined,
-          onEdit: () => vm.updateField('therapist_summary_access', !consent.therapistSummaryAccess),
-          isToggle: true,
-          toggleValue: consent.therapistSummaryAccess,
-        ),
+        // Only shown to someone who actually has a therapist connection.
+        //
+        // It used to render unconditionally, so every user — and every
+        // facilitator we walked through the app — saw a control reading "Your
+        // therapist cannot see your sessions". The sentence is true. The
+        // problem is that a control implies a capability, and v1 has no
+        // therapist portal (D3.35 froze it), so this advertised a clinician
+        // network we do not have on a screen we chose to show people.
+        //
+        // Surface hidden, backend untouched: `therapist` runs through five
+        // consent files including access_policy.py and gate.py, and hiding a
+        // row is not consent surgery. Same conditional the "What your
+        // therapist can see" section above already uses.
+        if (consent.therapistSummaryAccess)
+          _buildPermissionCard(
+            title: 'Therapist access',
+            description:
+                summary['therapist_summary_access'] ??
+                'Your therapist can see session summaries',
+            icon: Icons.medical_services_outlined,
+            onEdit: () => vm.updateField(
+              'therapist_summary_access',
+              !consent.therapistSummaryAccess,
+            ),
+            isToggle: true,
+            toggleValue: consent.therapistSummaryAccess,
+          ),
         _buildPermissionCard(
           title: 'Model improvement data',
-          description: summary['model_improvement_data'] ?? 'Help improve the AI safely',
+          description:
+              summary['model_improvement_data'] ?? 'Help improve the AI safely',
           icon: Icons.science_outlined,
-          onEdit: () => vm.updateField('model_improvement_data', !consent.modelImprovementData),
+          onEdit: () => vm.updateField(
+            'model_improvement_data',
+            !consent.modelImprovementData,
+          ),
           isToggle: true,
           toggleValue: consent.modelImprovementData,
         ),
@@ -230,15 +270,18 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
       child: ListTile(
         leading: Icon(icon, color: AppColors.warmCoral),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(description, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-        trailing: isToggle 
-          ? Switch(
-              value: toggleValue, 
-              onChanged: (_) => onEdit(),
-              activeThumbColor: AppColors.warmCoral,
-              activeTrackColor: AppColors.warmCoral.withValues(alpha: 0.5),
-            )
-          : const Icon(Icons.chevron_right, size: 20),
+        subtitle: Text(
+          description,
+          style: const TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+        trailing: isToggle
+            ? Switch(
+                value: toggleValue,
+                onChanged: (_) => onEdit(),
+                activeThumbColor: AppColors.warmCoral,
+                activeTrackColor: AppColors.warmCoral.withValues(alpha: 0.5),
+              )
+            : const Icon(Icons.chevron_right, size: 20),
         onTap: isToggle ? null : onEdit,
       ),
     );
@@ -255,7 +298,10 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
               children: [
                 Icon(Icons.visibility_outlined, color: Colors.orange),
                 SizedBox(width: 12),
-                Text('Visible to Therapist', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'Visible to Therapist',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             SizedBox(height: 12),
@@ -272,7 +318,9 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
   void _openMemoryPanel(MemoryZone zone) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MemoryTransparencyPanel(initialZone: zone)),
+      MaterialPageRoute(
+        builder: (context) => MemoryTransparencyPanel(initialZone: zone),
+      ),
     );
   }
 
@@ -320,30 +368,39 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
   }
 
   void _showPicker(
-    BuildContext context, 
-    String title, 
-    List<Map<String, String>> options, 
+    BuildContext context,
+    String title,
+    List<Map<String, String>> options,
     String current,
     Function(String) onSelect,
   ) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) => Container(
         padding: const EdgeInsets.symmetric(vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
-            ...options.map((opt) => ListTile(
-              title: Text(opt['label']!),
-              trailing: opt['val'] == current ? const Icon(Icons.check, color: AppColors.warmCoral) : null,
-              onTap: () {
-                onSelect(opt['val']!);
-                Navigator.pop(context);
-              },
-            )),
+            ...options.map(
+              (opt) => ListTile(
+                title: Text(opt['label']!),
+                trailing: opt['val'] == current
+                    ? const Icon(Icons.check, color: AppColors.warmCoral)
+                    : null,
+                onTap: () {
+                  onSelect(opt['val']!);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -379,14 +436,20 @@ class _ConsentDashboardScreenState extends State<ConsentDashboardScreen> {
               SizedBox(width: 12),
               Text(
                 'Guardian Managed Account',
-                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.softCharcoal),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.softCharcoal,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             'Because you are under 18, some privacy settings are managed in consultation with your guardian. Your safety is our top priority.',
-            style: TextStyle(fontSize: 13, color: AppColors.softCharcoal.withValues(alpha: 0.7)),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.softCharcoal.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
