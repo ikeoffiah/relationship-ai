@@ -69,8 +69,16 @@ class VectorMemoryStore:
         in miniature.
         """
         async with _POOL_LOCK:
+            # Deliberately only a None check. Probing `pool.is_closing()`
+            # bought almost nothing — `close_pools()` is the only thing that
+            # retires a pool and it clears this dict as it goes — and it cost
+            # something real: under test the pool is an AsyncMock, so
+            # `is_closing()` returns an un-awaited coroutine, which is truthy,
+            # so every lookup missed and rebuilt. A cache that silently stops
+            # caching in the exact environment that would catch a leak is worse
+            # than no guard.
             pool = _POOLS.get(self.db_url)
-            if pool is None or pool.is_closing():
+            if pool is None:
                 pool = await asyncpg.create_pool(
                     self.db_url, statement_cache_size=0
                 )

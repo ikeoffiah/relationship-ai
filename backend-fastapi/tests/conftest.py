@@ -55,3 +55,14 @@ def token_for():
 @pytest.fixture
 def headers_for():
     return auth_headers
+
+# Vector-store pools are cached per database URL at module level, which is the
+# fix for the per-turn connection leak. Module state outlives a test, so a
+# mocked pool from one case would otherwise be served to the next.
+@pytest.fixture(autouse=True)
+def _reset_vector_store_pools():
+    from app.memory import vector_store
+
+    vector_store._POOLS.clear()
+    yield
+    vector_store._POOLS.clear()
