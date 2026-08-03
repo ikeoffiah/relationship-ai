@@ -339,6 +339,22 @@ REST_FRAMEWORK = {
 }
 
 # Email Configuration (REL-18)
+# smtplib defaults to timeout=None, which means a worker blocked on a slow
+# or unreachable SMTP host waits for ever. With 2 sync gunicorn workers,
+# two such sends are the entire Django API. Measured before this line:
+# 40 concurrent invites -> 40 failures, 0 successes.
+#
+# The timeout is the floor, not the fix — mail belongs off the request
+# path entirely, which is what `relationships.tasks.send_invite_email`
+# does. This bounds the damage anywhere a synchronous send remains.
+# Under test, run tasks inline. Without this, moving a side effect into Celery
+# silently stops it being exercised at all: the assertion that an invite sends
+# an email would pass by never running the code that sends it. Eager mode keeps
+# those tests honest and covers the task body too.
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
+
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.resend.com")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)

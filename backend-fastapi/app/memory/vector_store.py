@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import asyncpg
@@ -17,6 +18,20 @@ class NamespaceAccessDenied(Exception):
     pass
 
 
+#: Connection pools, one per database URL, shared by every store instance in
+#: the process. Module level rather than instance level — see ``_get_pool``.
+_POOLS: Dict[str, asyncpg.Pool] = {}
+_POOL_LOCK = asyncio.Lock()
+
+
+async def close_pools() -> None:
+    """Close every pool. For application shutdown and for tests."""
+    async with _POOL_LOCK:
+        for pool in list(_POOLS.values()):
+            await pool.close()
+        _POOLS.clear()
+
+
 class VectorMemoryStore:
     """
     MVP implementation using pgvector on Supabase.
@@ -33,9 +48,34 @@ class VectorMemoryStore:
         self.model = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
 
     async def _get_pool(self) -> asyncpg.Pool:
-        if not hasattr(self, "_pool"):
-            self._pool = await asyncpg.create_pool(self.db_url, statement_cache_size=0)
-        return self._pool
+        """The pool is shared per database URL, not per instance.
+
+        It used to be cached on ``self`` — which looks like a cache and is not
+        one, because ``chat_router`` constructs a fresh retriever on every
+        counselling turn. Each new instance therefore built its own pool, and
+        asyncpg opens ``min_size`` connections eagerly, so every turn leaked ten
+        Postgres connections that nothing ever closed. Measured from a cold
+        container: 8 → 18 → 28 → 38 → 48 → 58 across five serial turns, and
+        still 58 after a minute idle.
+
+        That is roughly nine counselling turns per process in the lifetime of
+        that process — not nine at once, nine ever — after which Postgres
+        refuses connections to everyone, Django and Celery included, while
+        ``/health`` carries on reporting healthy. A single cohort evening would
+        not survive it.
+
+        Keyed by URL and guarded by a lock so that concurrent first-callers
+        cannot race two pools into existence, which would reintroduce the leak
+        in miniature.
+        """
+        async with _POOL_LOCK:
+            pool = _POOLS.get(self.db_url)
+            if pool is None or pool.is_closing():
+                pool = await asyncpg.create_pool(
+                    self.db_url, statement_cache_size=0
+                )
+                _POOLS[self.db_url] = pool
+            return pool
 
     async def _set_rls_context(self, conn, user_id: str):
         """Step down to authenticated role and set user context for RLS."""

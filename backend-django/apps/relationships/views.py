@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
-from django.core.mail import send_mail
+from apps.relationships.tasks.invites import send_invite_email
 from django.shortcuts import get_object_or_404
 from rest_framework import status, views, permissions
 from rest_framework.response import Response
@@ -60,17 +60,17 @@ class RelationshipInviteView(views.APIView):
                 expires_at=expires_at
             )
 
-            # Send email
+            # Queued, never sent inline. The old version blocked the web
+            # worker on SMTP with no timeout, so two invites to a slow host
+            # took down the whole API. `.delay()` fails only if the broker is
+            # unreachable, which must not lose the invite either — the row is
+            # already committed, so the worst case is an unsent email against a
+            # valid token rather than a 500 for the user.
             invite_url = f"bliss://accept-invite?token={token}"
             try:
-                send_mail(
-                    subject="Connect on Bliss",
-                    message=f"Your partner has invited you to link accounts on Bliss. Click here to accept: {invite_url}",
-                    from_email=None,
-                    recipient_list=[invitee_email],
-                )
+                send_invite_email.delay(invitee_email, invite_url)
             except Exception as e:
-                logger.error(f"Failed to send invite email: {e}")
+                logger.error(f"Failed to queue invite email: {e}")
 
         return Response({
             "invite_id": str(invite.id),

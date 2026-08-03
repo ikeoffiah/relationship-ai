@@ -1,6 +1,10 @@
 import re
 from django.contrib.auth import get_user_model
+from unittest.mock import patch
+
+from apps.relationships.tasks.invites import send_invite_email
 from django.core import mail
+from django.test import TestCase
 from django.test import override_settings
 from rest_framework.test import APITestCase
 from rest_framework import status
@@ -23,6 +27,13 @@ def extract_invite_token(email_message):
 
 class RelationshipPairingTests(APITestCase):
     def setUp(self):
+        # The view queues rather than sends. Patched here so the view tests
+        # assert the hand-off; `InviteEmailTaskTests` below covers what the
+        # task actually puts in the message.
+        patcher = patch("apps.relationships.views.send_invite_email.delay")
+        self.queued = patcher.start()
+        self.addCleanup(patcher.stop)
+
         self.user_a = User.objects.create_user(
             email="partner_a@example.com",
             password="password123",
@@ -52,10 +63,16 @@ class RelationshipPairingTests(APITestCase):
         self.assertEqual(invite.invitee_email, 'partner_b@example.com')
         self.assertEqual(response.data['invite_id'], str(invite.id))
 
-        # Plaintext token is emailed, never stored.
-        self.assertEqual(len(mail.outbox), 1)
+        # Queued, not sent inline. Mail moved off the request path because a
+        # synchronous SMTP send with no timeout meant two invites could pin
+        # both gunicorn workers and take down the API.
+        self.assertTrue(self.queued.called)
+        (emailed_to, invite_url), _ = self.queued.call_args
+        self.assertEqual(emailed_to, 'partner_b@example.com')
+
+        # Plaintext token travels in the link, never stored.
         self.assertTrue(invite.token_hash)
-        self.assertNotIn(invite.token_hash, mail.outbox[0].body)
+        self.assertNotIn(invite.token_hash, invite_url)
 
     def test_accept_invite(self):
         """Test accepting an invite."""
@@ -64,7 +81,7 @@ class RelationshipPairingTests(APITestCase):
             'invitee_email': 'partner_b@example.com'
         })
         invite = RelationshipInvite.objects.first()
-        token = extract_invite_token(mail.outbox[0])
+        token = self.queued.call_args[0][1].split('token=')[1]
 
         # Authenticate as Partner B
         self.client.force_authenticate(user=self.user_b)
@@ -86,7 +103,7 @@ class RelationshipPairingTests(APITestCase):
         self.client.post('/api/v1/relationships/invite', {
             'invitee_email': 'partner_b@example.com'
         })
-        token = extract_invite_token(mail.outbox[0])
+        token = self.queued.call_args[0][1].split('token=')[1]
         self.client.force_authenticate(user=self.user_b)
         response = self.client.post(f'/api/v1/relationships/accept/{token}')
 
@@ -237,3 +254,19 @@ class RelationshipMeStateTests(APITestCase):
     def test_it_still_requires_authentication(self):
         self.client.force_authenticate(user=None)
         self.assertIn(self.client.get(self.url).status_code, (401, 403))
+
+
+class InviteEmailTaskTests(TestCase):
+    """What the task sends, run directly.
+
+    The view tests assert the hand-off; this asserts the message, so moving the
+    send into Celery did not quietly drop coverage of its contents.
+    """
+
+    def test_the_invite_link_is_in_the_body_and_the_hash_is_not(self):
+        send_invite_email("partner_b@example.com", "bliss://accept-invite?token=plaintext")
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["partner_b@example.com"])
+        self.assertIn("bliss://accept-invite?token=plaintext", sent.body)
