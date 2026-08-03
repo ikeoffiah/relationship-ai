@@ -12,7 +12,7 @@ claims were too strong, and `docs/execution-plan.md` D3 was promoted to P0 partl
 on the strength of them.
 
 Comparing the shipped formulas to the Griffin & Bartholomew (1994) RSQ prototype
-key, three of the four match **exactly**:
+key, three of the four matched **exactly**:
 
 | Subscale | Shipped | Published key |
 |---|---|---|
@@ -32,8 +32,14 @@ not to depend on others") is a canonical dismissing item. Item 28 ("I worry
 about having others not accept me") is a self-model anxiety item with no place
 in the dismissing scale at all.
 
-**On "unused items".** 14 of 30 items feed nothing, and I framed that as the
-instrument being broken. It is normal. The RSQ embeds items from several
+**On "unused items".** I wrote that 14 of 30 items feed nothing and framed it
+as the instrument being broken. Both halves were wrong, and the count is now
+also stale: since item 26 was restored to the dismissing scale the scorer reads
+**17** items, not 16, so **13** are unused rather than 14. Withdrawn per D3.37,
+and it should not be cited as an argument about validation — the verdict on
+that stands on the absence of norming, which is a separate and better ground.
+
+Unused is normal. The RSQ embeds items from several
 sources; only ~18 feed the four prototype scores, and the remainder belong to
 the Collins & Read AAS subscales (depend / close / anxiety) which this product
 does not compute. Unused ≠ discarded-in-error.
