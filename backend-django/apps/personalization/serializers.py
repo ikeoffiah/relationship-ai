@@ -55,8 +55,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         # Synchronously compute the fields on save for immediate client response
         if instance.rsq_responses:
             style, _ = calculate_rsq_attachment_style(instance.rsq_responses)
-            instance.attachment_style = style
-            instance.attachment_style_source = 'rsq_onboarding'
+            # `style` is None when the answers do not distinguish a prototype —
+            # too few items, or a tie at the top. The column is a non-null
+            # CharField, and every reader guards on falsiness, so the empty
+            # string is the right storage for "we looked and could not say".
+            instance.attachment_style = style or ''
+            instance.attachment_style_source = 'rsq_onboarding' if style else ''
             if not instance.attachment_assessed_at:
                 instance.attachment_assessed_at = timezone.now()
 
@@ -66,8 +70,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         instance.prompt_modifiers = build_modifiers(instance)
 
-        # Mark onboarding completed if all sections are completed
-        if (instance.attachment_style and instance.relationship_stage and
+        # Mark onboarding completed if all sections are completed.
+        #
+        # Gated on the questionnaire having been *answered*, not on a prototype
+        # having been assigned. Those came apart the moment the scorer learned
+        # to say "I cannot tell": a couple whose answers tie would otherwise
+        # finish every screen and never be marked complete, looping them back
+        # into onboarding for ever. Completing a section is something the user
+        # does; assigning a prototype is something we may fail to do.
+        if (instance.rsq_responses and instance.relationship_stage and
                 instance.cultural_background and instance.communication_style_self_report):
             if not instance.onboarding_completed:
                 instance.onboarding_completed = True
