@@ -81,3 +81,35 @@ about the scoring, someone should check it against Griffin, D. W., &
 Bartholomew, K. (1994), *Models of the self and other*, JPSP 67(3). If it
 differs, this file and `calculate_rsq_attachment_style` are the only two places
 that need to change.
+
+---
+
+## Does the corrected scorer compute model-of-other? **No.**
+
+Asked repeatedly and answered here so it stops depending on message timing.
+
+The fix resolved **two things only**: the item-28→26 index error, and the
+tie-break that returned "secure". It computes four prototype means. There is no
+axis computation — `grep -c "model_of_self\|model_of_other\|axis\|dimension"`
+over `tasks.py` returns **0**.
+
+My earlier claim that items 7/14/17/27/30 were "precisely what a corrected
+scorer would need" was wrong, and QA is right to have flagged the contradiction.
+
+**But the axes do not need those items.** In Bartholomew's model they are linear
+combinations of the four prototype scores already computed:
+
+    model of self  ≈ (secure + dismissing) − (preoccupied + fearful)
+    model of other ≈ (secure + preoccupied) − (dismissing + fearful)
+
+Definitional, not empirical. About an hour to add, and it gives the report a
+genuine 2×2 rather than a label comparison.
+
+**Consequence for the item cut.** Only item 26 needed keeping, and it is now
+scored. Items 7, 14, 17, 27, 30 feed nothing and never will, so the P1 cut can
+be **13 items rather than 8** — a 43% shorter questionnaire with no scoring
+change.
+
+**On the distribution.** The axes will exist; a distribution to calibrate them
+against will not. One profile has RSQ data. Set the `differing` threshold from
+the scale midpoint and record it as chosen, not measured.
