@@ -52,8 +52,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return Scaffold(
       body: Column(
         children: [
-          _buildAIDisclosureBanner(),
-          if (isPending) _buildPendingInviteBanner(pendingEmail),
+          // `top: true` only, and it matters. These banners sit above the child
+          // screens, each of which has its own SafeArea — so the children were
+          // inset correctly and the banners were not, putting the AI disclosure
+          // under the Dynamic Island on every one of the four tabs. It rendered
+          // as "You are talking to a[…]l therapist", which is the most-seen
+          // pixel in the app saying the opposite of what it means.
+          //
+          // Bottom is left false: the nav bar below handles that inset, and
+          // taking it here would add a second gap under the banner.
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                _buildAIDisclosureBanner(),
+                if (isPending) _buildPendingInviteBanner(pendingEmail),
+              ],
+            ),
+          ),
           Expanded(
             child: IndexedStack(index: _selectedIndex, children: screens),
           ),
@@ -125,5 +141,4 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
     );
   }
-
 }

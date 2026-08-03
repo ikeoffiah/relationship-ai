@@ -6,7 +6,11 @@ class AnimatedTextDisplay extends StatefulWidget {
   final String text;
   final bool isStreaming;
 
-  const AnimatedTextDisplay({super.key, required this.text, this.isStreaming = false});
+  const AnimatedTextDisplay({
+    super.key,
+    required this.text,
+    this.isStreaming = false,
+  });
 
   @override
   State<AnimatedTextDisplay> createState() => _AnimatedTextDisplayState();
@@ -17,10 +21,7 @@ class _AnimatedTextDisplayState extends State<AnimatedTextDisplay> {
   Widget build(BuildContext context) {
     // For MVP, just render the text directly since Flutter Text handles fast updates well.
     // In a production app, we might want custom animation logic for the incoming tokens.
-    return Text(
-      widget.text,
-      style: const TextStyle(fontSize: 16),
-    );
+    return Text(widget.text, style: const TextStyle(fontSize: 16));
   }
 }
 
@@ -38,29 +39,6 @@ class _StreamingCursor extends StatelessWidget {
   }
 }
 
-class _StrategyChip extends StatelessWidget {
-  final String strategy;
-
-  const _StrategyChip({required this.strategy});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.purple.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.shade100),
-      ),
-      child: Text(
-        strategy,
-        style: TextStyle(fontSize: 10, color: Colors.purple.shade700, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
 class AssistantMessageBubble extends StatelessWidget {
   final ChatMessage message;
   final ValueChanged<String> onRejectReframe;
@@ -73,8 +51,6 @@ class AssistantMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showStrategy = message.strategy != null; // Feature flag could wrap this
-
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
@@ -82,15 +58,25 @@ class AssistantMessageBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (showStrategy) _StrategyChip(strategy: message.strategy!),
+            // No strategy chip. It rendered the model's chosen therapeutic
+            // technique — "Validation" — as a label immediately above the
+            // reply itself. Telling someone you are about to validate them
+            // undoes the validation: it reframes a warm answer as the output
+            // of a technique-selection algorithm. `message.strategy` is still
+            // on the model and still useful in logs and evaluation; it is
+            // just not something the person being helped needs to watch.
             Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: message.isSafetyMessage
                     ? Colors.amber.shade50
                     : Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16).copyWith(topLeft: const Radius.circular(4)),
+                borderRadius: BorderRadius.circular(
+                  16,
+                ).copyWith(topLeft: const Radius.circular(4)),
                 border: message.isSafetyMessage
                     ? Border.all(color: Colors.amber.shade300, width: 1.5)
                     : null,

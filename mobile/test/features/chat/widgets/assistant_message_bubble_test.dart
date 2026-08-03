@@ -4,7 +4,16 @@ import 'package:mobile/features/chat/models/chat_models.dart';
 import 'package:mobile/features/chat/widgets/assistant_message_bubble.dart';
 
 void main() {
-  testWidgets('AssistantMessageBubble renders message text and strategy chip', (WidgetTester tester) async {
+  testWidgets('AssistantMessageBubble renders the reply and never the strategy', (WidgetTester tester) async {
+    /// The strategy is the model's own therapeutic technique — "Validation",
+    /// "Active Listening" — and it used to render as a chip immediately above
+    /// the reply. Telling someone you are about to validate them undoes the
+    /// validation: it reframes a warm answer as the output of a
+    /// technique-selection algorithm, and nobody asked to see it.
+    ///
+    /// The field stays on the model, because it is genuinely useful in logs and
+    /// evaluation. This asserts only that it does not reach the person being
+    /// helped.
     const message = ChatMessage(
       id: 'msg1',
       text: 'How are you feeling?',
@@ -24,8 +33,7 @@ void main() {
     );
 
     expect(find.text('How are you feeling?'), findsOneWidget);
-    expect(find.text('Active Listening'), findsOneWidget);
-    expect(find.byType(Container), findsNWidgets(2)); // Strategy Chip container + Bubble container
+    expect(find.text('Active Listening'), findsNothing);
   });
 
   testWidgets('AssistantMessageBubble shows streaming cursor when isStreaming is true', (WidgetTester tester) async {
