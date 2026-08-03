@@ -10,6 +10,9 @@ import 'package:app_links/app_links.dart';
 import 'package:mobile/features/chat/chat_screen.dart';
 
 import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/core/analytics/analytics.dart';
+import 'package:mobile/core/analytics/sinks/firebase_analytics_sink.dart';
+import 'package:mobile/core/analytics/sinks/posthog_sink.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/splash_viewmodel.dart';
 import 'package:mobile/features/auth/viewmodels/welcome_viewmodel.dart';
@@ -82,6 +85,13 @@ Future<void> main() async {
     appRunner: () => runApp(
       provider.MultiProvider(
         providers: [
+          // One Analytics for the app. Both sinks are constructed but
+          // neither reports `isReady` without its dart-defines, so a build
+          // with no keys still exercises every call site and sends nothing.
+          provider.Provider<Analytics>(
+            create: (_) =>
+                Analytics(sinks: [PostHogSink(), FirebaseAnalyticsSink()]),
+          ),
           provider.ChangeNotifierProvider(create: (_) => AuthViewModel()),
           provider.ChangeNotifierProvider(create: (_) => SplashViewModel()),
           provider.ChangeNotifierProvider(create: (_) => WelcomeViewModel()),
@@ -95,7 +105,8 @@ Future<void> main() async {
           ),
           provider.ChangeNotifierProvider(create: (_) => OnboardingViewModel()),
           provider.ChangeNotifierProvider(
-            create: (_) => NotificationViewModel(apiService: NotificationApiService()),
+            create: (_) =>
+                NotificationViewModel(apiService: NotificationApiService()),
           ),
           provider.ChangeNotifierProvider(create: (_) => SettingsViewModel()),
           provider.ChangeNotifierProvider(create: (_) => RelayViewModel()),
@@ -145,7 +156,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // device. Leaving the foreground is the moment that stops being covered by
     // the app being open, so the plaintext goes with it — anything still
     // wanted is one fetch away.
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       MediaCache.instance.clear();
     }
   }

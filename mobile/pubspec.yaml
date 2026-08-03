@@ -56,6 +56,13 @@ dependencies:
   http: ^1.6.0
   firebase_core: ^4.12.1
   firebase_messaging: ^16.4.3
+  # Product analytics. GA4 on mobile *is* Firebase Analytics — there is no
+  # separate Google Analytics mobile SDK. PostHog is the primary sink
+  # because it can be pointed at EU hosting or self-hosted; see
+  # lib/core/analytics/sinks/firebase_analytics_sink.dart on why that
+  # matters for this product.
+  firebase_analytics: ^12.1.1
+  posthog_flutter: ^5.3.0
 
   # Chat media. Voice notes are recorded to AAC on the device and played back
   # locally after the proxy decrypts them; photos are downscaled and stripped

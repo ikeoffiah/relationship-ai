@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:mobile/core/analytics/analytics.dart';
+import 'package:mobile/core/analytics/analytics_event.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_dimens.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
@@ -21,10 +23,22 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
+  /// The four tabs, in nav order, as analytics surfaces.
+  static const _surfaces = [
+    AnalyticsSurface.today,
+    AnalyticsSurface.us,
+    AnalyticsSurface.talk,
+    AnalyticsSurface.you,
+  ];
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    // The cheapest possible answer to "which parts of this product does anyone
+    // actually open", which is currently unanswerable for all twenty-one
+    // feature areas. Fire-and-forget, and a no-op until consent is granted.
+    context.read<Analytics>().record(SurfaceOpened(surface: _surfaces[index]));
   }
 
   @override
