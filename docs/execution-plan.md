@@ -10,12 +10,50 @@ and §6. Do not re-open a decision in §3 without bringing new evidence.
 
 ---
 
-## 0. Production readiness: NO-GO (2026-08-03)
+## 0. Production readiness: still NO-GO — **two of four cleared**
 
-**No live cohort runs until these are fixed and the load phases re-run clean.**
-Sales activity — calls, bookings, authorisations — is unaffected; the first
-cohort is weeks out and these are days of work. Detail in
-`docs/qa/production-readiness.md`, measurements in `docs/qa/load.md`.
+*Status as of handoff, 2026-08-03. Verified in code, not from reports.*
+
+| | State |
+|---|---|
+| **P0-1** connection leak | **FIXED** — `close_pools()` with teardown (`575588e`) |
+| **P0-2** SMTP block | **FIXED** — same commit |
+| **P0-3** Sentry PII | **OPEN** — `settings.py:45` still `send_default_pii=True` |
+| **P0-4** public signing key | **OPEN** — default still present; **rotation is the founder's, not the engineer's** |
+| S2 / S3 fail-open | **FIXED** (`3b2b796`) |
+| P0.1 RSQ scorer | **FIXED** (`09f8feb`) |
+| D3.39 therapist controls | **FIXED** (`745365a`) |
+
+**Also open, and larger than any of the above: the counsellor has no memory**
+(D0.2), and `make safety-eval` still cannot report which classifier layers ran —
+the largest invisible failure in the product.
+
+**No live cohort runs until P0-3 and P0-4 are closed and the load phases re-run
+clean.** Sales activity — calls, bookings, authorisations — is unaffected.
+Detail in `docs/qa/production-readiness.md`, measurements in `docs/qa/load.md`.
+
+### The queue, in order, for whoever picks this up
+
+1. `make safety-eval` reports which layers actually ran *(safety; small)*
+2. **P0-3** — delete `send_default_pii`, add `max_request_body_size="never"`,
+   `include_local_variables=False`; strip mobile request/response body logging
+   from release builds
+3. **P0-4** — remove the `SECRET_KEY` default so it fails closed *(the key
+   itself must be rotated by the founder; it is public in git history)*
+4. Deploy config — `release:` migrations, the literal `\$PORT` backslash in
+   `backend-django/Procfile:1`, real health endpoints, `CRISIS_RESOURCES` set
+   and asserted at startup (D3.19)
+5. **Counsellor memory, both halves** — thread session history *with a
+   context-window cap*, and fix the `endSession` contract + missing call site
+   (D0.2). Implement D-c's consent gate **before** wiring the pipeline
+6. The `degraded()` helper — **before** P0.2's webhooks are written
+7. **P0.2 checkout** — blocked on the founder's Stripe account
+8. P0.3 facilitator report · P0.9 draft-save · P0.10 remainder · P0.11
+   certificate
+
+**Everything buildable today with nothing blocking it is listed in
+`docs/specs/README.md` §2.** Read §1 — the seven hard dependencies — before
+starting any of it.
 
 | # | Defect | Measured consequence |
 |---|---|---|
@@ -217,6 +255,51 @@ The 90-day number is not a lowered ambition. It is the only path where the
 
 ## 3. Decisions — closed, do not re-litigate
 
+**Index.** Eighty-three decisions accumulated in the order they were taken, which
+is not an order anyone can use. Grouped here by what they govern. The log below
+stays chronological — this is the way in.
+
+Two of this project's worst defects were only visible when separate decisions
+were read *side by side* (D3.41: three decisions combined to leave the
+facilitator's referral network as the entire safety net; D3.58: two sections of
+one document contradicting each other for days). **Read the group, not the
+entry.**
+
+| Governs | Decisions | The load-bearing ones |
+|---|---|---|
+| **What we sell, and for how much** | D2, D2.1, D2.2, D2.3, D3.11, D3.11a, D3.11b, D3.54 | **D2** one SKU, $39 once · **D3.11a** counsellor bounded at 12 months |
+| **Taking money** | D1, D3.3, D3.7, D3.9, D3.25 | **D1** web-first, Stripe only · **D3.25** entitlement fails *open* |
+| **Safety and crisis** | D7, D3.15, D3.19, D3.28, D3.41, D0.3, D0.4 | **D7** nothing on the crisis path is ever gated · **D3.15** the paywall gates the reply, not the door · **D0.4** authorization fails closed, enrichment fails open |
+| **Privacy and consent** | D3.4, D3.10, D3.13, D3.20 (D-a/b/c), D3.27, D3.57 | **D3.20** a consent control that reads nothing · **D3.4** no risk flags, no compatibility score |
+| **Intimacy content** | D3.51, D3.52, D3.53 | **D3.52** opting out must be unilateral, silent, immediate |
+| **Channel and distribution** | D3.0, D3.5, D3.6, D3.6a, D3.6b, D3.21, D3.22, D3.29, D3.35, D3.48, D3.49, D3.50, D3.55 | **D3.0** global SaaS · **D3.49** therapists first, cohorts for scale · **D3.55** referral is worth ~2× |
+| **Product scope** | D8, D3.1, D3.2, D3.17, D3.36, D3.39, D3.42, D3.43, D3.44, D3.45 | **D8** feature freeze · **D3.1** onboarding must survive interruption |
+| **Broken, being fixed** | §0 (P0-1…P0-4), D0.1, D0.2, D0.5, D3.14, D3.18, D3.23, D3.24 | **§0** four production blockers · **D0.2** the counsellor has no memory |
+| **How we work** | D3.12, D3.16, D3.16a, D3.16b, D3.30, D3.31, D3.32, D3.33, D3.34, D3.37, D3.38, D3.40, D3.46, D3.47, D3.56, D3.58 | **D3.16** a capability may only be claimed if someone ran it · **D3.34** framing documents go stale unedited · **D3.56** not every recurrence needs machinery |
+
+**The working rules, in one place**, because they are the part that outlives this
+plan:
+
+- A capability may be claimed only if someone has used it in the running app or a
+  passing test exercises it end to end (**D3.16**) — and any claim about what we
+  will *never* do is re-checked whenever the SKU changes (**D3.16a**).
+- When a document's subject changes, the documents that frame it go stale even
+  though nothing in them was edited (**D3.34**).
+- A refusal is a capability claim in the negative and fails the same way, so every
+  refusal written as proof needs a test behind it (**D3.31**).
+- The further a surface is from the code that would make it true, the longer it
+  survives being false (**D0.5**) — and polish extends the lifetime of a lie
+  (**D3.46**).
+- Agreeing detail is where errors hide; nobody re-checks an argument that reached
+  the right answer (**D3.38**).
+- Before mechanising a rule, ask whether the next instance arrives from how the
+  system is shaped or because someone made a call. Only the first needs a machine
+  (**D3.56**).
+- Retention needs an expiring justification: "removal is riskier than retention,
+  here is the coupling" is checkable and expires; "might be useful later" keeps
+  everything forever (**D3.40**).
+- Unrecoverable outranks slow (**D3.32**).
+
 **D1 — We take money on the web first, not through the App Store.**
 Stripe Checkout (US/UK/diaspora) and Paystack (Nigeria). Reasons: no Apple review
 dependency, no 30% cut, no app-store launch on the critical path, and a
@@ -256,9 +339,11 @@ much more expensive.
 We removed the SKU, not the channel.
 
 **D2.1 — the cohort licence ladder is a sales instrument, not a product
-feature.** Marketing priced a four-step licence ladder (Cohort 10/25/50/Annual)
-in `go-to-market.md` §5.6, on the correct observation that facilitator-pays
-achieves ~100% redemption where couples-pays leaks 20–40%. The ladder is good
+feature.** *Original finding, for the record:* marketing priced a four-step
+licence ladder (Cohort 10/25/50/Annual) in what was then `go-to-market.md` §5.6 —
+**a section that no longer exists; §5 now runs 5.0–5.5** — on the correct
+observation that facilitator-pays achieves ~100% redemption where couples-pays
+leaks 20–40%. The ladder is good
 commercial thinking and it does not go into the product. **The checkout knows
 exactly one price: $39.** A facilitator who negotiates a discount is invoiced
 manually by the founder — which we need anyway, because churches frequently
@@ -1208,6 +1293,232 @@ construction as the support-icon static test and the boundary import test: fails
 in both directions, allowlist carries a reason per line. This is
 `an invariant a person has to remember is not an invariant` applied to design.
 
+**D3.48 — There is no therapist portal. There is a REST API with no client.**
+`apps/therapist/` has a login view and viewsets for connections and strategy
+notes, and **nothing to log into** — no mobile feature, no web app, no templates.
+Verified 2026-08-03.
+
+So D3.35's "frozen" understated it: the portal was never a surface, only an
+interface. **The therapist offer is a referral plus a report delivered to them —
+not an account they use.** The words *portal, dashboard, account, log in* are
+prohibited in all therapist-facing copy.
+
+This is the fourth capability claim that would have shipped from a document
+rather than from code — and the PM brief that commissioned this channel repeated
+it, having taken the language from `go-to-market.md` §6.3(b) without checking.
+**A claim laundered through a plan document arrives looking like a decision.**
+
+**D3.49 — Therapists cannot be the scale engine, and the doc says so.**
+~171 active therapists for $100k → 1,100–1,700 contacted → **five to eight years
+at four a week.** Facilitator ~$4,680/yr against therapist ~$390–780/yr is a
+6–12× gap per relationship. Recorded so the question does not reopen.
+
+**Dual ramp:** therapists from month 1, programmes from ~month 6.
+**Year one ~$16k, exiting month 12 at ~$41k/yr, $100k around month 24–30.**
+
+**The cost of the reversal, stated plainly:** ~$16k in year one against
+facilitator-first's ~$54k, and $100k pushed out six to twelve months. The
+counter-argument, which is the right one: **the $54k required conservative
+institutions to say yes to an unproven product with no users, no outcomes, no
+references and a discoverable `spicy` category. A lower number at higher
+probability beats a higher number that depended on the hardest possible first
+customer.**
+
+**D3.50 — With a one-off price and a trickle channel, referral is the only thing
+that compounds.** Nothing else in the model does: a therapist sending 10–20
+couples a year is a flat annuity, and the $39 does not recur. The couple-code
+(Loop 2) and the shareable portrait were sequenced as P2/P3 growth features on
+the assumption that cohorts carried volume. **Under D3.49 they carry more weight,
+not less** — revisit their priority once the product is stable enough to be worth
+referring.
+
+**D3.51 — The intimacy content stays. The packaging goes. The entry point gets
+gated.** `docs/specs/intimacy-content-position.md`.
+
+**The content is clinically ordinary.** One pack of nine, `After Dark`: *"My
+favourite kind of affection is…"*, *"I feel most desired when you…"*, *"My ideal
+romantic evening is…"* That is closer to a Gottman Love Maps exercise than to an
+adult game, and desire is standard couples-therapy territory — Gottman, EFT and
+sensate focus all address it directly. **Removing it would weaken us in the
+therapist channel, not protect us**: a couples product that cannot mention desire
+is conspicuously avoiding something every clinician in that channel handles
+routinely, and the avoidance is more noticeable than the content.
+
+**"Spicy" and 🌶️ are the whole problem.** A therapist recommending this would
+have to explain a chilli pepper, and having to explain it is exactly why they
+would not recommend it. Rename the category to `intimacy`, drop the emoji.
+Both are safe to change: `category` is internal, `After Dark` is a fine pack
+name, and **no user has ever seen either** — `GameConsent` is 0 rows and
+`age_verified` is 0 of 1,416.
+
+**The actual defect is the ungated affordance.** `games_list_screen.dart` puts a
+🌶️ `IconButton` in the Games app bar **unconditionally**, tooltip "Spicy games",
+before any opt-in, for every user including couples who will never enable it and
+anyone glancing at the phone. Server-side gating is correct; the *affordance* is
+not gated at all. This is the same error this codebase already diagnosed and
+fixed elsewhere — *"a navigation menu disguised as chrome."* Move it into
+preferences, found deliberately.
+
+**D3.52 — Opting out of intimacy content must be unilateral, silent and
+immediate.** The double opt-in is justified in code as "symmetric rather than one
+partner enabling adult content for the other." The stronger reason is
+**coercion**: one partner asking the other to opt in to sexual content is a
+pressure point, and it lands hardest in exactly the relationships this product is
+careful about everywhere else. The symmetric gate cannot remove that pressure —
+nothing in software can — but it ensures **the app is never the mechanism**.
+
+The missing half: **either partner revokes, the packs vanish, and the other is
+not told who did it.** A gate requiring both to enable *and* both to disable
+would be worse than no gate, because withdrawal would become a negotiation.
+**Current behaviour is unverified — verify before shipping the rename.**
+
+**D3.53 — The intimacy gate is fail-closed by accident, not by design.**
+`age_verified` is **0 of 1,416**, so the open path has never executed. Same
+category as the memory pipeline, less severe. **It needs a test before the rename
+ships.**
+
+**App Store rating:** answer the rating questionnaire truthfully at submission
+and accept whatever it returns. The rename is for the therapist channel, not for
+review — do not let rating-avoidance become its motivation.
+
+**D3.54 — The couple-code doesn't survive the single price, and it needs
+redesigning rather than re-prioritising.** `go-to-market.md` §5.5 gives a
+referred couple **"30 days free."** Under a $39 one-off there is no subscription
+to comp — nothing to give away by extending time. Same class of survival as the
+licence ladder: a mechanic written under one pricing model, still sitting in the
+doc after the model changed, **looking finished.**
+
+**Test the zero-incentive version first — just a share link.** It costs nothing,
+the two paid alternatives (a discount on the referred couple's $39, or a credit
+to the referrer) are only worth building if it fails, and in a category where
+people recommend things they love unprompted it may simply be sufficient. It also
+largely rides on infrastructure already in P0: the post-purchase share action is
+specified as the same share sheet as the in-app invite, built once.
+
+**A sweep is owed of anything else written pre-D2 that assumes recurrence.**
+The stale-reference checker will not catch this class — the citation is valid,
+the *assumption underneath it* is dead.
+
+**D3.55 — Referral is worth roughly a doubling, and it is the only lever left
+that does not consume founder-hours.** Steady-state volume multiplies by
+`1/(1−R)`:
+
+| R | Multiplier | Year-1 revenue | Month-12 run rate |
+|---|---|---|---|
+| 0 (today) | 1.00× | ~$16,000 | ~$41k/yr |
+| 0.30 | 1.43× | ~$22,900 | ~$59k/yr |
+| **0.50** | **2.00×** | **~$32,000** | **~$82k/yr** |
+
+At R = 0.5 the month-12 run rate approaches $100k **without adding a single
+facilitator.**
+
+**The precondition binds harder than "wait until it's good."** A referral
+mechanic shipped onto a product people do not yet recommend produces R = 0 **and
+a false negative about the whole lever** — which is worse than not shipping it,
+because it would look like evidence and would be cited later as proof referral
+does not work here.
+
+**Sequencing: after the counsellor memory and the turn-depth fix — but not at P2
+behind six months of cohort features.** The ramp table is the argument for
+moving it.
+
+**D3.56 — Not every recurrence is a pattern needing machinery.** The
+ungated-affordance defect was swept and is **bounded: two instances, one fixed
+(the Us tab, now guarded on `connected`), one specced (the 🌶️ entry point).** No
+other app-bar action leads somewhere gated; no other engagement endpoint fails on
+a missing partner.
+
+The distinction worth keeping, because this week produced five rules and the
+sixth would have been wrong:
+
+- **D0.5 earned its rule** because each instance survived for a *structural*
+  reason — distance between the surface and the code that would make it true.
+  Structure recurs whether or not anyone is paying attention.
+- **This one recurred because two people made the same local judgement twice.**
+  The fix is the fix. A rule here would mostly duplicate the support-icon static
+  test and add a gate nobody needs to pass.
+
+**Test before mechanising: does the next instance arrive because of how the
+system is shaped, or because someone made a call?** Only the first needs a
+machine.
+
+**D3.57 — There is no churn in this business, and revenue retention must never be
+reported as a metric.** A couple cannot churn from a purchase they already
+completed. Two things replace it, and they point in opposite directions:
+
+- **Usage retention** — week-4 activity. Under a one-off this **costs** money
+  rather than earning it. It is kept as a metric only because it is the leading
+  indicator for referral (D3.55), which is the one thing that compounds. It is
+  not a revenue signal and should never be presented as one.
+- **Relationship retention** — whether a therapist keeps referring and a
+  facilitator runs cohort two. **These are the only recurring things in this
+  business**, which is why D3.49 counts active relationships rather than couples.
+
+**D3.58 — The recurrence sweep found five more, all the same class: a valid
+citation resting on a dead assumption.** All in `go-to-market.md`;
+`marketing-copy.md` came back clean.
+
+- **§3.1 contradicted §5.2 for days** — "gross margin at $14.99/month is 92–96%"
+  (a monthly margin against a monthly price, neither of which exists) against
+  §5.2's correct one-off runway model. Two sections, opposite frames, each
+  internally plausible, so neither looked wrong alone. **Under a one-off, cost is
+  not a margin percentage — it is how long the couple stays profitable**, which
+  is exactly why D3.11a bounds the counsellor at 12 months.
+- **§6.6's anti-paid-install case was sized on $90–150 first-year ARPU** —
+  subscription-era. The real figure is $39 once, so the number was 2–4× wrong
+  **in the direction that made paid installs look better than they are.**
+- **§2.2's "wide-open gap between $15/month and $436/month"** — withdrawn. There
+  is no band to occupy at $39 once. Prepare/Enrich at $35–65 one-off is the row
+  that still does work.
+- **§9's churn paragraph** — replaced per D3.57.
+- **The event schema still emitted `trial start`.** No trial exists. Now
+  `purchase` — and it would otherwise have shipped into the taxonomy the engineer
+  is wiring and produced an event nobody could explain in three months.
+
+**The detector is not textual, and it is cheap.** A stale-reference checker
+cannot see this class: the citation is correct, the sentence parses, the number
+is internally consistent, and only the pricing model underneath is dead.
+**But any sentence containing a per-period unit — /month, /year, annual,
+monthly, churn, retention, LTV, ARPU — is suspect by construction in a one-off
+business.** That grep found all five in about a minute. It goes to QA as a lint,
+not a review pass.
+
+**D3.59 — For a therapist, the disclosure threat model inverts: the risk is what
+we *retain*, not what we *show*.** The cohort rule was written against a
+facilitator — someone who knows the couples socially, must not learn what any
+couple answered, and whose side information defeats k-anonymity at any k.
+
+**A therapist's side information is not merely large, it is the point.** They sit
+with the couple weekly; anything a summary could tell them about their own
+clients they already know better, from the source, with context we do not have.
+The disclosure risk we designed against is close to zero here.
+
+A different risk replaces it:
+
+> We would be creating a written record about a therapist's clients, held on our
+> servers, that neither the therapist nor the couple asked us to keep.
+
+Discoverable, breachable, and subject to a duty of confidentiality that is
+**theirs rather than ours**. A therapist asks what we *retain* about their
+clients long before they ask what we *show* them — the opposite of the question
+a facilitator asks.
+
+**The tell was Rule 4.** N=5 banding is almost always active at therapist scale —
+three client couples trips it on every statistic. That is not conservatism, it is
+a signal the mechanism is wrong for the channel. **So the therapist rule is a
+subset, not a variant: per-couple status only, no aggregate generated at all.**
+Simpler than the cohort rule and strictly safer. Rules 1–3 continue to govern the
+programme channel from ~month 6.
+
+**D3.60 — Two report properties get *stronger* in the therapist channel.**
+Symmetry — everyone holds the identical document — moves from a design principle
+to a clinical-ethics one, because a therapist holding a version the couple cannot
+see is a different category of problem than a facilitator doing so. And page 8's
+four admissions (derived, relative, not normed, threshold chosen) become the
+highest-value paragraph in the artefact rather than a candour flourish, because a
+couples therapist is far more likely than a parish coordinator to recognise the
+instrument.
+
 **D8 — Feature freeze.** No new feature areas. Twenty-one is already the problem
 (`product-assessment.md` §2.8). Everything below is finishing, fixing, or
 selling what exists.
@@ -1295,7 +1606,7 @@ Unchanged from `go-to-market.md` §8, plus one:
 | Install → paired couple | >20% |
 | Invite send rate | >60% of activated |
 | Invite accept rate | >60% |
-| Week-4 couple retention | >40% |
+| Week-4 couple **usage** (see below) | >40% |
 | **Cohorts closed per 10 facilitator calls** | **>3** |
 | **Couples redeemed per cohort sold** | **>70%** |
 

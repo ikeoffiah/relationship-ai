@@ -53,7 +53,6 @@ KNOWN_SILENT_HANDLERS: set[tuple[str, str, str]] = {
     ("backend-fastapi/app/api/chat_router.py", "fetch_shared_context", "Exception"),
     ("backend-fastapi/app/api/chat_router.py", "fetch_memories", "Exception"),
     ("backend-fastapi/app/api/chat_router.py", "get_optional_pool", "Exception"),
-    ("backend-fastapi/app/api/websockets.py", "get_partner_id", "Exception"),
     ("backend-fastapi/app/counseling/broker.py", "send_to_user", "Exception"),
     ("backend-fastapi/app/counseling/broker.py", "_listen_to_redis", "Exception"),
     ("backend-fastapi/app/counseling/broker.py", "is_online", "Exception"),

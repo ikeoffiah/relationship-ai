@@ -107,6 +107,10 @@ it is a safety finding rather than an observability one.
 
 ### S2 — `verify_session_and_user` fails **open** on the joint-session socket
 
+**FIXED 2026-08-03**, same day, by the engineer. It now fails closed with a
+comment naming the exposure. Recorded as found, because the reasoning is what
+the rule in §5.3 is drawn from.
+
 `backend-fastapi/app/api/websockets.py:69`
 
 ```python
@@ -141,6 +145,11 @@ decision. This one reads as an accident, and it sits on the joint-session path,
 which is the one place in the product where two people's private material meets.
 
 ### S3 — `get_partner_id` invents a partner on failure
+
+**FIXED 2026-08-03.** Now logs `partner_id_lookup_failed` and returns `None`.
+The silent-failure ratchet in `tests/observability/` caught the change and went
+red demanding this entry be struck — which is the ratchet working in the
+direction nobody designs for.
 
 `backend-fastapi/app/api/websockets.py:105`
 
@@ -403,17 +412,19 @@ handles the second; the first should not use it, because a helper named
 
 | # | Work | Why here |
 |---|---|---|
-| 1 | S2 — `verify_session_and_user` fails closed | One word. Authorization. The correct version is already in the file. |
+| ~~1~~ | ~~S2 — `verify_session_and_user` fails closed~~ | **Done 2026-08-03.** |
 | 2 | S1.3 — `safety-eval` reports which layers ran | Half a day. Makes the largest invisible failure visible, and it is the measurement we already run. |
-| 3 | S3 — `get_partner_id` returns `None` | One line. Deletes a test double from a production path. |
+| ~~3~~ | ~~S3 — `get_partner_id` returns `None`~~ | **Done 2026-08-03.** |
 | 4 | Build `degraded()` + Django twin | Half a day. Unblocks everything below, and P0.2's webhooks should be written with it from the start. |
 | 5 | S1.1/1.2 — layer + provider degradation counters | Uses the helper. |
 | 6 | S4 — record the hash-lookup degradation | Makes the weekly verifier's alarm attributable. |
 | 7 | §3 — consent change-log bypasses | Database trigger, not convention. |
 | 8 | S5–S8 | Mechanical, once the helper exists. |
 
-Items 1 and 3 are two lines between them and I would take them in the current
-sprint regardless of everything else.
+~~Items 1 and 3 are two lines between them and I would take them in the current
+sprint regardless of everything else.~~ Both landed the same day. **Item 2 —
+making `safety-eval` report which layers actually ran — is now the top of the
+list, and it is the one that makes the largest invisible failure visible.**
 
 **Not recommended: a blanket ban on broad handlers.** Several here are correct,
 and a rule that forbids them produces `except Exception: logger.debug(...)`,

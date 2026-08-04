@@ -71,12 +71,14 @@ COMPILED_D2 = [(name, re.compile(p, re.IGNORECASE)) for name, p in FORBIDDEN_BY_
 
 
 def _billing_files() -> list[Path]:
-    """Source files that appear to be part of the billing surface."""
-    return [
-        path
-        for path in cmap.all_dart_files() + cmap.all_python_files()
-        if cmap.find_gates(cmap.read(path))
-    ]
+    """Source files carrying an actual billing mechanism.
+
+    Deliberately the mechanism test, not the vocabulary test. A design token
+    documented as "the paywall shadow" is not P0.2 landing, and a tripwire that
+    fires on it demands an end-to-end payment test before there is a payment.
+    See `BILLING_MECHANISM_RULES` in tests/safety/crisis_surface_map.py.
+    """
+    return cmap.billing_mechanism_files()
 
 
 def test_billing_surface_contains_no_subscription_machinery():

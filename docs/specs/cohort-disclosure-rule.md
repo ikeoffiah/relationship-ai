@@ -152,3 +152,80 @@ identify someone.
 
 Both are checkable in CI, which is the property that matters — a disclosure rule
 enforced by the judgement of whoever writes the next endpoint is not a rule.
+
+---
+
+## 6. Re-cut for D3.49 — this rule does not transfer cleanly to therapists
+
+*Added 2026-08-03 when couples therapists became the primary channel and
+programmes the secondary one.*
+
+Rules 1–3 survive unchanged and matter more, not less. **Rule 4 and the framing
+around it do not, and the reason is worth stating rather than patching.**
+
+### 6.1 The threat model inverts
+
+This document was written against a facilitator: someone who knows a cohort
+socially, needs completion data to chase people, and must not learn what any
+couple *answered*. §1 argued that the facilitator's side information is enormous,
+so k-anonymity fails at any k — hence the allowlist.
+
+**A therapist's side information is not merely large. It is the point.** They sit
+with the couple weekly. Anything a summary could tell them about their own
+clients, they already know better, from the source, with context we do not have.
+
+So the disclosure risk we designed against is close to zero here — and a
+different risk takes its place:
+
+> **We would be creating a written record about a therapist's clients, held on
+> our servers, that neither the therapist nor the couple asked us to keep.**
+
+That record is discoverable, breachable, and subject to a duty of confidentiality
+that is *theirs* rather than ours. A therapist evaluating us will ask what we
+retain about their clients long before they ask what we show them.
+
+### 6.2 What that changes
+
+**Rule 4's N = 5 banding is now almost always active** — a therapist with three
+client couples trips it on every statistic — which is a signal the mechanism is
+wrong for this channel rather than merely conservative. Bands over three couples
+are noise dressed as caution.
+
+**The right answer for the therapist channel is less, not banded.** Per-couple
+status only — `not started` / `one partner done` / `ready` / `report generated` —
+which is the operational minimum a therapist needs to know whether to expect a
+report before Thursday's session. **No aggregate at all.** With three couples an
+aggregate is a rounding of three facts they already have.
+
+That is simpler than the cohort rule and strictly safer, and it means:
+
+- Rules 1–3 stand as written and govern the **programme** channel from ~month 6.
+- The **therapist** channel gets §6.3, which is a subset, not a variant.
+
+### 6.3 The therapist rule
+
+1. **Per-couple status only.** The four states above. Nothing numeric, nothing
+   distributional, nothing aggregated.
+2. **No cohort summary is generated at all** for a therapist account.
+3. Everything in §2 Rule 1's *never* list continues to apply, unchanged.
+4. **Say what we retain, unprompted.** The one thing a therapist will ask that a
+   facilitator would not. The honest answer is already true and already strong —
+   we hold no session transcripts (`session-retention-wording.md` §3.3), the
+   report contains only what each partner said about themselves, and both
+   partners hold the identical document.
+
+### 6.4 Why this is the refusals pattern again, and a better version of it
+
+The line in §3 was written for a facilitator: *"if I'd build that for you, you'd
+be right to wonder what I'd tell someone else about your couples."*
+
+For a therapist it becomes stronger, because their duty is professional rather
+than pastoral:
+
+> *"I can tell you whether a report is ready. I don't build anything that
+> aggregates your clients, because a summary of your caseload sitting on my
+> server is a liability you didn't agree to and I'd rather not hold."*
+
+That answers the question they were going to ask anyway, in the register they ask
+it in — and unlike the facilitator version, the refusal removes a risk that is
+**theirs**, not ours.

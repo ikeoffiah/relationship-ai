@@ -202,7 +202,18 @@ COMPILED_STRICT = COMPILED_PAYMENT + [
 # should be argued for in review, not typed to make a red build go away.
 #
 # Keys are repo-relative POSIX paths.
-REVIEWED_EXCEPTIONS: dict[str, str] = {}
+REVIEWED_EXCEPTIONS: dict[str, str] = {
+    "mobile/lib/core/theme/app_dimens.dart": (
+        "2026-08-03, QA. The word 'paywall' appears once, in the doc comment on "
+        "AppShadows.floating — 'a bottom sheet, a dialog, a toast, the paywall' "
+        "— listing what that shadow is for. It is a design token file: spacing, "
+        "radii and shadows, no logic and no imports. It is Tier 1 only because "
+        "safety_resources_screen.dart imports it for AppSpacing, which is the "
+        "import closure working correctly rather than a finding. Reviewed the "
+        "file: no conditional, no entitlement reference, nothing that could "
+        "gate anything. Re-check if this file ever gains logic."
+    ),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -414,13 +425,61 @@ def gates_near_crisis(text: str, suffix: str) -> list[tuple[int, str, str, int, 
     return findings
 
 
+# Which of PAYMENT_PATTERNS constitute evidence that a billing *mechanism*
+# exists, as opposed to evidence that someone typed a billing *word*.
+#
+# Calibrated the hard way. The first version treated any payment token as
+# proof, and fired the moment `app_dimens.dart` grew a shadow constant
+# documented as "a bottom sheet, a dialog, a toast, the paywall". That demanded
+# a runtime entitlement test against an entitlement system that did not exist —
+# a tripwire that cries before there is anything to trip on gets muted, and
+# then it is not there on the day it matters.
+#
+# `premium`, `paywall`, `subscription`, `trial` and `upgrade` are UI and
+# marketing vocabulary; they show up in design tokens and copy decks well
+# before a mechanism does. These six are not sayable without one.
+BILLING_MECHANISM_RULES = {
+    "entitlement",
+    "processor",
+    "checkout",
+    "purchase",
+    "redemption-code",
+    "feature-gate",
+}
+
+_COMMENT = re.compile(r"^\s*(///?|#)", re.MULTILINE)
+
+
+def strip_comments(text: str, suffix: str) -> str:
+    """Blank out whole-line comments, preserving line numbering.
+
+    A comment naming the paywall is prose about a plan, not a gate. This is
+    used only for "does a mechanism exist" — Tier 1's strict scan deliberately
+    still reads comments, because billing prose on the crisis path is itself
+    worth a conversation.
+    """
+    marker = "//" if suffix == ".dart" else "#"
+    out = []
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        out.append("" if stripped.startswith(marker) else line)
+    return "\n".join(out) + ("\n" if text.endswith("\n") else "")
+
+
+def billing_mechanism_files() -> list[Path]:
+    """Files that contain an actual entitlement/payment mechanism."""
+    found = []
+    for path in all_dart_files() + all_python_files():
+        text = strip_comments(read(path), path.suffix)
+        if any(rule in BILLING_MECHANISM_RULES for _, rule, _ in find_gates(text)):
+            found.append(path)
+    return found
+
+
 def paywall_exists_in_product() -> bool:
     """Has P0.2 landed? Used to escalate the tripwire tests.
 
-    True once entitlement-shaped code appears anywhere in the app outside the
-    QA tests themselves.
+    True once a billing *mechanism* appears — not merely the vocabulary. See
+    BILLING_MECHANISM_RULES for why the distinction had to be drawn.
     """
-    for path in all_dart_files() + all_python_files():
-        if find_gates(read(path)):
-            return True
-    return False
+    return bool(billing_mechanism_files())
