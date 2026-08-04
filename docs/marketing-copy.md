@@ -203,10 +203,55 @@ not a customer yet, and emailing them again won't change that.
 
 ---
 
-## 3. Facilitator outreach email
+## 3. Outreach email
 
-For premarital-class leaders and marriage-preparation coordinators, in any
-English-speaking market. Send individually. Never BCC.
+**Primary is now the therapist version (D3.39).** The facilitator version is
+preserved below it for month 6. Send individually. Never BCC.
+
+### 3a. To a couples therapist — PRIMARY
+
+**Subject:** `A between-session tool for couples — looking for a clinician to tear it apart`
+
+```
+Hello [name],
+
+I've built a between-session tool for couples and I'm looking for a few
+therapists to test it with their clients. I found you through [the Gottman
+Referral Network / your Psychology Today profile / specific].
+
+The reason I'm writing to you rather than just posting about it: it rests on one
+rule I'd like a clinician to attack. The model never shows one partner an
+inference about the other — not their patterns, not a summary of anything they
+said privately. It's a single enforced function with a test suite that tries to
+break it and fails. I can send you the file.
+
+What your clients get: a structured attachment and communication assessment,
+adapted from the Relationship Scales Questionnaire, taken separately. Then a
+daily question they both answer privately, which opens only once both have
+replied. $39 per couple, once.
+
+What you get: the same report they get — eight pages, structured so you can run
+a session from it. Nothing to pay, no seat fee, nothing to administer.
+
+I'm not asking you to recommend it. I'm asking whether it's any good, and where
+it's wrong.
+
+Would 20 minutes be worth your time?
+
+[name]
+[phone] · [link]
+```
+
+**Why this shape.** It asks for a **critique, not a referral** — the only
+credible ask at zero users, and the thing a clinician is actually equipped to
+give. The boundary sits in paragraph two because it is both the differentiator
+and the reason a professional keeps reading. *"I can send you the file"* is an
+offer almost nobody in this category can make.
+
+**Do not write "free therapist account", "portal", or "dashboard."** There is no
+client to log into — see §8. The offer is referral plus a report.
+
+### 3b. To a premarital facilitator — SECONDARY, from ~month 6
 
 **Subject:** `Premarital assessment tool — looking for one class to test it`
 
@@ -377,7 +422,89 @@ danger they hadn't considered. Order is the whole difference.
 
 ---
 
-## 8. The facilitator page — `/for-facilitators`
+## 8. The therapist page — `/for-therapists` — PRIMARY (D3.39)
+
+Boundary-led, and here the boundary is not a supporting point — it is the
+opening line and the reason the page works. Clinicians evaluate exactly this.
+
+> # The model never tells one partner what it thinks about the other.
+>
+> Not as a setting. As one enforced function, with a test suite that tries to
+> break it and fails.
+>
+> If you work with couples, you already know why that matters — and why most
+> tools in this space can't say it.
+>
+> **[ Book 20 minutes ]**
+>
+> ---
+>
+> ### What your couples get
+>
+> A structured attachment and communication assessment, adapted from the
+> Relationship Scales Questionnaire, taken separately by each partner. Then a
+> daily question they both answer privately, which opens for both of them only
+> once both have replied.
+>
+> **$39 per couple, once.** No subscription. The assessment, the portraits and
+> the report are theirs to keep; the AI counsellor runs for 12 months.
+>
+> ### What you get
+>
+> **A report you and your couple can work from** — eight pages, the same
+> document both partners receive, structured so a third person can run a
+> session from it.
+>
+> **Nothing to pay, ever.** There is no therapist licence, no seat fee, no
+> revenue share, and nothing for you to administer.
+>
+> ---
+>
+> ### What we will not build, including for you
+>
+> I can tell you whether a report is ready. I don't build anything that
+> aggregates your clients, because a summary of your caseload sitting on my
+> server is a liability you didn't agree to and I'd rather not hold.
+>
+> The connection score reads behaviour, never either partner's private
+> check-in — averaging two private answers publishes one of them to the other by
+> arithmetic. It is allowed to fall, and it goes quiet on a bad week.
+>
+> **Nothing that reaches crisis support is ever behind a payment** — paid,
+> unpaid, refunded or expired. There is a test that fails the build if a
+> paywall appears anywhere on that path, and a second set of tests that plant
+> such a gate deliberately and fail if the first doesn't catch it.
+>
+> Bliss is not therapy and it is not a replacement for you. It is what happens
+> in the six days between sessions.
+>
+> **[ Book 20 minutes ]**
+
+**⚠️ Do not promise a portal, a dashboard, or a therapist login.** Verified
+2026-08-03: `apps/therapist/` is a REST API — login view plus viewsets for
+connections and strategy notes — with **no client of any kind**. No mobile
+feature, no web app, nothing to log into. The offer is **referral plus a report
+delivered to them.** The words "account", "portal", "dashboard" and "log in"
+must not appear on this page or in the call.
+
+**Note on the refusal above — the risk inverts in this channel, and the wording
+changed because of it.** The facilitator version of this line protects a couple
+from a third party learning what they answered. **For a therapist that risk is
+near zero** — they sit with the couple weekly and already know more than any
+summary could tell them. What replaces it is that *we* would be holding a
+written record about their clients, on our servers, that neither they nor the
+couple asked us to keep: discoverable, breachable, and covered by a duty of
+confidentiality that is **theirs, not ours.**
+
+So the refusal gets *stronger* here, not weaker, and it works for the same
+reason the facilitator version did: **it removes a risk that belongs to the
+person being pitched.** That is why it sells rather than apologises. Do not
+substitute the facilitator wording into this page — it answers a question a
+clinician was never going to ask.
+
+---
+
+## 9. The facilitator page — `/for-facilitators` — SECONDARY, from ~month 6
 
 Boundary-led per D5, and **no price list** — per D2.1 the ladder is a
 negotiating reference, not published. One action: book a call.
@@ -645,68 +772,76 @@ from public marriage-ministry pages. **I have not verified any individual's name
 or email address, and have invented none.** Finding the person is the founder's
 first ten minutes per target — §13.3 says how.
 
-### 13.1 Why these thirty — and why the first ten are a deliberate mix
+### 13.1 Why these thirty — re-cut for the therapist channel (D3.39)
 
-**Re-cut 2026-08-03 for D3.0 (global SaaS).** An earlier version led with twelve
-diaspora parishes; that targeting is withdrawn. What survives unchanged is the
-selection principle: **rank by the strength of the pipeline, not by size.**
+**Second re-cut.** The list has been rebuilt twice: once from diaspora parishes
+to Catholic offices (D3.0), and now from institutions to clinicians. The
+*selection principle* has survived both, which is the sign it was the right one:
+**rank by how quickly a real yes is reachable, not by yield per relationship.**
 
-The strongest pipeline is a programme somebody *refuses to proceed without*, and
-the best of those also has an established budget line.
+Therapists yield 6–12× less each (`go-to-market.md` §6.0). They go first anyway,
+because at zero users a low evaluation bar beats a high ceiling.
 
-**Tier A — Catholic marriage-preparation offices (12).** The centre of the
-strategy. Pre-Cana is a diocesan requirement, it runs across every
-English-speaking market, the coordinator role is formal and publicly listed, and
-**these offices already pay $35–65 a couple for Prepare/Enrich.** Mandate, budget
-line and price are all established before you dial. Start at diocesan Office of
-Family Life / Marriage Preparation level, not individual parishes — one yes
-reaches many parishes.
+**Tier A — Gottman-trained couples therapists (12).** The best fit available.
+They work with couples specifically rather than individuals, they are
+method-literate, and the boundary argument is aimed exactly at them. The Gottman
+Referral Network is public and free to search.
 
-**Tier B — evangelical and non-denominational premarital programmes (10).** US,
-UK, Canada, Australia. Many decline to conduct a wedding without counselling, so
-the mandate property holds; what is unknown is whether the *church* pays or the
-couples do. Public programme pages make personalisation easy.
+**Tier B — Psychology Today, couples counselling, US (8).** The largest
+directory, filterable by specialty and location, with practitioner-written
+profiles that make personalisation easy.
 
-**Tier C — additional premarital programmes (5).** *Was couples therapists;
-dropped under D3.35 and redistributed here.* The reasoning is focus, not
-principle: a therapist who recommends the app costs us nothing, but it is a
-**trickle** channel — couples arriving one at a time — against a cohort channel
-delivering 25 at once. Under a one-off price, cohorts are strictly better. If a
-therapist approaches unprompted, take it; do not spend outreach hours there.
+**Tier C — outside the US (7).** Counselling Directory (UK), and national
+association registers in Canada, Australia and Ireland. **This tier is what
+makes the plan global in execution rather than in ambition** — do not treat it
+as an afterthought, because it is the answer to the founder's actual constraint.
 
-Use these five to go wider on whichever of Tier A or B is answering.
+**Tier D — premarital programmes (3).** Kept warm, not worked. The full list
+and method are preserved in §13.6 and §15.3 for when this channel opens around
+month 6.
 
-**Tier D — wedding-adjacent (3).** Planners, registries, gifting. Kept small
-until something above proves out.
-
-**The first ten, deliberately mixed:**
+**The first ten:**
 
 | Tier | Calls in first ten | What that batch answers |
 |---|---|---|
-| **A** — Catholic offices | 5 | Does $39 clear a real institutional budget line, from the buyer already paying $35–65? |
-| **B** — evangelical / non-denom | 3 | Does the pitch travel where the mandate exists but no budget line does? |
-| **C** — extra programmes | 2 | Depth in whichever of A or B is answering |
+| **A** — Gottman-trained | 5 | Does the boundary pitch land with the most method-literate audience we have? |
+| **B** — Psychology Today US | 3 | Does it land without the Gottman common ground? |
+| **C** — non-US | 2 | Does any of this work outside the US, at all? |
 
-Three different questions. Ten calls into one tier answers one of them slowly.
+The Tier C pair is doing disproportionate work again: it is the only batch
+testing whether "global" is real or aspirational, and finding that out in week
+two is worth far more than finding it out in month six.
 
-**Batch the sends in fives.** Five, read what comes back, adjust the
-personalisation line, then the next five. Thirty at once wastes twenty-five
-chances to improve the sentence that decides whether the mail is read.
+**Batch the sends in fives**, as before.
 
-### 13.2 The personalisation line — the only part that changes
+### 13.2 The qualifying filter — the mandate property does not apply here
 
-The body is §3's email, unchanged. One sentence differs per target, and it is
-the sentence that decides whether the mail is read:
+Institutions were qualified on whether somebody refuses to proceed without the
+programme. Clinicians have no mandate, so the filter is different:
+
+| Qualify | Disqualify |
+|---|---|
+| Profile says **couples**, marriage, or relationship therapy | Individuals only — no couples in the practice |
+| Already recommends between-session work, homework, or tools | Explicitly "sessions only" |
+| **Directly reachable** — own email or contact form | Behind a clinic switchboard or an agency intake desk |
+| Solo or small practice — one person decides | Large group practice needing sign-off |
+| Accepting new clients | "Waitlist closed" / "not accepting" — no throughput to refer |
+| An actual website | Directory listing only, no contactable presence |
+
+**The two that matter most:** *couples, not individuals* — because a therapist
+who sees only individuals has nobody to refer — and *directly reachable*, since
+a gatekeeper turns a twenty-minute yes into a three-week procurement.
+
+### 13.2a The personalisation line
+
+The body is §3's email, re-pointed per §13.5. One sentence differs:
 
 | Tier | Line |
 |---|---|
-| A | "You're running Pre-Cana with Prepare/Enrich, I'd assume. I've built something adjacent and I'd rather show you than pitch you." |
-| B | "I saw your marriage ministry runs [programme name]. I've built an assessment tool for engaged couples and I'm looking for one class to test it with." |
-| C | As Tier A or B, whichever the target is. |
-| D | "I read your [specific page] — the [specific detail] is why I'm writing to you and not to a directory." |
-
-**One specific detail per target, always.** It is the entire difference between
-outreach and spam, and it takes four minutes on their website.
+| A | "You're Gottman-trained, so you'll have a sharper view of this than most: I've built a between-session tool with a hard rule that the model never shows one partner an inference about the other, and I'd like it torn apart." |
+| B | "Your profile says you work with couples on [specific thing from their profile]. I've built a between-session tool and I'd rather show you than pitch you." |
+| C | "I'm looking for couples therapists outside the US to test something — most tools in this space are built US-first and I'd like that not to be true of this one." |
+| D | As §13.6, when that channel opens. |
 
 ### 13.3 Finding the actual person
 
@@ -725,21 +860,39 @@ In order, stop when it works:
 
 ### 13.4 The one-sheet — hold this during the call
 
-Everything the founder needs on one page. Full script in §12.
+**Therapist version (primary, D3.39).** The facilitator version is §13.6 and is
+unchanged.
 
 **Open — ask before pitching:**
-1. How many couples, how many sessions, how often does it run?
-2. What are you using now — Prepare/Enrich, your own manual, something else?
-3. **Who pays today, the couples or the church?** *(decides invoice vs
-   couples-pay before you have to guess)*
+1. How much of your practice is couples rather than individuals?
+2. Do you give clients anything to do between sessions now?
+3. **How do you use written material with couples between sessions?**
+4. **What would make you *not* recommend something like this?**
+
+*(Question 3 decides what the report's four conversations become. They are
+currently written as teaching material for a facilitator running a room — a
+therapist has their own clinical approach and will not teach from our page, but
+the same conversations may work as **between-session homework**, which is a
+different framing and a different intro line. Nobody knows which; do not guess,
+ask.)*
+
+*(Question 4 is the most useful line on the sheet. A clinician will answer it
+specifically and without flattery, and their objection is the roadmap.)*
 
 **Say this, and only this:**
-> "Each couple takes a short assessment on attachment and communication style.
-> You get a report per couple you can teach from. They keep the app afterwards —
-> a question a day they both answer privately, that opens once they've both
-> replied. $39 per couple — your first cohort costs you nothing. Assessment,
-> portraits, report and certificate are theirs to keep; the counsellor runs
-> for 12 months."
+> "Their couples take a structured assessment on attachment and communication,
+> adapted from the RSQ, separately. They get a report — and so do you, the same
+> eight pages. Then a daily question they both answer privately, that opens once
+> they've both replied. $39 per couple, once. Nothing for you to pay and nothing
+> to administer."
+
+**Then the boundary, and let it sit:**
+> "The model never shows one partner an inference about the other. One enforced
+> function, with a test suite that tries to break it and fails. I can send you
+> the file."
+
+**Never say:** portal · dashboard · account · therapist login — **none of it
+exists** (§8) · therapy · any outcome claim · "validated".
 
 **Never say:** curriculum · certificate · eight weeks · therapy · any outcome
 claim. If asked: *"Not yet — a certificate is being built now. The eight-week
@@ -782,12 +935,31 @@ suggestion. This is the question that tells you which one you're looking at.)*
 
 ### 13.5 Record it — one row per call, attributed
 
+**Therapist calls (primary):**
+
+| Therapist & practice | Tier | Country | % couples vs individuals | Gives between-session work now? | **"What would make you NOT recommend this?" — verbatim** | Would refer? | Outcome |
+|---|---|---|---|---|---|---|---|
+| | | | | | | | |
+
+**The objection column is a product roadmap, not call notes.** Record it
+verbatim, per person, in their words, and keep it separate from everything else
+on this sheet — never merged into a summary. A clinician's reason for not
+recommending something is the most specific and least flattering information
+this project will receive at this stage, and it arrives from people qualified to
+give it at the exact moment we have no evidence of our own.
+
+Review those answers as a set after ten calls, before deciding anything. Two
+clinicians independently naming the same objection is a stronger signal than any
+number on this page.
+
+**Programme calls (secondary, from ~month 6):**
+
 | Facilitator & org | Tier | Cohort size | Cohorts/yr | Who pays now | Programme or materials? | Mandate enforced? | Verbatim quote | Next cohort | Outcome |
 |---|---|---|---|---|---|---|---|---|---|
 | | | | | | | | | | |
 
 Do not aggregate into percentages. At n=10, who said it matters more than how
-many did, and the verbatim column is where the product direction comes from.
+many did, and the verbatim columns are where the product direction comes from.
 
 ---
 
@@ -987,7 +1159,13 @@ that the programme is encouraged rather than required is a call that should
 never have been booked. **Sixty qualified contacts beat two hundred unqualified
 ones.**
 
-### 15.1 The filter — the mandate property, applied from a webpage
+### 15.1 The filter — two of them, one per channel
+
+**For therapists (primary), the filter is §13.2** — sees couples, recommends
+between-session work, directly reachable, taking clients. There is no mandate to
+test.
+
+**For programmes (secondary), it is the mandate property below.**
 
 Two tests, both usually answerable without contacting anyone:
 
@@ -999,7 +1177,41 @@ Two tests, both usually answerable without contacting anyone:
 A mandate someone enforces is a funnel. A mandate nobody enforces is a
 suggestion, and a suggestion does not assemble a cohort.
 
-### 15.2 Catholic dioceses — the highest-yield source, with one trap
+### 15.2 Couples therapists — the primary source (D3.39)
+
+Directories, all public, all filterable, and — the point — **they exist outside
+the US**, which the diocesan directory does not.
+
+| Directory | Coverage | Why |
+|---|---|---|
+| **Gottman Referral Network** | Global, Gottman-trained | Best fit. Couples-only practitioners, method-literate, free to search |
+| **Psychology Today** | US, CA, UK, AU | Largest. Filter by couples counselling + location. Practitioner-written profiles make personalisation trivial |
+| **Counselling Directory** | UK | The UK equivalent |
+| **AAMFT** | US | Marriage and family therapists specifically |
+| National association registers | CA, AU, IE | The rest of the English-speaking world |
+
+**The filter is §13.2, not the mandate property** — clinicians have no mandate.
+Sees couples not individuals, already recommends between-session work, directly
+reachable, accepting new clients.
+
+**Two things make this faster than the institutional list.** The profile *is*
+the qualification — specialty, modality, whether they take couples and whether
+they're accepting clients are all on the page, so qualifying takes a minute
+rather than a site exploration. And there is no "find the right person" step:
+the practitioner is the decider.
+
+**Do not batch by directory, batch by market.** Five US then five UK tells you
+whether the pitch travels; twenty US then twenty UK tells you the same thing two
+months later.
+
+### 15.3 Premarital programmes — preserved for month 6, not worked now
+
+**Everything below is intact and correct; it is simply not the current channel
+(D3.39).** Do not delete it — this is the scale engine and the only path to
+$100k (`go-to-market.md` §6.0). It opens once there is usage, an outcome, and a
+named professional willing to be a reference.
+
+#### Catholic dioceses — the highest-yield source, with one trap
 
 **The USCCB publishes a [Directory of Diocesan Marriage & Family Life Directors
 and NFP Coordinators](https://www.usccb.org/topics/natural-family-planning/directory-diocesan-marriage-family-life-directors-and-nfp),
@@ -1039,7 +1251,7 @@ with a closed inventory list, Bliss is not competing for the inventory slot. It
 is the thing the couple keeps *after* the inventory — which is a different, and
 in some ways easier, pitch.
 
-### 15.3 Evangelical and non-denominational programmes
+#### Evangelical and non-denominational programmes
 
 No directory exists. Search patterns that work, per city:
 
@@ -1054,29 +1266,22 @@ Then apply §15.1 to the page you land on. Large multi-site churches are worth
 disproportionately more: they run cohorts continuously rather than annually,
 which is the §8 *cohorts-per-facilitator* metric.
 
-### 15.4 UK, Ireland, Canada, Australia
+#### UK, Ireland, Canada, Australia — programmes
 
 Anglican and Catholic dioceses in each publish marriage-preparation
 requirements the same way; the diocesan-office structure is equivalent. Search
 `[diocese] marriage preparation course` and apply the same filter. Do this after
 the US list is working, not alongside it — one person, two channels.
 
-### 15.5 Couples therapists — not a channel for v1
+### 15.6 Disqualify from the outside — the signal tables
 
-**Deprioritised under D3.35.** Not because it is a bad channel — a therapist
-recommending the app is free distribution — but because it delivers couples one
-at a time against a cohort channel delivering 25, and one founder working two
-channels badly loses to one channel worked well.
+Spend zero founder-minutes on anything in a right-hand column.
 
-If a therapist approaches unprompted, take it. Do not source them.
+**Therapists (primary) — see §13.2.** Sees couples not individuals; directly
+reachable rather than behind a clinic desk; accepting new clients. Those three
+carry it.
 
-*If it is ever revived, the directories are public and filterable: the Gottman
-Referral Network, Psychology Today (filter couples counselling by location),
-and AAMFT.*
-
-### 15.6 Disqualify from the outside — the signal table
-
-Spend zero founder-minutes on anything in the right-hand column.
+**Programmes (secondary):**
 
 | Qualify | Disqualify |
 |---|---|
@@ -1097,8 +1302,10 @@ relationship is worth $4,680 or $1,170 — and that is the difference between th
 
 To hit ~210 contacts a year, sourced and qualified:
 
-- **~4 qualified contacts a week.** Roughly 60–90 minutes: work down the USCCB
-  directory, open each diocese's marriage page, apply §15.6, keep or drop.
+- **~4 qualified contacts a week.** Roughly 45–60 minutes now, not 90: a
+  therapist profile carries its own qualification (specialty, couples or not,
+  accepting clients), so the read is faster than a diocesan site exploration.
+  Work a directory, apply §13.2, keep or drop.
 - **Expect to drop half.** That is the playbook working, not failing.
 - **Batch sends in fives** (§13.1), so the personalisation line keeps improving.
 - **Log every drop with its reason.** After fifty, the disqualify column can be

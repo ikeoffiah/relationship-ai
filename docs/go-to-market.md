@@ -9,7 +9,14 @@ landed (`docs/execution-plan.md`):
   global-first; §6.3(a) re-pointed at Catholic marriage-preparation offices; the
   withdrawn regional research retained in **Appendix A**.
 
-Sections 1–4 and 9 are unchanged and still hold.
+- **D3.39 — couples therapists are the primary channel**, premarital programmes
+  secondary from ~month 6. §6.0, §6.3 and §7 re-worked; the programme material
+  is preserved intact, not deleted.
+- **D3.56 — recurrence sweep.** Every assumption written before D2 that depended
+  on a subscription has been corrected in place and marked. §2.2 conclusion 2,
+  §3.1's margin framing, §6.6's ARPU, §9's churn paragraph and the couple-code
+  mechanic were all quietly dead; the citations were valid and the assumptions
+  underneath them were not.
 
 Companion to `docs/product-assessment.md`, which covers the product itself. This
 document covers the two things that assessment identified as unstarted: **who
@@ -76,12 +83,15 @@ describes itself as the most widely used premarital assessment programme. That
 is their own marketing claim, not an independently verified one — it is fine as
 background, and should not be repeated as fact in anything we publish.
 
-**The therapist portal is a distribution channel that was mistaken for a
-feature.** `TherapistConnection.is_active` requires both `consent_therapist` and
-`consent_client`. That bilateral gate is exactly what a clinician needs to
-recommend a tool without a liability problem. Therapists are already the highest
--intent referrers in this category — the between-session-tool recommendation is
-a routine part of couples practice.
+**Therapists are the primary channel (D3.39) — but there is no portal to offer
+them.** `TherapistConnection.is_active` requires both `consent_therapist` and
+`consent_client`, and that bilateral gate is genuinely the right design. But
+`apps/therapist/` is a **REST API with no client of any kind** — no mobile
+feature, no web app, nothing to log into (verified 2026-08-03). The offer is
+*referral plus a report delivered to them*, never an account. What is real is
+the underlying fact: the between-session-tool recommendation is a routine part
+of couples practice, and clinicians care about the partner boundary more than
+any feature in the product.
 
 **The genuinely defensible thing** is the ethical architecture: the partner
 boundary (`personalization/boundary.py`), the behaviour-only connection score
@@ -143,9 +153,12 @@ Two conclusions:
    covers both partners.** That is the settled norm — Paired, Relish and Flamme
    all do it. Charging per person would be a visible defection from category
    convention and would halve your pairing rate.
-2. **There is a wide-open gap between $15/month and $436/month.** Bliss's AI
-   counsellor plus the therapist portal is the only asset in the codebase that
-   can credibly occupy the $30–80 band. Nobody self-serve is there.
+2. ~~There is a wide-open gap between $15/month and $436/month that Bliss could
+   occupy.~~ **Withdrawn in the recurrence sweep (D3.56).** That reasoning
+   assumed a monthly tier; D2 collapsed pricing to $39 once, so there is no
+   band to occupy. The row that still matters in this table is
+   **Prepare/Enrich at $35–65 one-off**, which is what $39 is actually priced
+   against — and it holds.
 
 ### 2.3 The wedge nobody else has
 
@@ -185,9 +198,9 @@ At current API pricing (~$2.50/$10.00 per 1M tokens for gpt-4o; ~$0.10/$0.40 for
 | Embeddings, infra amortised @1k couples | — | — | ~$0.30 |
 | **Total per couple per month** | | | **~$0.60–1.20**, heavy users ~$3 |
 
-**Gross margin at $14.99/month is 92–96%.** At $89.99/year (~$7.50/mo) it is
-still 84–92%. LLM cost does not constrain your pricing; it only constrains an
-unlimited-voice-session tier, which is unbuilt anyway.
+**Recurrence sweep (D3.56): this paragraph was written for a subscription and contradicted §5.2.** It previously read *"gross margin at $14.99/month is 92–96%"* — a monthly margin against a monthly price, neither of which exists.
+
+Under $39 collected **once**, cost is not a margin percentage, it is a **runway**: the couple is profitable until cumulative serving cost passes $39. §5.2 models that properly and is the authority. LLM cost still does not constrain the price — it constrains how long "12 months of counsellor" can honestly be offered, which is why D3.11a bounds it.
 
 The real constraint is CAC.
 
@@ -253,7 +266,10 @@ of activated users send an invite; >60% of invites convert.**
 **Loop 2 — the couple-to-couple referral.** Couples socialise as couples. The
 games, Two Truths and This-or-That are the natural vector: "challenge another
 couple" is a mechanic the game models could support. Give each paying couple a
-30-day free-couple code. Target: **>0.3 referred couples per paying couple.**
+referral code. **The "30 days free" version of this is dead — there is no
+subscription to comp under a one-off price; see §6.0 for the redesign and the
+ramp arithmetic.** Target: **>0.3 referred couples per paying couple**, which is
+worth ~$7k of year-one revenue and ~$18k of run rate.
 
 **Loop 3 — the institutional cohort.** One premarital class, one therapist, one
 parish delivers 15–60 couples per touch at near-zero marginal cost. This is the
@@ -516,6 +532,50 @@ references — and, on due diligence, a `spicy` game category (§9). **A lower
 number with a higher probability is worth more than a higher number that
 depended on the hardest possible first customer.**
 
+#### Referral is now the only thing that compounds — and the mechanic doesn't exist
+
+**D3.50, modelled here rather than deferred, because it changes the shape of the
+ramp above.** Under a one-off price with a trickle channel, nothing else
+compounds: the $39 doesn't recur, a therapist referring 15 couples a year is a
+flat annuity, and the cohort channel is six months out. Referral is the only
+growth lever left that does not cost founder-hours.
+
+At a referral rate **R** (couples brought in per paying couple), steady-state
+volume multiplies by `1 / (1 − R)`:
+
+| R | Multiplier | Year-1 couples | Year-1 revenue | Month-12 run rate |
+|---|---|---|---|---|
+| 0 (today) | 1.00× | ~410 | ~$16,000 | ~$41k/yr |
+| 0.15 | 1.18× | ~480 | ~$18,800 | ~$48k/yr |
+| 0.30 | 1.43× | ~586 | ~$22,900 | ~$59k/yr |
+| 0.50 | 2.00× | ~820 | ~$32,000 | ~$82k/yr |
+
+**At R = 0.5 the month-12 run rate approaches $100k without adding a single
+facilitator.** That is the size of the prize, and it is why this should not stay
+a P2 growth feature — it was sequenced as one *on the assumption that cohorts
+carried the volume*, and that assumption is gone.
+
+**But the mechanic as designed does not survive the single price.** §5.5
+describes a couple-code giving "30 days free" — a subscription-era comp. **There
+is no subscription to comp.** Under $39 one-off there is nothing to give away
+by extending time, so the mechanic has to be redesigned, not just re-prioritised.
+Three options, none costed here:
+
+- **A discount on the referred couple's $39** — simplest, directly reduces
+  revenue per referral, and needs the discount to be smaller than the margin.
+- **A credit or partial refund to the referrer** — better psychologically, worse
+  operationally, and refunds against a one-off get messy.
+- **No incentive at all — just a share link.** Cheapest to build, and in a
+  category where people recommend things they love unprompted, possibly
+  sufficient. **This is the one to test first**, because it costs nothing and
+  the other two are only worth building if it fails.
+
+**The precondition is real and it comes first.** Nothing is worth referring
+until the counsellor has memory and the product holds up past a handful of
+turns. A referral mechanic on a product people don't recommend produces R = 0
+and a false negative about the whole lever. Sequence it after that work, not
+before — but *not* at P2 behind six months of cohort features.
+
 The sequencing error being corrected is mine: I had us approaching the buyer
 with the **highest evaluation bar** at the moment our evidence was **weakest**.
 Therapists are a lower bar, reachable globally, and they generate exactly the
@@ -528,7 +588,7 @@ No acquisition spend. No launch. Five things, in this order:
 
 1. **Ship analytics.** The event schema from assessment §2.1 — onboarding
    start/step/abandon/complete, invite sent/opened/accepted, pairing complete,
-   question answered/revealed, session started, day-N return, trial start,
+   question answered/revealed, session started, day-N return, purchase,
    subscribe. Names and timestamps, no content, consent-aware. **Everything
    below is unmeasurable without this.**
 2. **Cut onboarding to 8–10 items, label the Likert anchors, make the rest
@@ -742,8 +802,10 @@ problem is the product, not the marketing.
 ### 6.6 Anti-channels
 
 - **Paid iOS installs.** $5.84 CPI ÷ 7% install→paying-couple = **$83 CAC** at
-  best, $300+ at today's conversion. Against a $90–150 first-year ARPU with
-  Apple's cut removed, that is not a business at your stage.
+  best, $300+ at today's conversion. **Against $39 collected once** — not the
+  $90–150 subscription ARPU this line assumed before D2 — a paid install loses
+  money at every conversion rate in the table. The correction makes the
+  conclusion stronger, not weaker.
 - **Dating apps and dating-adjacent placements.** Wrong audience — Bliss is for
   people who already found each other.
 - **Generic lifestyle influencers.** Category needs credibility, not reach.
@@ -933,10 +995,9 @@ somebody should choose before the first programme call, not during it.
 downstream of the pairing rate. If §6.1's fixes do not move install→paired above
 15%, no channel saves it.
 
-**Churn is structural.** Couples leave when things get better and when things
-end. Annual plans, the premarital one-off, and institutional cohorts all blunt
-it; monthly self-serve will not look like a SaaS retention curve and should not
-be judged against one.
+**There is no churn to measure, and that is its own trap (D3.56).** This paragraph previously reasoned about annual plans, monthly self-serve and SaaS retention curves. None of those exist under a one-off price. **A couple cannot churn from a purchase they already completed** — so revenue retention is not a metric here and should never be reported as one.
+
+What replaces it: **usage** retention, which costs money rather than earning it (§5.2's runway), and **relationship** retention — whether a therapist keeps referring and a facilitator runs cohort two. Those are the only recurring things in this business, and §8 measures them.
 
 **Doing distribution before instrumentation.** The failure mode is running four
 channels for three months and being unable to say which produced anything —
