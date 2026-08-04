@@ -2,7 +2,7 @@
 
 Owner: product/design (`local_81faf803`). Written 2026-08-03.
 
-Thirteen specs, ~3,000 lines, written over several days as decisions landed.
+Fourteen specs, ~3,500 lines, written over several days as decisions landed.
 Each states its own preconditions — but only inside itself, which means the
 constraint that stops you building something in the wrong order is in a document
 you may read *after* you start.
@@ -47,11 +47,11 @@ ignored and "this loses the user's work" does not.
 
 | Spec | What it is | Status |
 |---|---|---|
-| `facilitator-report.md` | The $39 artefact. Nine pages + certificate appendix | Complete |
+| `facilitator-report.md` | The $39 artefact. Nine pages + certificate appendix | Complete; certificate quiet in the therapist channel |
 | `report-pairing-blocks.md` | Page 4 copy — ten blocks | Complete |
 | `report-conversations.md` | Page 5 copy — four conversations, thirteen variants | Complete |
-| `facilitator-session-guide.md` | How a facilitator teaches from it | Complete |
-| `cohort-disclosure-rule.md` | What a facilitator may see about their cohort | Complete |
+| `facilitator-session-guide.md` | How a facilitator teaches from it | Complete; secondary channel from ~month 6 |
+| `cohort-disclosure-rule.md` | What a facilitator may see about their cohort | Complete; §6 re-cut for D3.49 |
 | `money-path-acceptance.md` | Checkout, entitlement, redemption, D7 criteria | Complete |
 | `counsellor-paywall-copy.md` | The paywall, and where it must never appear | Complete |
 | `session-retention-wording.md` | What we keep from a session, and the copy | Awaiting D-a/D-b/D-c in code |
@@ -60,10 +60,11 @@ ignored and "this loses the user's work" does not.
 | `capability-claims-audit.md` | Claims checked against code | Live — §1.5 pending, §5 owed |
 | `feature-kill-list.md` | The 21 areas ranked | Complete; re-do after real cohorts |
 | `refusals-as-proof.md` | Copy pattern, and where it stops working | Complete |
+| `intimacy-content-position.md` | The `spicy` category — keep the content, change the framing | Complete; awaiting the channel re-cut |
 
 ---
 
-## 4. Four rules that cut across all of them
+## 4. Five rules that cut across all of them
 
 **Enforce invariants statically, not by convention.** Four now work this way and
 they all fail in both directions: the boundary import test, the entitlement
@@ -79,6 +80,15 @@ one week.
 (`refusals-as-proof.md` §5). "We chose not to build X" needs a test as much as
 "we built X" does. And only refuse things we *could* have shipped — a limitation
 dressed as a principled choice is worse than a plainly stated limitation.
+
+**A spec author cannot see which of their own criteria are debatable**, because
+they have already settled the debate in their head. Three checks this week were
+saved by whoever implemented them rather than whoever specified them — the
+entitlement *count* that should have been an allowlist, the historical-citation
+rule that put a grammar judgement inside a gate, and the anchor parser that only
+read headings. **Criteria in these files are drafts until someone has tried to
+implement them**, and an implementer who pushes back is doing the more valuable
+half of the work.
 
 **When a document's subject changes, the documents that frame it are stale even
 though nothing in them was edited** (D3.34). Whenever a spec ships: *what framed
@@ -109,17 +119,33 @@ framed moved, with nothing edited.
 Enforcing it is the same shape as the other four invariants: mechanical, and
 failing in both directions.
 
-**The check** — run over `docs/` and `docs/specs/`:
+**The check** — built by QA and green. Run over `docs/` and `docs/specs/`:
 
 1. Every `` `filename.md` `` referenced resolves to a file that exists.
-2. Every `` `filename.md` §N `` resolves to a heading that exists in that file.
+2. Every `` `filename.md` §N `` resolves to a real anchor in that file.
 3. Every spec in `docs/specs/` appears in §3 of this README, and every spec named
    in §1 or §3 exists.
 
-Historical citations are allowed — an audit entry recording a finding that a
-later decision resolved should keep the reference — but must be in the past
-tense and marked as such, so the reader can tell a stale pointer from a
-deliberate one.
+Three things about the implementation that differ from what this section
+originally specified, all of them improvements:
+
+**An anchor is not just a heading.** Acceptance criteria in these specs live in
+*table rows* and get cited as `§7.1` and "criterion 7.5" interchangeably.
+Heading-only parsing reported live rows as dead. The index reads headings,
+`Part N` headings, table rows and list items — which means **the citation style
+in these documents is load-bearing on the checker**, and a spec that invents a
+new way to number things needs the index taught about it.
+
+**Historical citations are enforced by an explicit marker, not by tense.** This
+section originally asked for past tense; mechanical tense detection is
+unreliable in both directions, and a checker that argues about grammar gets
+argued with rather than fixed. Use a marker — `capability-claims-audit.md` §3.3
+has the pattern: *"Original finding, for the record:"*.
+
+**Marker scope is one paragraph, and a marker on a live reference fails.** Both
+matter: a file-scoped marker would let one audit note launder every stale
+reference in the document, and a marker sitting on a reference that still
+resolves is what teaches readers to stop trusting markers.
 
 **It has already earned its keep.** The first run found four specs still
 reasoning from `go-to-market.md` §5.6 — the tiered Cohort License, killed by the
@@ -131,6 +157,23 @@ silently resolved.
 Nobody edited those four documents. The document they pointed at changed, which
 is the whole of D3.34.
 
-**Owner:** QA, as a docs test. Until it exists, run it by hand whenever a spec
-ships — and note that the same rot applies to `docs/*.md`, which this check
-already covers.
+### Wanted — one more assertion
+
+**Assert the spec count in the header.** Count the `.md` files in `docs/specs/`,
+compare to the number written in this file's opening line, fail on mismatch.
+
+It earns machinery on the D3.56 test: a count in prose describing a directory
+goes stale **structurally** — it drifts every time the directory changes, with
+nobody having done anything and no decision to point at. That is the D0.5 class,
+not the someone-made-a-call class. It found its way into this file twice
+("thirteen" when there were fourteen) and it will again.
+
+One line, and cheaper than the check that caught it. Not worth resuming QA for
+on its own — pick it up next time those tests are touched.
+
+**Owner:** QA. Built, green, and it has caught four authors so far — four of my
+specs standing on a deleted pricing section, an unmarked historical citation in
+the execution plan, `intimacy-content-position.md` appearing beside this index
+without being added to it, and **QA's own write-up, which tripped four checks on
+its first run**. That last one is the strongest evidence it works: it caught the
+person who had just finished building it and knew exactly what it did.

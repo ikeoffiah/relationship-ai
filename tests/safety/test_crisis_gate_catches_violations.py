@@ -203,3 +203,55 @@ def test_tripwire_fires_when_payment_code_appears(fake_repo):
         "STRIPE_KEY = 'sk_test'\n"
     )
     assert cmap.paywall_exists_in_product() is True
+
+
+@pytest.mark.parametrize(
+    "filename,body",
+    [
+        ("billing.py", "STRIPE_SECRET_KEY = 'sk_live'\n"),
+        ("entitlements.py", "def has_entitlement(user):\n    return True\n"),
+        ("codes.py", "def redeem_code(redemption_code):\n    ...\n"),
+        ("checkout.py", "session = create_checkout_session(price_id='p')\n"),
+        ("gate.py", "if not user.is_paid:\n    raise Denied()\n"),
+    ],
+)
+def test_tripwire_fires_on_every_shape_a_mechanism_takes(fake_repo, filename, body):
+    """The calibration must not have made it blind.
+
+    `paywall_exists_in_product` was narrowed after it fired on a doc comment in
+    a design-token file. Narrowing a tripwire is exactly the change that
+    quietly turns it off, so each rule it still trusts is exercised here.
+    """
+    assert cmap.paywall_exists_in_product() is False
+    (fake_repo / "backend-fastapi" / "app" / filename).write_text(body)
+    assert cmap.paywall_exists_in_product() is True, (
+        f"{filename} contains a billing mechanism and the tripwire missed it."
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "/// A shadow for a bottom sheet, a dialog, a toast, the paywall.\n"
+        "const floating = 8;\n",
+        "// TODO: premium tier goes here one day\nconst x = 1;\n",
+        "/// Shown above the subscription upsell.\nconst y = 2;\n",
+    ],
+)
+def test_tripwire_does_not_fire_on_billing_words_in_comments(fake_repo, body):
+    """The false positive that prompted the calibration.
+
+    A design token documented as "the paywall shadow" is not P0.2 landing.
+    Demanding an end-to-end payment test before a payment exists is how a
+    tripwire gets muted, and a muted tripwire is not there on the day it counts.
+    """
+    (fake_repo / "mobile" / "lib" / "features" / "home" / "tokens.dart").write_text(body)
+    assert cmap.paywall_exists_in_product() is False
+
+
+def test_a_mechanism_in_code_still_fires_even_beside_a_comment(fake_repo):
+    """Comment-stripping must not swallow the line after the comment."""
+    (fake_repo / "backend-fastapi" / "app" / "b.py").write_text(
+        "# the paywall lives here\nSTRIPE_KEY = 'sk_live'\n"
+    )
+    assert cmap.paywall_exists_in_product() is True

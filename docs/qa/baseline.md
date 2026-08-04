@@ -184,7 +184,8 @@ New, and green as of this document:
 | D7 crisis gating | `tests/safety/` | 18 passed, 1 skipped (runtime tripwire, waiting on P0.2) |
 | RSQ scorer contract | `tests/personalization/` | 17 passed, 1 skipped (D4 cut not landed) |
 | Money path | `tests/money_path/` | 3 skipped (all tripwires, waiting on P0.2) |
-| Silent-failure ratchet | `tests/observability/` | 3 passed — 26 known handlers baselined, see `silent-failures.md` |
+| Silent-failure ratchet | `tests/observability/` | 3 passed — 25 known handlers baselined (was 26; S3 fixed), see `silent-failures.md` |
+| Docs rot: cross-references + recurrence | `tests/docs/` | **2 failed**, 47 passed — two live stale references (R1, R2), see `stale-references.md` §4 |
 
 `tests/safety/` includes `test_crisis_gate_catches_violations.py` — mutation
 tests that plant each violation the D7 gate is meant to catch and assert it goes

@@ -35,6 +35,10 @@ echo "== Money path (D2 one-SKU + entitlement allowlist) =="
 "$FASTAPI_PY" -m pytest tests/money_path/ -q || status=1
 
 echo
+echo "== Docs: cross-references + recurrence (D3.34) =="
+"$FASTAPI_PY" -m pytest tests/docs/ -q || status=1
+
+echo
 echo "== Silent-failure ratchet =="
 "$FASTAPI_PY" -m pytest tests/observability/ -q || status=1
 

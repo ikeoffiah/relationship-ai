@@ -3,6 +3,16 @@
 Owner: QA. Written 2026-08-03 against `docs/execution-plan.md` D1, D2 and P0.2.
 This is P0.8.
 
+**Revised 2026-08-03 (2): the couple-code referral is being redesigned.** The
+shipped mechanic gives a referred couple "30 days free", comping a subscription
+that no longer exists.
+
+That is the same dead-assumption class the recurrence lint looks for, expressed
+as a mechanic rather than a sentence — see `docs/qa/stale-references.md` §3.
+**Do not write acceptance criteria against the 30-day version.** When the replacement lands, the criteria it needs are §4.1 (double
+redemption), §4.2 (revoked code) and §5 (entitlement permanence) — none of which
+depend on what the referral grants.
+
 **Revised 2026-08-03: Paystack is cut** (founder decision — global SaaS, not a
 Nigeria play). Stripe only. The Paystack-specific criteria are struck below
 rather than deleted, because the kobo-vs-cents and raw-body-signature traps they

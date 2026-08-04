@@ -77,6 +77,15 @@ _HISTORICAL = re.compile("|".join(HISTORICAL_MARKERS), re.IGNORECASE)
 _FENCE = re.compile(r"^\s*(```|~~~)")
 
 
+def _rejoin(lines: list[str], original: str) -> str:
+    """Reassemble, preserving the original's trailing newline.
+
+    `splitlines()` drops it, and a blanking pass that changes the line count is
+    a blanking pass that shifts every reported line number after it.
+    """
+    return "\n".join(lines) + ("\n" if original.endswith("\n") else "")
+
+
 def strip_code_fences(text: str) -> str:
     """Blank out fenced code blocks, preserving line numbering.
 
@@ -92,7 +101,7 @@ def strip_code_fences(text: str) -> str:
             out.append("")
             continue
         out.append("" if in_fence else line)
-    return "\n".join(out)
+    return _rejoin(out, text)
 
 
 def strip_section(text: str, heading_number: str) -> str:
@@ -118,7 +127,7 @@ def strip_section(text: str, heading_number: str) -> str:
             if inside and level <= 2 and not number.startswith(f"{heading_number}."):
                 inside = False
         out.append("" if inside else line)
-    return "\n".join(out)
+    return _rejoin(out, text)
 
 
 # ---------------------------------------------------------------------------
@@ -136,19 +145,40 @@ class Document:
 
 _HEADING = re.compile(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.?(?:\s|$)", re.MULTILINE)
 
+# `## Part 3 — What I would do, in order`. `product-assessment.md` numbers its
+# top level this way, and `execution-plan.md` cites it as §3, which is what any
+# reader would do.
+_PART_HEADING = re.compile(r"^#{1,6}\s+Part\s+(\d+)\b", re.MULTILINE | re.IGNORECASE)
+
+# `| 7.1 | Every screen in Groups A and B renders ... |`
+#
+# Acceptance criteria in this repo live in table rows, not headings, and are
+# cited as §7.1 and as "criterion 7.5" interchangeably. Reading only headings
+# made the checker report `support-icon-coverage.md` §7.1 and
+# `accessibility.md` §6.4 as dead when both are real, findable rows — a false
+# positive on a live spec, which is the fastest way to get a docs gate turned
+# off.
+_TABLE_ROW = re.compile(r"^\|\s*(\d+(?:\.\d+)+)\s*\|", re.MULTILINE)
+
+# `6.4 — labelText on all 24 hintText-only fields`, as a list item. Restricted
+# to multi-level numbers so ordinary `1.` ordered lists do not match.
+_LIST_ITEM = re.compile(r"^\s*(?:[-*+]\s*)?(\d+\.\d+(?:\.\d+)*)[\s.)—–:]", re.MULTILINE)
+
 
 def _section_ids(text: str) -> set[str]:
-    """Numbered headings, e.g. `## 5. Pricing` -> "5", `### 3.3.1 X` -> "3.3.1".
+    """Every section number a reader could follow a `§N` to.
 
+    Headings, `Part N` headings, numbered table rows, and numbered list items.
     A parent is implied by any child: a document with `### 5.1` answers a
-    reference to §5 even when it has no bare `## 5` heading.
+    reference to §5 even with no bare `## 5` heading.
     """
     ids: set[str] = set()
-    for number in _HEADING.findall(text):
-        ids.add(number)
-        parts = number.split(".")
-        for i in range(1, len(parts)):
-            ids.add(".".join(parts[:i]))
+    for pattern in (_HEADING, _PART_HEADING, _TABLE_ROW, _LIST_ITEM):
+        for number in pattern.findall(text):
+            ids.add(number)
+            parts = number.split(".")
+            for i in range(1, len(parts)):
+                ids.add(".".join(parts[:i]))
     return ids
 
 
@@ -183,6 +213,15 @@ def basename_index(docs: dict[str, Document]) -> dict[str, list[str]]:
 # down the sentence usually belongs to a different subject — an optional run of
 # section numbers.
 _FILE_REF = re.compile(r"`([A-Za-z0-9._\-/]+\.md)`(?P<tail>[ ,(]{0,3}§{1,2}[^\n]{0,60})?")
+
+# `AppIconSize.md` is a Dart identifier meaning "medium", not a document. Every
+# real document in this repo is lowercase-hyphenated or all-caps, so CamelCase
+# stems are excluded rather than special-cased.
+_DOCUMENT_NAME = re.compile(r"^[a-z0-9._\-/]+$|^[A-Z][A-Z0-9_]*$")
+
+
+def looks_like_a_document(target: str) -> bool:
+    return bool(_DOCUMENT_NAME.match(target.removesuffix(".md")))
 
 _SECTION_RUN = re.compile(
     r"^[ ,(]{0,3}§{1,2}\s*"
@@ -247,6 +286,8 @@ def _parse_sections(tail: str) -> list[str]:
 def extract_references(doc: Document) -> list[Reference]:
     refs: list[Reference] = []
     for m in _FILE_REF.finditer(doc.text):
+        if not looks_like_a_document(m.group(1)):
+            continue
         line_no = doc.text.count("\n", 0, m.start()) + 1
         historical = bool(_HISTORICAL.search(_paragraph_around(doc.text, line_no)))
         sections = _parse_sections(m.group("tail") or "")
@@ -294,8 +335,57 @@ def specs_named_in(section: str) -> set[str]:
     return set(re.findall(r"`([A-Za-z0-9._\-]+\.md)`", _readme_section_text(section)))
 
 
-def resolve(target: str, index: dict[str, list[str]], docs: dict[str, Document]) -> list[str]:
-    """Candidate documents a reference could mean. Empty means unresolvable."""
+def resolve(
+    target: str,
+    index: dict[str, list[str]],
+    docs: dict[str, Document],
+    citing: str | None = None,
+) -> list[str]:
+    """Candidate documents a reference could mean, best first.
+
+    Empty means unresolvable *within the scanned corpus* — check
+    `exists_outside_corpus` before calling it a broken link, since documents
+    legitimately cite things like `infra/README.md`.
+
+    Ambiguity is real here: `facilitator-report.md` names both a design
+    document and a spec. Candidates are ordered by what a reader would most
+    likely reach for — same directory first, then `docs/specs/` — and the
+    section check accepts a hit in any of them, because guessing harder than
+    the reader can would invent failures.
+    """
     if target in docs:
         return [target]
-    return index.get(target.rsplit("/", 1)[-1], [])
+
+    path_qualified = "/" in target
+    if path_qualified:
+        matches = [rel for rel in docs if rel.endswith("/" + target) or rel == target]
+        if matches:
+            return sorted(matches)
+        return []
+
+    candidates = list(index.get(target, []))
+    if not candidates:
+        return []
+
+    citing_dir = citing.rsplit("/", 1)[0] if citing and "/" in citing else ""
+
+    def rank(rel: str) -> tuple[int, str]:
+        directory = rel.rsplit("/", 1)[0] if "/" in rel else ""
+        if citing_dir and directory == citing_dir:
+            return (0, rel)
+        if directory == "docs/specs":
+            return (1, rel)
+        return (2, rel)
+
+    return sorted(candidates, key=rank)
+
+
+def exists_outside_corpus(target: str) -> bool:
+    """A path-qualified reference to a real file this scan does not cover.
+
+    `infra/README.md` is a genuine document; it is simply not in `docs/`. The
+    file check should pass on it, and the section check has nothing to say.
+    """
+    if "/" not in target:
+        return False
+    return (REPO_ROOT / target).is_file()
