@@ -2,6 +2,6 @@
 pytest-django
 pytest-cov
 pytest-mock
-ruff==0.15.22
+ruff==0.16.2
 pytest-asyncio
 httpx
