@@ -23,19 +23,14 @@ services:
     plan: free
     rootDir: backend-django
     dockerfilePath: ./Dockerfile
-    # Overrides the Dockerfile CMD, which is `manage.py runserver` — the dev
-    # server, single-threaded, with an auto-reloader. Render uses the image CMD
-    # and ignores the Procfile, so without this the Procfile fix is inert.
-    #
-    # migrate runs on every boot, not as a separate release step: Render's
-    # preDeployCommand is not available on free instances. It is idempotent —
-    # with nothing to apply it costs a second or two — and if it fails the
-    # service does not start, which is right. A web process serving an
-    # un-migrated database is broken in a way that surfaces later and worse.
-    #
-    # No --workers: Render sets WEB_CONCURRENCY=1 for a free instance and
-    # gunicorn honours it. Two workers do not fit in 512 MB alongside Django.
-    dockerCommand: sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    # A script, not an inline command. The Dockerfile CMD is `manage.py
+    # runserver` and Render uses the image CMD while ignoring the Procfile, so
+    # this override is what actually decides how the service starts. It was
+    # inline until Render passed `sh -c "a && b"` through as a single command
+    # name and sh reported the whole string as "not found" — YAML, Render and
+    # sh are three chances to get quoting wrong, and a file has none.
+    # start.sh runs migrations then execs gunicorn; the reasoning is in it.
+    dockerCommand: sh ./start.sh
     healthCheckPath: /health/
     envVars:
       # Generate: python -c "import secrets; print(secrets.token_urlsafe(64))"
@@ -68,7 +63,7 @@ services:
     # The Dockerfile CMD hardcodes --port 8001 and --reload. Render assigns the
     # port at runtime, so the container would bind the wrong one and the reloader
     # has no place in a deployed service.
-    dockerCommand: sh -c "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    dockerCommand: sh ./start.sh
     healthCheckPath: /health
     envVars:
       # Must be byte-identical to the Django SECRET_KEY. Django signs the JWTs;
@@ -104,10 +99,6 @@ services:
 #   python manage.py shell -c "from personalization.tasks import \
 #     refresh_connection_scores; refresh_connection_scores()"
 #
-# Migrations, after the first deploy and after any schema change:
-#
-#   python manage.py migrate
-#
-# There is no `release:` command here deliberately — on a free plan a failed
-# release blocks the deploy, and for a two-person pilot running migrate by hand
-# once is cheaper than debugging that.
+# Migrations run automatically — backend-django/start.sh applies them on every
+# boot, because Render's preDeployCommand is paid-only. Nothing to do by hand.
+# The first boot applies ~100 of them and is noticeably slower than later ones.
