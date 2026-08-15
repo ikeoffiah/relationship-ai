@@ -74,6 +74,10 @@ services:
       # the sandbox sender cannot pair a couple.
       - key: DEFAULT_FROM_EMAIL
         sync: false
+      # Absolute base for the invite link. Without it the URL is built from the
+      # request Host, which is right locally and wrong behind a proxy.
+      - key: PUBLIC_BASE_URL
+        value: https://bliss-django.onrender.com
 
   - type: web
     name: bliss-fastapi

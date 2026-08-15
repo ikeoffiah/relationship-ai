@@ -3,6 +3,7 @@ import logging
 import hashlib
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from apps.relationships.tasks.invites import send_invite_email
@@ -66,7 +67,14 @@ class RelationshipInviteView(views.APIView):
             # unreachable, which must not lose the invite either — the row is
             # already committed, so the worst case is an unsent email against a
             # valid token rather than a 500 for the user.
-            invite_url = f"bliss://accept-invite?token={token}"
+            # https, not bliss://. Mail clients only linkify http(s), so a
+            # custom scheme arrived as unclickable plain text. This points at
+            # the landing page, which carries the button that opens the app.
+            base = getattr(settings, "PUBLIC_BASE_URL", "").rstrip("/")
+            invite_url = (
+                f"{base}/i/{token}" if base
+                else request.build_absolute_uri(f"/i/{token}")
+            )
             try:
                 send_invite_email.delay(invitee_email, invite_url)
             except Exception as e:
@@ -177,6 +185,37 @@ class RelationshipDetailView(views.APIView):
             RelationshipDissolutionJob.delay(str(relationship.id))
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class RelationshipInviteCancelView(views.APIView):
+    """DELETE /api/v1/relationships/invite — cancel my own pending invite.
+
+    This did not exist, and the app's "Cancel Invitation" button called
+    dissolveRelationship() instead. A pending invite has no relationship yet, so
+    the status endpoint returns no `id`, and the client's guard
+    (`if (_currentRelationship!['id'] == null) return false`) bailed before
+    making a request. The button did nothing at all, silently — no error, no
+    change, nothing to see.
+
+    No id in the path: a user has at most one pending invite of their own, and
+    taking an id here would mean handing the client an identifier it does not
+    otherwise need.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        cancelled = RelationshipInvite.objects.filter(
+            inviter=request.user,
+            status='pending',
+        ).update(status='expired')
+
+        if not cancelled:
+            return Response(
+                {"error": "You have no pending invite to cancel."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"cancelled": cancelled}, status=status.HTTP_200_OK)
+
 
 class RelationshipMeView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]

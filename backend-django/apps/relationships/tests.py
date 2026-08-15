@@ -20,7 +20,7 @@ def extract_invite_token(email_message):
     via RelationshipInvite.token_hash). The only place it appears is the
     invite email, so tests recover it the same way a real invitee would.
     """
-    match = re.search(r"accept-invite\?token=([\w\-]+)", email_message.body)
+    match = re.search(r"/i/([\w\-]+)", email_message.body)
     assert match, f"No invite token found in email body: {email_message.body!r}"
     return match.group(1)
 
@@ -81,7 +81,7 @@ class RelationshipPairingTests(APITestCase):
             'invitee_email': 'partner_b@example.com'
         })
         invite = RelationshipInvite.objects.first()
-        token = self.queued.call_args[0][1].split('token=')[1]
+        token = self.queued.call_args[0][1].rsplit('/i/', 1)[1]
 
         # Authenticate as Partner B
         self.client.force_authenticate(user=self.user_b)
@@ -103,7 +103,7 @@ class RelationshipPairingTests(APITestCase):
         self.client.post('/api/v1/relationships/invite', {
             'invitee_email': 'partner_b@example.com'
         })
-        token = self.queued.call_args[0][1].split('token=')[1]
+        token = self.queued.call_args[0][1].rsplit('/i/', 1)[1]
         self.client.force_authenticate(user=self.user_b)
         response = self.client.post(f'/api/v1/relationships/accept/{token}')
 
@@ -264,9 +264,9 @@ class InviteEmailTaskTests(TestCase):
     """
 
     def test_the_invite_link_is_in_the_body_and_the_hash_is_not(self):
-        send_invite_email("partner_b@example.com", "bliss://accept-invite?token=plaintext")
+        send_invite_email("partner_b@example.com", "https://example.test/i/plaintext")
 
         self.assertEqual(len(mail.outbox), 1)
         sent = mail.outbox[0]
         self.assertEqual(sent.to, ["partner_b@example.com"])
-        self.assertIn("bliss://accept-invite?token=plaintext", sent.body)
+        self.assertIn("https://example.test/i/plaintext", sent.body)

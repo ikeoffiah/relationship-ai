@@ -24,15 +24,46 @@ class _InvitePartnerScreenState extends State<InvitePartnerScreen> {
   Future<void> _handleInvite(RelationshipViewModel vm) async {
     if (_formKey.currentState!.validate()) {
       final success = await vm.sendInvite(_emailController.text);
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invite sent successfully!'),
-            backgroundColor: AppColors.calmTeal,
-          ),
-        );
-      }
+      if (!mounted) return;
+      _report(success, vm, sentText: 'Invite sent.');
     }
+  }
+
+  /// Resend to the address already on the pending invite. There is no text
+  /// field in this state, so the address comes from the relationship record —
+  /// and if it is somehow absent we do nothing rather than send to a guess.
+  Future<void> _handleResend(RelationshipViewModel vm) async {
+    final email = vm.currentRelationship?['invitee_email'] as String?;
+    if (email == null || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Couldn't find the address to resend to."),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    final success = await vm.sendInvite(email);
+    if (!mounted) return;
+    _report(success, vm, sentText: 'Invite sent again to $email.');
+  }
+
+  Future<void> _handleCancel(RelationshipViewModel vm) async {
+    final success = await vm.cancelInvite();
+    if (!mounted) return;
+    _report(success, vm, sentText: 'Invitation cancelled.');
+  }
+
+  /// Failures were previously silent here: sendInvite returns false and stores
+  /// the reason on the view model, and the screen showed a snackbar only on
+  /// success. So a rejected invite looked identical to no tap at all.
+  void _report(bool success, RelationshipViewModel vm, {required String sentText}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? sentText : (vm.errorMessage ?? 'Could not send the invite.')),
+        backgroundColor: success ? AppColors.calmTeal : AppColors.error,
+      ),
+    );
   }
 
   @override
@@ -47,8 +78,17 @@ class _InvitePartnerScreenState extends State<InvitePartnerScreen> {
         elevation: 0,
         foregroundColor: AppColors.softCharcoal,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
+      // Scrollable. The content is a fixed Column, so on a shorter phone — or
+      // any phone once the keyboard is up for the email field — the button ran
+      // off the bottom with no way to reach it. viewInsets keeps the field and
+      // the button clear of the keyboard rather than under it.
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -152,13 +192,31 @@ class _InvitePartnerScreenState extends State<InvitePartnerScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Invites expire in 72 hours. You can cancel this invite to send a new one.',
+            "Invites expire in 72 hours. If it hasn't arrived, send it again — "
+            "check their spam folder too.",
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.softCharcoal),
           ),
           const SizedBox(height: 24),
+          // Resending is the common case and cancelling is the rare one, so
+          // resend is the affordance. Before this the only route to a second
+          // invite was Cancel Invitation, which calls dissolveRelationship() —
+          // asking someone to tear down the relationship record because an
+          // email did not arrive.
+          //
+          // No new endpoint: the invite view already expires any pending invite
+          // from this user to this address before issuing a fresh token, so
+          // calling it again is the resend.
+          AnimatedButton(
+            label: vm.isActionLoading ? 'Sending...' : 'Resend invite',
+            onTap: vm.isActionLoading ? null : () => _handleResend(vm),
+            isFilled: true,
+            height: 52,
+            borderRadius: 14,
+          ),
+          const SizedBox(height: 4),
           TextButton(
-            onPressed: vm.isActionLoading ? null : () => vm.dissolveRelationship(),
+            onPressed: vm.isActionLoading ? null : () => _handleCancel(vm),
             child: const Text(
               'Cancel Invitation',
               style: TextStyle(color: AppColors.error),
