@@ -89,6 +89,26 @@ class RelationshipViewModel extends ChangeNotifier {
     }
   }
 
+  /// Cancel a pending invite. The dissolve path cannot do this — it guards on
+  /// a relationship id, and a pending invite has no relationship, so the button
+  /// returned false before making any request and looked like a dead tap.
+  Future<bool> cancelInvite() async {
+    _isActionLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _apiService.cancelInvite();
+      await fetchRelationshipStatus();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isActionLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> dissolveRelationship() async {
     if (_currentRelationship == null || _currentRelationship!['id'] == null) return false;
 

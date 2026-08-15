@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:mobile/core/analytics/analytics.dart';
 import 'package:mobile/core/analytics/analytics_event.dart';
 import 'package:mobile/core/theme/app_colors.dart';
-import 'package:mobile/core/theme/app_dimens.dart';
 import 'package:mobile/features/auth/viewmodels/auth_viewmodel.dart';
 import 'package:mobile/features/relationship/relationship_viewmodel.dart';
 
@@ -79,7 +78,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             bottom: false,
             child: Column(
               children: [
-                _buildAIDisclosureBanner(),
                 if (isPending) _buildPendingInviteBanner(pendingEmail),
               ],
             ),
@@ -97,32 +95,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           NavItem(icon: Icons.favorite_rounded, label: 'Us'),
           NavItem(icon: Icons.chat_bubble_rounded, label: 'Talk'),
           NavItem(icon: Icons.person_rounded, label: 'You'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAIDisclosureBanner() {
-    return Container(
-      width: double.infinity,
-      color: AppColors.noticeSurface,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xl,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, size: 16, color: AppColors.noticeInk),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              'You are talking to an AI, not a licensed therapist.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.softCharcoal,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
         ],
       ),
     );

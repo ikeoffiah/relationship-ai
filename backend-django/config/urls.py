@@ -19,6 +19,8 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import path, include
 
+from apps.relationships.invite_landing import invite_landing
+
 
 def health(_request):
     """Liveness only — deliberately does not touch the database.
@@ -33,6 +35,9 @@ def health(_request):
 
 urlpatterns = [
     path("health/", health, name="health"),
+    # Public: the https link an invite email carries, because mail
+    # clients do not linkify custom schemes.
+    path("i/<str:token>", invite_landing, name="invite-landing"),
     path("admin/", admin.site.urls),
     path("api/v1/auth/", include("apps.accounts.urls")),
     path("api/v1/users/", include("apps.consent.urls")),

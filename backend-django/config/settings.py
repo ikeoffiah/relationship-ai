@@ -402,6 +402,11 @@ EMAIL_BACKEND = env(
 # The API key. EMAIL_HOST_PASSWORD is read as a fallback because that is where
 # the same key already lives wherever the SMTP transport was configured.
 RESEND_API_KEY = env("RESEND_API_KEY", default="")
+
+# Absolute base for links that leave the system (currently the invite email).
+# Falls back to the request host, which is right in development and wrong
+# behind a proxy that rewrites Host, so set it in any deployed environment.
+PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", default="")
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.resend.com")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="resend")

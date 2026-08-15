@@ -15,6 +15,17 @@ class RelationshipApiService extends BaseApiService {
     }
   }
 
+  /// Cancel my own pending invite. Distinct from dissolving a relationship:
+  /// a pending invite has no relationship yet, which is why the old
+  /// dissolve-based cancel could never work.
+  Future<void> cancelInvite() async {
+    try {
+      await dio.delete('/api/v1/relationships/invite/cancel');
+    } catch (e) {
+      throw handleError(e);
+    }
+  }
+
   Future<Map<String, dynamic>> acceptInvite(String token) async {
     try {
       final response = await dio.post(
