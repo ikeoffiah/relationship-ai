@@ -1,5 +1,7 @@
 import 'dart:developer';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
+
 import 'package:dio/dio.dart';
 
 /// Handles exceptions from Dio HTTP requests.
@@ -59,7 +61,12 @@ class DioExceptions implements Exception {
         return errorData;
       } else if (response.statusCode == 500) {
         final Map<String, dynamic> errorData = <String, dynamic>{};
-        log(response.toString());
+        // Status only. `response.toString()` includes the body, and on this
+        // path the body can be a counselling turn. In release it reaches
+        // Sentry as a breadcrumb; there is nothing here worth that.
+        if (kDebugMode) {
+          log('HTTP 500 from ${response.requestOptions.uri.path}');
+        }
         errorData['userMsg'] = response.data['userMsg'] ?? 'Server error';
         errorData['status'] = 500;
 

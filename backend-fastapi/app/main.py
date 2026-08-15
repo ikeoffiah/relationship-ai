@@ -20,13 +20,42 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import structlog
 
 # Initialize Sentry
+#
+# `max_request_body_size` is the one that matters here: it defaults to "medium"
+# and attaches request bodies *independently of* send_default_pii, so leaving
+# the PII flag alone is not sufficient. Every counselling turn arrives in a
+# request body.
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[FastApiIntegration()],
         traces_sample_rate=1.0,
+        send_default_pii=False,
+        max_request_body_size="never",
+        include_local_variables=False,
     )
+
+
+def _assert_crisis_resources_configured() -> None:
+    """Fail loudly at startup rather than quietly at the worst moment.
+
+    `crisis_resources()` returns [] when CRISIS_RESOURCES is unset. The path to
+    it is ungated and tested as such — but an ungated path to an empty list is
+    the same outcome for a person in crisis as a gate. Nothing else in the
+    system notices, because an empty list is a valid response.
+    """
+    raw = os.environ.get("CRISIS_RESOURCES")
+    if raw and raw.strip() not in ("", "[]"):
+        return
+    message = (
+        "CRISIS_RESOURCES is unset or empty. Crisis escalations will surface no "
+        "help resources. Set it to a JSON array before serving real users."
+    )
+    if os.getenv("ALLOW_EMPTY_CRISIS_RESOURCES") == "1":
+        logging.getLogger(__name__).error(message)
+    else:
+        raise RuntimeError(message)
 
 # Configure Structured Logging
 structlog.configure(
@@ -45,6 +74,8 @@ structlog.configure(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _assert_crisis_resources_configured()
+
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     app.state.broker = JointSessionBroker(redis_url=redis_url)
 
