@@ -58,6 +58,20 @@ services:
         value: https://bliss-fastapi.onrender.com
       - key: INTERNAL_SERVICE_TOKEN
         sync: false          # must match the FastAPI service exactly
+      # Email — Resend over SMTP, not their REST API. The API key goes in
+      # EMAIL_HOST_PASSWORD and the username is the literal string "resend".
+      # These were missing from this file entirely, so Render never prompted
+      # for them and invites would have failed SMTP auth on the deployed
+      # service after the queue finally delivered them.
+      - key: EMAIL_HOST_PASSWORD
+        sync: false          # the re_… key from resend.com/api-keys
+      # DEFAULT_FROM_EMAIL must be on a domain verified at resend.com/domains.
+      # onboarding@resend.dev is Resend's shared sandbox sender and can ONLY
+      # deliver to the Resend account owner's own address — every other
+      # recipient is refused with a 550. Partner invites go to the partner, so
+      # the sandbox sender cannot pair a couple.
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
 
   - type: web
     name: bliss-fastapi
