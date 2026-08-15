@@ -5,10 +5,15 @@
 #
 #   1. Free instances sleep after ~15 minutes idle and cold-start in ~50s. The
 #      first message of a session waits. Tell the couple.
-#   2. No Celery worker or beat — background workers are not on Render's free
-#      tier. What that costs: the connection score stops refreshing nightly,
-#      user-set reminders never fire, weekly insights are never synthesised.
-#      Run those by hand (see below) or move to a paid worker.
+#   2. No *separate* Celery service — background workers are paid-only. The web
+#      container starts a worker alongside gunicorn instead (see
+#      backend-django/start.sh); it shares 512 MB and dies with the web
+#      process, which is wrong for production and correct for a pilot.
+#      Without it, partner invites are queued and never sent while the API
+#      reports success — the pilot silently cannot pair.
+#      Still missing: celery *beat*. So nothing scheduled runs — the connection
+#      score does not refresh nightly, user-set reminders never fire, weekly
+#      insights are never synthesised. Run those by hand (see below).
 #   3. 512 MB per instance. Django fits comfortably. The FastAPI service
 #      carries LangGraph and embedding libraries and may not — if it OOMs on
 #      boot, that is the one service to put on a paid plan, not both.
@@ -53,6 +58,20 @@ services:
         value: https://bliss-fastapi.onrender.com
       - key: INTERNAL_SERVICE_TOKEN
         sync: false          # must match the FastAPI service exactly
+      # Email — Resend over SMTP, not their REST API. The API key goes in
+      # EMAIL_HOST_PASSWORD and the username is the literal string "resend".
+      # These were missing from this file entirely, so Render never prompted
+      # for them and invites would have failed SMTP auth on the deployed
+      # service after the queue finally delivered them.
+      - key: EMAIL_HOST_PASSWORD
+        sync: false          # the re_… key from resend.com/api-keys
+      # DEFAULT_FROM_EMAIL must be on a domain verified at resend.com/domains.
+      # onboarding@resend.dev is Resend's shared sandbox sender and can ONLY
+      # deliver to the Resend account owner's own address — every other
+      # recipient is refused with a 550. Partner invites go to the partner, so
+      # the sandbox sender cannot pair a couple.
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
 
   - type: web
     name: bliss-fastapi
