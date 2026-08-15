@@ -58,13 +58,15 @@ services:
         value: https://bliss-fastapi.onrender.com
       - key: INTERNAL_SERVICE_TOKEN
         sync: false          # must match the FastAPI service exactly
-      # Email — Resend over SMTP, not their REST API. The API key goes in
-      # EMAIL_HOST_PASSWORD and the username is the literal string "resend".
-      # These were missing from this file entirely, so Render never prompted
-      # for them and invites would have failed SMTP auth on the deployed
-      # service after the queue finally delivered them.
-      - key: EMAIL_HOST_PASSWORD
+      # Email — Resend's HTTP API, not SMTP: Render free instances block outbound
+      # 25/465/587 (Sept 2025, anti-spam) and port 25 stays blocked on paid
+      # instances too. The SMTP backend hangs to EMAIL_TIMEOUT against a
+      # blocked port and surfaces as TimeoutError inside a Celery retry, which
+      # looks like a slow mail server rather than a closed port.
+      - key: RESEND_API_KEY
         sync: false          # the re_… key from resend.com/api-keys
+      - key: EMAIL_HOST_PASSWORD
+        sync: false          # same key; read as a fallback by the backend
       # DEFAULT_FROM_EMAIL must be on a domain verified at resend.com/domains.
       # onboarding@resend.dev is Resend's shared sandbox sender and can ONLY
       # deliver to the Resend account owner's own address — every other

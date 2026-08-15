@@ -386,7 +386,22 @@ CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+# HTTP, not SMTP, by default. Render's free instances block outbound traffic to
+# ports 25/465/587 (September 2025, anti-spam), and port 25 stays blocked even
+# on paid instances. The SMTP backend does not fail fast against a blocked port
+# — it hangs to EMAIL_TIMEOUT and surfaces as `TimeoutError: timed out` inside
+# a Celery retry, which reads as a slow mail server rather than a closed port.
+#
+# Override with EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend on a
+# host that permits SMTP, or with the console backend for local work.
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default="utils.email_backends.ResendHTTPBackend",
+)
+# The API key. EMAIL_HOST_PASSWORD is read as a fallback because that is where
+# the same key already lives wherever the SMTP transport was configured.
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.resend.com")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="resend")

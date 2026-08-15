@@ -19,14 +19,26 @@ abstract class BaseApiService {
   ///
   /// [receiveTimeout] may be set to null for streaming endpoints (SSE), where
   /// a fixed receive timeout would abort a healthy long-lived response.
+  ///
+  /// Timeouts are 60s, not 10s. A scale-to-zero host — Render's free tier, and
+  /// most of its competitors — takes roughly 50 seconds to wake, so the first
+  /// request after any idle period is slow *and healthy*. At 10s the client
+  /// gave up before the server had finished starting and showed the user a Dio
+  /// exception on the age-verification screen, which reads as a broken app
+  /// rather than a sleeping one.
+  ///
+  /// 60s is chosen to sit above the observed cold start with margin. It is a
+  /// deployment property rather than a network one: on an always-on host these
+  /// requests return in well under a second, and the ceiling costs nothing
+  /// because it only applies when something is already wrong.
   BaseApiService({
     Dio? injectedDio,
     String? baseUrl,
-    Duration? receiveTimeout = const Duration(seconds: 10),
+    Duration? receiveTimeout = const Duration(seconds: 60),
   }) {
     final baseOptions = BaseOptions(
       baseUrl: baseUrl ?? CertConfig.djangoBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 60),
       receiveTimeout: receiveTimeout,
       headers: {
         'Content-Type': 'application/json',
