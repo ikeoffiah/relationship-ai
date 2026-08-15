@@ -16,9 +16,23 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import path, include
 
+
+def health(_request):
+    """Liveness only — deliberately does not touch the database.
+
+    A health check that fails when Postgres blips gets the whole service
+    restarted by the platform, which fixes nothing and drops every in-flight
+    request. This answers "is the process up and serving", which is the only
+    question a restart can act on.
+    """
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
+    path("health/", health, name="health"),
     path("admin/", admin.site.urls),
     path("api/v1/auth/", include("apps.accounts.urls")),
     path("api/v1/users/", include("apps.consent.urls")),

@@ -23,6 +23,12 @@ services:
     plan: free
     rootDir: backend-django
     dockerfilePath: ./Dockerfile
+    # Overrides the Dockerfile CMD, which is `manage.py runserver` — the dev
+    # server, single-threaded, with an auto-reloader. Render uses the image CMD
+    # and ignores the Procfile, so without this the Procfile fix is inert.
+    # No --workers: Render sets WEB_CONCURRENCY=1 for a free instance and
+    # gunicorn honours it. Two workers do not fit in 512 MB alongside Django.
+    dockerCommand: sh -c "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
     healthCheckPath: /health/
     envVars:
       # Generate: python -c "import secrets; print(secrets.token_urlsafe(64))"
@@ -52,6 +58,10 @@ services:
     plan: free
     rootDir: backend-fastapi
     dockerfilePath: ./Dockerfile
+    # The Dockerfile CMD hardcodes --port 8001 and --reload. Render assigns the
+    # port at runtime, so the container would bind the wrong one and the reloader
+    # has no place in a deployed service.
+    dockerCommand: sh -c "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     envVars:
       # Must be byte-identical to the Django SECRET_KEY. Django signs the JWTs;
