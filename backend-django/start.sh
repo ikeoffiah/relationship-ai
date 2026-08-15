@@ -29,12 +29,23 @@ python manage.py migrate --noinput
 # Flags trim the footprint: one process, and none of the peer-discovery
 # chatter that matters only with multiple workers.
 if [ "${RUN_EMBEDDED_WORKER:-1}" = "1" ]; then
-  celery -A config worker \
-    --loglevel=info \
-    --concurrency=1 \
-    --without-gossip --without-mingle --without-heartbeat \
-    -Q celery,memory_updates,insight_synthesis,notifications,exports &
-  echo "started embedded celery worker (pid $!) — pilot only"
+  # Supervised, because the first version was not. A bad rediss:// SSL config
+  # killed the worker three seconds after boot and it stayed dead for the whole
+  # deploy — gunicorn kept serving, health checks kept passing, and invites
+  # queued silently. A crash here must be loud and recoverable, not terminal.
+  (
+    while true; do
+      celery -A config worker \
+        --loglevel=info \
+        --concurrency=1 \
+        --without-gossip --without-mingle --without-heartbeat \
+        -Q celery,memory_updates,insight_synthesis,notifications,exports
+      echo "EMBEDDED CELERY WORKER EXITED (status $?) — restarting in 15s." >&2
+      echo "  Invites are queued but NOT being delivered until it comes back." >&2
+      sleep 15
+    done
+  ) &
+  echo "started embedded celery worker supervisor (pid $!) — pilot only"
 fi
 
 # exec so gunicorn becomes PID 1 and receives SIGTERM directly. Without it the
