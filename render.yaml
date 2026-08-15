@@ -26,9 +26,16 @@ services:
     # Overrides the Dockerfile CMD, which is `manage.py runserver` — the dev
     # server, single-threaded, with an auto-reloader. Render uses the image CMD
     # and ignores the Procfile, so without this the Procfile fix is inert.
+    #
+    # migrate runs on every boot, not as a separate release step: Render's
+    # preDeployCommand is not available on free instances. It is idempotent —
+    # with nothing to apply it costs a second or two — and if it fails the
+    # service does not start, which is right. A web process serving an
+    # un-migrated database is broken in a way that surfaces later and worse.
+    #
     # No --workers: Render sets WEB_CONCURRENCY=1 for a free instance and
     # gunicorn honours it. Two workers do not fit in 512 MB alongside Django.
-    dockerCommand: sh -c "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    dockerCommand: sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
     healthCheckPath: /health/
     envVars:
       # Generate: python -c "import secrets; print(secrets.token_urlsafe(64))"
