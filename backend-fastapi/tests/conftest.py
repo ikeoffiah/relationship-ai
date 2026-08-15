@@ -13,6 +13,14 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 # Participant membership is verified against the database; unit tests drive the
 # socket without one, so opt out explicitly rather than relying on the DB URL.
 os.environ.setdefault("WS_SKIP_PARTICIPANT_CHECK", "1")
+# The app refuses to boot without this, deliberately — an ungated path to an
+# empty crisis-resource list is the same outcome for a user as a gate. Tests
+# supply a value so the lifespan runs; `test_crisis_resources_*` covers the
+# refusal itself.
+os.environ.setdefault(
+    "CRISIS_RESOURCES",
+    '[{"name":"Test Line","phone":"000","region":"TEST"}]',
+)
 
 from datetime import datetime, timedelta, timezone  # noqa: E402
 

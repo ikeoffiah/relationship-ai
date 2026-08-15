@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon, Android 8+. The launcher masks this to whatever shape the
+  device uses (circle, squircle, teardrop), so the mark lives in the inner
+  safe zone of the foreground layer and the background carries the colour.
+  Without this file Android 8+ shrinks the legacy square icon and drops it on
+  a white plate, which looks like a mistake next to other apps.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>

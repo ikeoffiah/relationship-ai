@@ -81,6 +81,11 @@ Future<void> main() async {
       options.tracesSampleRate = 1.0;
       // ignore: experimental_member_use
       options.profilesSampleRate = 1.0;
+      // This app carries counselling conversations. sendDefaultPii attaches
+      // user identifiers and IP; print breadcrumbs sweep up whatever any
+      // widget happened to log, which is not a list anyone audits. Both off.
+      options.sendDefaultPii = false;
+      options.enablePrintBreadcrumbs = false;
     },
     appRunner: () => runApp(
       provider.MultiProvider(

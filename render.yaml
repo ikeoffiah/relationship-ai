@@ -1,0 +1,96 @@
+# Render blueprint — the 0-to-2-couples pilot stack.
+#
+# Deliberately not the production topology. Three things are traded away and
+# each is a real cost, named here so nobody discovers them during a test:
+#
+#   1. Free instances sleep after ~15 minutes idle and cold-start in ~50s. The
+#      first message of a session waits. Tell the couple.
+#   2. No Celery worker or beat — background workers are not on Render's free
+#      tier. What that costs: the connection score stops refreshing nightly,
+#      user-set reminders never fire, weekly insights are never synthesised.
+#      Run those by hand (see below) or move to a paid worker.
+#   3. 512 MB per instance. Django fits comfortably. The FastAPI service
+#      carries LangGraph and embedding libraries and may not — if it OOMs on
+#      boot, that is the one service to put on a paid plan, not both.
+#
+# Postgres and Redis are NOT defined here on purpose. Use Supabase (you need
+# pgvector, which Render's Postgres does not have) and Upstash.
+
+services:
+  - type: web
+    name: bliss-django
+    runtime: docker
+    plan: free
+    rootDir: backend-django
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health/
+    envVars:
+      # Generate: python -c "import secrets; print(secrets.token_urlsafe(64))"
+      # No default exists any more — the service will refuse to boot without it.
+      - key: SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "false"
+      - key: ALLOWED_HOSTS
+        value: bliss-django.onrender.com
+      - key: DATABASE_URL
+        sync: false          # Supabase → Settings → Database → Connection string
+      - key: REDIS_URL
+        sync: false          # Upstash → rediss:// URL
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false          # optional; safe to leave unset for a pilot
+      - key: FASTAPI_INTERNAL_URL
+        value: https://bliss-fastapi.onrender.com
+      - key: INTERNAL_SERVICE_TOKEN
+        sync: false          # must match the FastAPI service exactly
+
+  - type: web
+    name: bliss-fastapi
+    runtime: docker
+    plan: free
+    rootDir: backend-fastapi
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      # Must be byte-identical to the Django SECRET_KEY. Django signs the JWTs;
+      # this service verifies them. A mismatch surfaces as a bare 403 that reads
+      # like a permissions bug — both services log a key fingerprint at startup
+      # precisely so you can compare them.
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: INTERNAL_SERVICE_TOKEN
+        sync: false
+      # JSON array. The service now REFUSES TO BOOT without this, because an
+      # ungated path to an empty list is the same outcome for someone in crisis
+      # as a paywall. Example:
+      #   [{"name":"Samaritans","phone":"116 123","region":"UK"},
+      #    {"name":"988 Suicide & Crisis Lifeline","phone":"988","region":"US"}]
+      # Use numbers that are correct for where your test couple actually lives.
+      - key: CRISIS_RESOURCES
+        sync: false
+
+# ── Running the jobs Celery would have run ────────────────────────────────────
+#
+# From the Django service's Render shell, whenever you want the connection
+# score to move:
+#
+#   python manage.py shell -c "from personalization.tasks import \
+#     refresh_connection_scores; refresh_connection_scores()"
+#
+# Migrations, after the first deploy and after any schema change:
+#
+#   python manage.py migrate
+#
+# There is no `release:` command here deliberately — on a free plan a failed
+# release blocks the deploy, and for a two-person pilot running migrate by hand
+# once is cheaper than debugging that.

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The warm cream the app itself sits on (between AppColors.creamWhite and
+      the icon gradient's lower stop). Solid rather than a gradient because the
+      launcher applies parallax and masking to this layer, and a gradient
+      shifts visibly as the user scrolls the home screen.
+    -->
+    <color name="ic_launcher_background">#FFF6ED</color>
+</resources>

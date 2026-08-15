@@ -30,19 +30,33 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env.local"))
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env(
-    "SECRET_KEY",
-    default="django-insecure-d3140*5i&*(6@@msu4m0bwmhhkq5%#e7oth&3x2iuu2v36@z#%",
-)
+# No default. This key signs JWTs, so a default is not a convenience — it is a
+# published signing key that every deployment silently shares until someone
+# remembers to override it. `auth.py` in backend-fastapi already fails closed
+# this way; this now matches it. Generate with:
+#   python -c "import secrets; print(secrets.token_urlsafe(64))"
+SECRET_KEY = env("SECRET_KEY")
 
 # Sentry Configuration
+#
+# This product carries counselling conversations. Three settings decide whether
+# those reach Sentry, and the defaults are wrong for us in all three cases:
+#
+#   send_default_pii        — attaches user email and IP.
+#   max_request_body_size   — defaults to "medium", which attaches request
+#                             bodies *independently of send_default_pii*. This
+#                             is the one that leaks message text.
+#   include_local_variables — puts frame locals in the event, and memory
+#                             extraction holds decrypted text in locals.
 SENTRY_DSN = env("SENTRY_DSN", default=None)
 if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(), CeleryIntegration()],
         traces_sample_rate=1.0,
-        send_default_pii=True,
+        send_default_pii=False,
+        max_request_body_size="never",
+        include_local_variables=False,
     )
 
 # SECURITY WARNING: don't run with debug turned on in production!
