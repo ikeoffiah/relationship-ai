@@ -1,0 +1,1077 @@
+{
+  "_meta": {
+    "purpose": "Reference dataset for the CRISIS_RESOURCES environment variable.",
+    "source": "Wikipedia, List of suicide crisis lines (retrieved 2026-08-04).",
+    "verification_status": "UNVERIFIED BY US. Aggregated from one public source and not independently confirmed against each provider.",
+    "before_you_ship": [
+      "Verify the specific entries you deploy by calling them or checking the provider's own site.",
+      "crisis_resources() returns a FLAT list. Do not paste this whole file into CRISIS_RESOURCES — a person in crisis should not be handed 170 countries to scan.",
+      "Set CRISIS_RESOURCES to the two or three lines relevant to where your users actually are, and keep the universal entry."
+    ],
+    "why_a_universal_entry_matters": "findahelpline.com geolocates the visitor and is actively maintained, so it stays correct as numbers change and covers countries missing here. It is the safest single fallback.",
+    "countries": 175
+  },
+  "universal": [
+    {
+      "name": "Find A Helpline",
+      "url": "https://findahelpline.com",
+      "note": "Geolocating directory of verified helplines, maintained by ThroughLine. Works in every country."
+    },
+    {
+      "name": "International Association for Suicide Prevention",
+      "url": "https://www.iasp.info/crisis-centres-helplines/"
+    }
+  ],
+  "by_country": {
+    "Albania": [
+      {
+        "name": "Linja e Jetes",
+        "phone": "0800 12345"
+      }
+    ],
+    "Algeria": [
+      {
+        "name": "Helpline",
+        "phone": "0560 00 13 38"
+      }
+    ],
+    "Andorra": [
+      {
+        "name": "Linia Verda",
+        "phone": "177"
+      }
+    ],
+    "Antigua and Barbuda": [
+      {
+        "name": "Support and Referral Centre",
+        "phone": "(268) 463-5555"
+      }
+    ],
+    "Argentina": [
+      {
+        "name": "Orientacion y Apoyo",
+        "phone": "0800 999 0091"
+      }
+    ],
+    "Armenia": [
+      {
+        "name": "Armenia Helpline",
+        "phone": "0800 00 900"
+      }
+    ],
+    "Aruba": [
+      {
+        "name": "Crisis Counseling",
+        "phone": "131"
+      }
+    ],
+    "Australia": [
+      {
+        "name": "Lifeline Australia",
+        "phone": "13 11 14"
+      }
+    ],
+    "Austria": [
+      {
+        "name": "Telefonseelsorge",
+        "phone": "142"
+      }
+    ],
+    "Bahamas": [
+      {
+        "name": "Crisis Centre",
+        "phone": "(242) 328-0922"
+      }
+    ],
+    "Bahrain": [
+      {
+        "name": "Shamsaha Crisis Services",
+        "phone": "3844 7588"
+      }
+    ],
+    "Bangladesh": [
+      {
+        "name": "Kaan Pete Roi",
+        "phone": "09638 881 888"
+      }
+    ],
+    "Barbados": [
+      {
+        "name": "Lifeline Barbados",
+        "phone": "(246) 536-4500"
+      }
+    ],
+    "Belarus": [
+      {
+        "name": "Belarus Helpline",
+        "phone": "8 017 311-00-99"
+      }
+    ],
+    "Belgium": [
+      {
+        "name": "Zelfmoordlijn / Centre de Prevention",
+        "phone": "107"
+      }
+    ],
+    "Benin": [
+      {
+        "name": "Helpline",
+        "phone": "7344"
+      }
+    ],
+    "Bermuda": [
+      {
+        "name": "Mid-Atlantic Wellness Institute",
+        "phone": "(441) 239-1111"
+      }
+    ],
+    "Bhutan": [
+      {
+        "name": "PEMA Secretariat Helpline",
+        "phone": "1010"
+      }
+    ],
+    "Bolivia": [
+      {
+        "name": "Familia Segura",
+        "phone": "800 11 3040"
+      }
+    ],
+    "Bosnia and Herzegovina": [
+      {
+        "name": "Helpline",
+        "phone": "080 05 03 05"
+      }
+    ],
+    "Botswana": [
+      {
+        "name": "Lifeline Botswana",
+        "phone": "75 527 590"
+      }
+    ],
+    "Brazil": [
+      {
+        "name": "CVV",
+        "phone": "188"
+      }
+    ],
+    "Brunei": [
+      {
+        "name": "Talian Harapan",
+        "phone": "145"
+      }
+    ],
+    "Bulgaria": [
+      {
+        "name": "Helpline",
+        "phone": "0 8001 1466"
+      }
+    ],
+    "Burundi": [
+      {
+        "name": "Helpline",
+        "phone": "69 77 63 67"
+      }
+    ],
+    "Cambodia": [
+      {
+        "name": "TPO Cambodia",
+        "phone": "017 222 372"
+      }
+    ],
+    "Cameroon": [
+      {
+        "name": "Crisis Hotline",
+        "phone": "242 136 136"
+      }
+    ],
+    "Canada": [
+      {
+        "name": "9-8-8 Suicide Crisis Helpline",
+        "phone": "988"
+      }
+    ],
+    "Cayman Islands": [
+      {
+        "name": "CayMind",
+        "phone": "1-800-534-6463"
+      }
+    ],
+    "Chile": [
+      {
+        "name": "Linea de Prevencion",
+        "phone": "*4141"
+      }
+    ],
+    "China": [
+      {
+        "name": "Youth Triage Network",
+        "phone": "12355"
+      }
+    ],
+    "Colombia": [
+      {
+        "name": "Linea 106",
+        "phone": "106"
+      }
+    ],
+    "Costa Rica": [
+      {
+        "name": "Linea Aqui Estoy",
+        "phone": "800 273 7869"
+      }
+    ],
+    "Croatia": [
+      {
+        "name": "Helpline",
+        "phone": "0800 655 222"
+      }
+    ],
+    "Cuba": [
+      {
+        "name": "Linea Confidencial",
+        "phone": "103"
+      }
+    ],
+    "Curacao": [
+      {
+        "name": "Ayudo pa Mucha i Hoben",
+        "phone": "918"
+      }
+    ],
+    "Cyprus": [
+      {
+        "name": "Helpline",
+        "phone": "8000 7773"
+      }
+    ],
+    "Czech Republic": [
+      {
+        "name": "Helpline",
+        "phone": "116 123"
+      }
+    ],
+    "Denmark": [
+      {
+        "name": "Livslinien",
+        "phone": "70 201 201"
+      }
+    ],
+    "Dominica": [
+      {
+        "name": "Lifeline Dominica",
+        "phone": "767-317-3030"
+      }
+    ],
+    "Dominican Republic": [
+      {
+        "name": "Centro de Contacto",
+        "phone": "809-200-1400"
+      }
+    ],
+    "Ecuador": [
+      {
+        "name": "Linea 171 MSP",
+        "phone": "171"
+      }
+    ],
+    "Egypt": [
+      {
+        "name": "Mental Health Services",
+        "phone": "16328"
+      }
+    ],
+    "El Salvador": [
+      {
+        "name": "126 Te Orienta",
+        "phone": "126"
+      }
+    ],
+    "Estonia": [
+      {
+        "name": "Emotional Support Hotline",
+        "phone": "116 123"
+      }
+    ],
+    "Eswatini": [
+      {
+        "name": "Crisis Line",
+        "phone": "2404 3160"
+      }
+    ],
+    "Ethiopia": [
+      {
+        "name": "Mental Health Hotline",
+        "phone": "8335"
+      }
+    ],
+    "Fiji": [
+      {
+        "name": "Fiji Helpline",
+        "phone": "1543"
+      }
+    ],
+    "Finland": [
+      {
+        "name": "MIELI Crisis Helpline",
+        "phone": "09 2525 0111"
+      }
+    ],
+    "France": [
+      {
+        "name": "Numero national de prevention du suicide",
+        "phone": "3114"
+      }
+    ],
+    "Georgia": [
+      {
+        "name": "Psychological Aid Hotline",
+        "phone": "116 123"
+      }
+    ],
+    "Germany": [
+      {
+        "name": "Telefonseelsorge",
+        "phone": "116 123"
+      }
+    ],
+    "Ghana": [
+      {
+        "name": "Mental Health Authority",
+        "phone": "024 447 1279"
+      }
+    ],
+    "Gibraltar": [
+      {
+        "name": "Helpline",
+        "phone": "116 123"
+      }
+    ],
+    "Greece": [
+      {
+        "name": "Helpline",
+        "phone": "1018"
+      }
+    ],
+    "Greenland": [
+      {
+        "name": "Tusaannga",
+        "phone": "801180"
+      }
+    ],
+    "Grenada": [
+      {
+        "name": "National Helpline",
+        "phone": "(473) 440-6849"
+      }
+    ],
+    "Guatemala": [
+      {
+        "name": "Mental Health Authority",
+        "phone": "1503"
+      }
+    ],
+    "Guyana": [
+      {
+        "name": "Suicide Prevention Helpline",
+        "phone": "915"
+      }
+    ],
+    "Haiti": [
+      {
+        "name": "Line 116 Mental Health",
+        "phone": "116"
+      }
+    ],
+    "Honduras": [
+      {
+        "name": "Telefono de la Esperanza",
+        "phone": "150"
+      }
+    ],
+    "Hong Kong": [
+      {
+        "name": "The Samaritans Hong Kong",
+        "phone": "2389 2222"
+      }
+    ],
+    "Hungary": [
+      {
+        "name": "Helpline",
+        "phone": "116 123"
+      }
+    ],
+    "Iceland": [
+      {
+        "name": "Helpline",
+        "phone": "1717"
+      }
+    ],
+    "India": [
+      {
+        "name": "Tele-MANAS",
+        "phone": "14416"
+      }
+    ],
+    "Indonesia": [
+      {
+        "name": "SEJIWA",
+        "phone": "119"
+      }
+    ],
+    "Iran": [
+      {
+        "name": "Voice of Counselor Network",
+        "phone": "1480"
+      }
+    ],
+    "Ireland": [
+      {
+        "name": "Samaritans Ireland",
+        "phone": "116 123"
+      }
+    ],
+    "Isle of Man": [
+      {
+        "name": "Helpline",
+        "phone": "0808 802 1221"
+      }
+    ],
+    "Israel": [
+      {
+        "name": "ERAN Emotional First Aid",
+        "phone": "1201"
+      }
+    ],
+    "Italy": [
+      {
+        "name": "Telefono Amico",
+        "phone": "02 99777"
+      }
+    ],
+    "Ivory Coast": [
+      {
+        "name": "Helpline",
+        "phone": "143"
+      }
+    ],
+    "Jamaica": [
+      {
+        "name": "Mental Health Helpline",
+        "phone": "(888) 639-5433"
+      }
+    ],
+    "Japan": [
+      {
+        "name": "Inochi SOS",
+        "phone": "0120 061 338"
+      }
+    ],
+    "Jordan": [
+      {
+        "name": "Jordan Helpline",
+        "phone": "079 544 0416"
+      }
+    ],
+    "Kazakhstan": [
+      {
+        "name": "National Trust Helpline",
+        "phone": "150"
+      }
+    ],
+    "Kenya": [
+      {
+        "name": "Befrienders Kenya",
+        "phone": "0722 178 177"
+      }
+    ],
+    "Kiribati": [
+      {
+        "name": "Kiribati Helpline",
+        "phone": "189"
+      }
+    ],
+    "Kosovo": [
+      {
+        "name": "Linja e Jetes",
+        "phone": "0800 12345"
+      }
+    ],
+    "Kuwait": [
+      {
+        "name": "Kuwait Helpline",
+        "phone": "147"
+      }
+    ],
+    "Kyrgyzstan": [
+      {
+        "name": "Kyrgyzstan Helpline",
+        "phone": "111"
+      }
+    ],
+    "Laos": [
+      {
+        "name": "Lao PDR Helpline",
+        "phone": "1362"
+      }
+    ],
+    "Latvia": [
+      {
+        "name": "Helpline",
+        "phone": "116 123"
+      }
+    ],
+    "Lebanon": [
+      {
+        "name": "Embrace Lifeline",
+        "phone": "1564"
+      }
+    ],
+    "Liberia": [
+      {
+        "name": "Crisis Support",
+        "phone": "6534308"
+      }
+    ],
+    "Liechtenstein": [
+      {
+        "name": "Crisis Line",
+        "phone": "147"
+      }
+    ],
+    "Lithuania": [
+      {
+        "name": "Helpline",
+        "phone": "116 123"
+      }
+    ],
+    "Luxembourg": [
+      {
+        "name": "SOS Detresse",
+        "phone": "45-45-45"
+      }
+    ],
+    "Macau": [
+      {
+        "name": "Life Hope Hotline",
+        "phone": "2852 5222"
+      }
+    ],
+    "Malawi": [
+      {
+        "name": "ANPPCAN Lifeline",
+        "phone": "0999 399 765"
+      }
+    ],
+    "Malaysia": [
+      {
+        "name": "Talian HEAL",
+        "phone": "15555"
+      }
+    ],
+    "Maldives": [
+      {
+        "name": "Maldives Helpline",
+        "phone": "1677"
+      }
+    ],
+    "Mali": [
+      {
+        "name": "Helpline",
+        "phone": "8000 1115"
+      }
+    ],
+    "Malta": [
+      {
+        "name": "Helpline",
+        "phone": "179"
+      }
+    ],
+    "Mauritius": [
+      {
+        "name": "Helpline",
+        "phone": "800 93 93"
+      }
+    ],
+    "Mexico": [
+      {
+        "name": "SAPTEL",
+        "phone": "55-5259-8121"
+      }
+    ],
+    "Moldova": [
+      {
+        "name": "Helpline",
+        "phone": "022 593 593"
+      }
+    ],
+    "Monaco": [
+      {
+        "name": "Crisis Line",
+        "phone": "0800 91 90 10"
+      }
+    ],
+    "Mongolia": [
+      {
+        "name": "National Center for Mental Health",
+        "phone": "1800-2000"
+      }
+    ],
+    "Montenegro": [
+      {
+        "name": "Helpline",
+        "phone": "116 111"
+      }
+    ],
+    "Morocco": [
+      {
+        "name": "Mental Health Helpline",
+        "phone": "0522 25 25 25"
+      }
+    ],
+    "Myanmar": [
+      {
+        "name": "Myanmar Red Cross",
+        "phone": "09 765 400 200"
+      }
+    ],
+    "Namibia": [
+      {
+        "name": "LifeLine/ChildLine",
+        "phone": "116"
+      }
+    ],
+    "Nauru": [
+      {
+        "name": "Nauru Helpline",
+        "phone": "249"
+      }
+    ],
+    "Nepal": [
+      {
+        "name": "National Helpline",
+        "phone": "1166"
+      }
+    ],
+    "Netherlands": [
+      {
+        "name": "113 Zelfmoordpreventie",
+        "phone": "113"
+      }
+    ],
+    "New Caledonia": [
+      {
+        "name": "SOS Ecoute",
+        "phone": "05 30 30"
+      }
+    ],
+    "New Zealand": [
+      {
+        "name": "1737 Need to Talk",
+        "phone": "1737"
+      }
+    ],
+    "Nicaragua": [
+      {
+        "name": "Crisis Support",
+        "phone": "2222 4830"
+      }
+    ],
+    "Nigeria": [
+      {
+        "name": "SURPIN",
+        "phone": "0800 078 7746"
+      }
+    ],
+    "North Macedonia": [
+      {
+        "name": "Helpline",
+        "phone": "070 390 632"
+      }
+    ],
+    "Norway": [
+      {
+        "name": "Mental Helse",
+        "phone": "116 123"
+      }
+    ],
+    "Oman": [
+      {
+        "name": "Oman Helpline",
+        "phone": "800-77788"
+      }
+    ],
+    "Pakistan": [
+      {
+        "name": "Umang Pakistan",
+        "phone": "0304 111 1741"
+      }
+    ],
+    "Palestine": [
+      {
+        "name": "Sawa Organization",
+        "phone": "164"
+      }
+    ],
+    "Panama": [
+      {
+        "name": "Linea 147",
+        "phone": "147"
+      }
+    ],
+    "Papua New Guinea": [
+      {
+        "name": "PNG Helpline",
+        "phone": "7147 1518"
+      }
+    ],
+    "Paraguay": [
+      {
+        "name": "Linea 155 Te Escucha",
+        "phone": "155"
+      }
+    ],
+    "Peru": [
+      {
+        "name": "Linea 113 Salud",
+        "phone": "113"
+      }
+    ],
+    "Philippines": [
+      {
+        "name": "National Center for Mental Health",
+        "phone": "1553"
+      }
+    ],
+    "Poland": [
+      {
+        "name": "Helpline",
+        "phone": "116 123"
+      }
+    ],
+    "Portugal": [
+      {
+        "name": "SOS Voz Amiga",
+        "phone": "1411"
+      }
+    ],
+    "Puerto Rico": [
+      {
+        "name": "Linea PAS",
+        "phone": "988"
+      }
+    ],
+    "Qatar": [
+      {
+        "name": "National Mental Health Helpline",
+        "phone": "16000"
+      }
+    ],
+    "Romania": [
+      {
+        "name": "Helpline",
+        "phone": "0374 456 420"
+      }
+    ],
+    "Russia": [
+      {
+        "name": "Helpline",
+        "phone": "8 495 989-50-50"
+      }
+    ],
+    "Rwanda": [
+      {
+        "name": "Suicide Prevention Helpline",
+        "phone": "8015"
+      }
+    ],
+    "Saint Kitts and Nevis": [
+      {
+        "name": "Helpline",
+        "phone": "(869) 465-5000"
+      }
+    ],
+    "Saint Lucia": [
+      {
+        "name": "National Health Helpline",
+        "phone": "203"
+      }
+    ],
+    "Saint Vincent and the Grenadines": [
+      {
+        "name": "Helpline",
+        "phone": "(784) 456-1044"
+      }
+    ],
+    "Samoa": [
+      {
+        "name": "Samoa Helpline",
+        "phone": "800 7874"
+      }
+    ],
+    "San Marino": [
+      {
+        "name": "Helpline",
+        "phone": "800 995 988"
+      }
+    ],
+    "Saudi Arabia": [
+      {
+        "name": "Psychological Counseling Center",
+        "phone": "9200 33360"
+      }
+    ],
+    "Senegal": [
+      {
+        "name": "Centre de Guidance Infantile",
+        "phone": "33 889 38 00"
+      }
+    ],
+    "Serbia": [
+      {
+        "name": "Helpline",
+        "phone": "0800 309-309"
+      }
+    ],
+    "Seychelles": [
+      {
+        "name": "National Suicide Prevention",
+        "phone": "432 3535"
+      }
+    ],
+    "Sierra Leone": [
+      {
+        "name": "Mental Health Coalition",
+        "phone": "078 522 787"
+      }
+    ],
+    "Singapore": [
+      {
+        "name": "Samaritans of Singapore",
+        "phone": "1767"
+      }
+    ],
+    "Sint Maarten": [
+      {
+        "name": "Mental Health Foundation",
+        "phone": "721 585-5556"
+      }
+    ],
+    "Slovakia": [
+      {
+        "name": "Helpline",
+        "phone": "0800 800 566"
+      }
+    ],
+    "Slovenia": [
+      {
+        "name": "Helpline",
+        "phone": "116 123"
+      }
+    ],
+    "Solomon Islands": [
+      {
+        "name": "Solomon Islands Helpline",
+        "phone": "699"
+      }
+    ],
+    "South Africa": [
+      {
+        "name": "SADAG Emergency Helpline",
+        "phone": "0800 567 567"
+      }
+    ],
+    "South Korea": [
+      {
+        "name": "Suicide Prevention Line",
+        "phone": "109"
+      }
+    ],
+    "South Sudan": [
+      {
+        "name": "IOM Helpline",
+        "phone": "778"
+      }
+    ],
+    "Spain": [
+      {
+        "name": "Linea 024",
+        "phone": "024"
+      }
+    ],
+    "Sri Lanka": [
+      {
+        "name": "NIMH Hotline",
+        "phone": "1926"
+      }
+    ],
+    "Sudan": [
+      {
+        "name": "Emergency Crisis Counseling",
+        "phone": "011 555 253"
+      }
+    ],
+    "Suriname": [
+      {
+        "name": "Stichting 113",
+        "phone": "123"
+      }
+    ],
+    "Sweden": [
+      {
+        "name": "Mind Sjalvmordslinjen",
+        "phone": "90101"
+      }
+    ],
+    "Switzerland": [
+      {
+        "name": "Die Dargebotene Hand",
+        "phone": "143"
+      }
+    ],
+    "Syria": [
+      {
+        "name": "Syrian Arab Red Crescent",
+        "phone": "0944 868 444"
+      }
+    ],
+    "Taiwan": [
+      {
+        "name": "Reassurance Line",
+        "phone": "1925"
+      }
+    ],
+    "Tajikistan": [
+      {
+        "name": "National Mental Health Helpline",
+        "phone": "935 50 50 50"
+      }
+    ],
+    "Tanzania": [
+      {
+        "name": "Afya Call Center",
+        "phone": "199"
+      }
+    ],
+    "Thailand": [
+      {
+        "name": "Department of Mental Health",
+        "phone": "1323"
+      }
+    ],
+    "Timor-Leste": [
+      {
+        "name": "PRADET",
+        "phone": "7725 4597"
+      }
+    ],
+    "Togo": [
+      {
+        "name": "Mental Health Helpline",
+        "phone": "2221 1234"
+      }
+    ],
+    "Tonga": [
+      {
+        "name": "Tonga Helpline",
+        "phone": "22091"
+      }
+    ],
+    "Trinidad and Tobago": [
+      {
+        "name": "Lifeline Trinidad and Tobago",
+        "phone": "800-5588"
+      }
+    ],
+    "Tunisia": [
+      {
+        "name": "Mental Health Helpline",
+        "phone": "8010 3666"
+      }
+    ],
+    "Turkey": [
+      {
+        "name": "Mental Health Support",
+        "phone": "183"
+      }
+    ],
+    "Uganda": [
+      {
+        "name": "Mental Health Uganda",
+        "phone": "0800 21 21 21"
+      }
+    ],
+    "Ukraine": [
+      {
+        "name": "Helpline",
+        "phone": "0800100102"
+      }
+    ],
+    "United Arab Emirates": [
+      {
+        "name": "National Mental Support Line",
+        "phone": "800 4673"
+      }
+    ],
+    "United Kingdom": [
+      {
+        "name": "Samaritans",
+        "phone": "116 123"
+      }
+    ],
+    "United States": [
+      {
+        "name": "988 Suicide & Crisis Lifeline",
+        "phone": "988"
+      }
+    ],
+    "Uruguay": [
+      {
+        "name": "Linea de Prevencion",
+        "phone": "0800 0767"
+      }
+    ],
+    "Uzbekistan": [
+      {
+        "name": "Republican Scientific Centre",
+        "phone": "71 276 49 66"
+      }
+    ],
+    "Vatican City": [
+      {
+        "name": "Helpline",
+        "phone": "06 7720 8977"
+      }
+    ],
+    "Venezuela": [
+      {
+        "name": "Linea de Ayuda Psicologica",
+        "phone": "0424-290-7338"
+      }
+    ],
+    "Vietnam": [
+      {
+        "name": "Tam Ngay Tro Chuyen Lifeline",
+        "phone": "1900 6233"
+      }
+    ],
+    "Yemen": [
+      {
+        "name": "Yemen Helpline",
+        "phone": "8000202"
+      }
+    ],
+    "Zambia": [
+      {
+        "name": "Crisis and Support Helpline",
+        "phone": "096 026 4040"
+      }
+    ],
+    "Zimbabwe": [
+      {
+        "name": "Samaritans Zimbabwe",
+        "phone": "029 226 5000"
+      }
+    ]
+  }
+}
