@@ -72,6 +72,14 @@ services:
       # precisely so you can compare them.
       - key: SECRET_KEY
         sync: false
+      # Without this the service falls back to the in-code default
+      # (localhost,testserver,ws.relationshipai.com) and TrustedHostMiddleware
+      # 400s every request including Render's health check — the service runs
+      # perfectly and never passes. The Django side works only because its
+      # ALLOWED_HOSTS is set, which is also the proof that Render's health
+      # check sends the real external hostname rather than an internal address.
+      - key: ALLOWED_HOSTS
+        value: bliss-fastapi.onrender.com,localhost,testserver
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
