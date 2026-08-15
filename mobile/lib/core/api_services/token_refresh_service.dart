@@ -20,11 +20,17 @@ class TokenRefreshService {
 
   /// A bare Dio with no auth interceptor — refreshing must not recurse through
   /// the interceptor that triggered it.
+  ///
+  /// 60s to match BaseApiService, and it matters more here than there. A
+  /// refresh runs on a 401, so on a scale-to-zero host the *first* request
+  /// after idle is the one most likely to find an expired token and a sleeping
+  /// server at the same time. A timeout on this path does not surface as a slow
+  /// screen — it fails the refresh, and a failed refresh signs the user out.
   static Dio _dio = Dio(
     BaseOptions(
       baseUrl: CertConfig.djangoBaseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 60),
       headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
     ),
   );
