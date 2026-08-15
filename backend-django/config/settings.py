@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import ssl
 import sys
 import environ
 import sentry_sdk
@@ -214,7 +215,23 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_TIMEZONE = "UTC"
-CELERY_BROKER_USE_SSL = {} if REDIS_URL.startswith("rediss://") else False
+# An empty dict here means "use TLS, with no options", and Celery's Redis
+# *result backend* refuses that outright:
+#
+#   ValueError: A rediss:// URL must have parameter ssl_cert_reqs and this must
+#   be set to CERT_REQUIRED, CERT_OPTIONAL, or CERT_NONE
+#
+# The broker was quieter about it and merely warned that it was "defaulting to
+# insecure SSL behaviour" — so the empty dict was both fatal in one place and
+# silently weakening verification in the other.
+#
+# CERT_REQUIRED because Upstash serves a publicly-trusted certificate. Do not
+# reach for CERT_NONE to make an error go away here: it disables verification
+# on the transport carrying every queued task.
+_REDIS_IS_TLS = REDIS_URL.startswith("rediss://")
+CELERY_BROKER_USE_SSL = (
+    {"ssl_cert_reqs": ssl.CERT_REQUIRED} if _REDIS_IS_TLS else None
+)
 CELERY_REDIS_BACKEND_USE_SSL = CELERY_BROKER_USE_SSL
 
 CELERY_TASK_ROUTES = {
